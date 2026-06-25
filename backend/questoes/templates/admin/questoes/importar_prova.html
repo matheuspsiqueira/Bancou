@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<h1>📥 Importar Prova</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="form-row">
+    {{ form.as_p }}
+  </div>
+  <input type="submit" value="Importar e enviar pra fila de revisão" class="default">
+</form>
+
+{% endblock %}
