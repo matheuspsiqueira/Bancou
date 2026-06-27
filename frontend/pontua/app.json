@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Pontua",
+    "slug": "pontua",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/ponts-animado1.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/ponts-animado1.png",
+        "backgroundImage": "./src/assets/ponts-animado1.png",
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "web": {
+      "favicon": "./src/assets/ponts-animado1.png"
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
+}
