@@ -49,7 +49,7 @@ function getFaixa(acertos, total) {
     return {
       titulo: 'Não desanima!',
       subtitulo: 'Todo especialista já foi iniciante. O primeiro passo é agora.',
-      pose: require('../assets/ponts-ops.png'),
+      pose: require('../assets/ponts-foco.png'),
       corTitulo: '#FF6B35',
     };
   }
@@ -58,6 +58,8 @@ function getFaixa(acertos, total) {
 export default function DemoScoreScreen({ navigation, route }) {
   const { acertos = 0, total = 10 } = route.params ?? {};
   const xpGanho = acertos * XP_POR_ACERTO;
+  const erros = total - acertos;
+  const aproveitamento = Math.round((acertos / total) * 100);
   const faixa = getFaixa(acertos, total);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -76,28 +78,11 @@ export default function DemoScoreScreen({ navigation, route }) {
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
       ]),
-      Animated.timing(xpAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
+      Animated.timing(xpAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -111,65 +96,42 @@ export default function DemoScoreScreen({ navigation, route }) {
     >
       <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
 
-      {/* Ponts */}
-      <Animated.View
-        style={[
-          styles.pontsWrapper,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.pontsWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <Image source={faixa.pose} style={styles.ponts} resizeMode="contain" />
       </Animated.View>
 
-      {/* Título da faixa */}
-      <Animated.View
-        style={{
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        }}
-      >
-        <Text style={[styles.titulo, { color: faixa.corTitulo }]}>
-          {faixa.titulo}
-        </Text>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], alignItems: 'center' }}>
+        <Text style={[styles.titulo, { color: faixa.corTitulo }]}>{faixa.titulo}</Text>
         <Text style={styles.subtitulo}>{faixa.subtitulo}</Text>
       </Animated.View>
 
       {/* Card de resultado */}
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        {/* Placar */}
+      <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+
+        {/* Placar — três colunas com largura fixa, sem flex */}
         <View style={styles.placarRow}>
           <View style={styles.placarItem}>
-            <Text style={styles.placarNumero}>{acertos}</Text>
+            <Text style={styles.numeroAcerto}>{acertos}</Text>
             <Text style={styles.placarLabel}>acertos</Text>
           </View>
+
           <View style={styles.divisorVertical} />
+
           <View style={styles.placarItem}>
-            <Text style={styles.placarNumeroSecundario}>{total - acertos}</Text>
+            <Text style={styles.numeroErro}>{erros}</Text>
             <Text style={styles.placarLabel}>erros</Text>
           </View>
+
           <View style={styles.divisorVertical} />
+
           <View style={styles.placarItem}>
-            <Text style={styles.placarNumero}>
-              {Math.round((acertos / total) * 100)}%
-            </Text>
+            <Text style={styles.numeroPct}>{aproveitamento}%</Text>
             <Text style={styles.placarLabel}>aproveitamento</Text>
           </View>
         </View>
 
         <View style={styles.divisorHorizontal} />
 
-        {/* XP ganho */}
         <Animated.View style={[styles.xpRow, { opacity: xpAnim }]}>
           <Text style={styles.xpIcone}>⭐</Text>
           <Text style={styles.xpValor}>+{xpGanho} XP</Text>
@@ -177,31 +139,13 @@ export default function DemoScoreScreen({ navigation, route }) {
         </Animated.View>
       </Animated.View>
 
-      {/* Chamada de valor */}
-      <Animated.View
-        style={[
-          styles.valorBox,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.valorBox, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.valorTexto}>
           Crie sua conta e acumule XP, mantenha sua sequência e concorra às vagas que você quer.
         </Text>
       </Animated.View>
 
-      {/* CTAs */}
-      <Animated.View
-        style={[
-          styles.ctaWrapper,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.ctaWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <TouchableOpacity
           style={styles.botaoPrimario}
           onPress={() => navigation.navigate('Auth', { tela: 'cadastro' })}
@@ -232,18 +176,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 48,
     paddingBottom: 40,
+    gap: 0,
   },
 
-  // Ponts
-  pontsWrapper: {
-    marginBottom: 16,
-  },
-  ponts: {
-    width: 160,
-    height: 160,
-  },
+  pontsWrapper: { marginBottom: 16 },
+  ponts: { width: 160, height: 160 },
 
-  // Título
   titulo: {
     fontFamily: 'Nunito_900Black',
     fontSize: 28,
@@ -260,44 +198,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
-  // Card
   card: {
     backgroundColor: '#252540',
     borderRadius: 14,
     width: '100%',
     paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 20,
   },
+
   placarRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   placarItem: {
+    width: 90,
     alignItems: 'center',
-    flex: 1,
   },
-  placarNumero: {
+  numeroAcerto: {
     fontFamily: 'Nunito_900Black',
     fontSize: 36,
     color: '#FFD700',
+    includeFontPadding: false,
   },
-  placarNumeroSecundario: {
+  numeroErro: {
     fontFamily: 'Nunito_900Black',
     fontSize: 36,
     color: '#FF4069',
+    includeFontPadding: false,
+  },
+  numeroPct: {
+    fontFamily: 'Nunito_900Black',
+    fontSize: 30,
+    color: '#FFD700',
+    includeFontPadding: false,
   },
   placarLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: '#9090B0',
-    marginTop: 2,
+    marginTop: 4,
+    textAlign: 'center',
   },
   divisorVertical: {
     width: 1,
-    height: 48,
+    height: 56,
     backgroundColor: '#1a1a2e',
+    marginHorizontal: 4,
   },
   divisorHorizontal: {
     height: 1,
@@ -305,16 +253,13 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
 
-  // XP
   xpRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  xpIcone: {
-    fontSize: 20,
-  },
+  xpIcone: { fontSize: 20 },
   xpValor: {
     fontFamily: 'Nunito_900Black',
     fontSize: 24,
@@ -326,7 +271,6 @@ const styles = StyleSheet.create({
     color: '#9090B0',
   },
 
-  // Valor
   valorBox: {
     backgroundColor: '#252540',
     borderRadius: 14,
@@ -343,7 +287,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 
-  // Botões
   ctaWrapper: {
     width: '100%',
     gap: 12,

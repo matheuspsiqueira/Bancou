@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, StatusBar,
@@ -153,28 +153,34 @@ export default function DemoScreen({ navigation }) {
   const [indice, setIndice] = useState(0);
   const [selecionada, setSelecionada] = useState(null);
   const [confirmada, setConfirmada] = useState(false);
-  const [acertos, setAcertos] = useState(0);
+
+  // useRef é síncrono — leitura sempre reflete o valor atual
+  const acertosRef = useRef(0);
+  // acertouAtual guarda se a questão atual foi acertada, para o footer saber
+  const acertouAtualRef = useRef(false);
 
   const questao = QUESTOES_DEMO[indice];
   const isUltima = indice === QUESTOES_DEMO.length - 1;
-  const acertou = confirmada && selecionada === questao.gabarito;
-  const errou = confirmada && selecionada !== questao.gabarito;
+  const acertou = confirmada && acertouAtualRef.current;
+  const errou = confirmada && !acertouAtualRef.current;
 
   const confirmar = () => {
     if (!selecionada) return;
     const correto = selecionada === questao.gabarito;
-    setConfirmada(true);
-    if (correto) setAcertos(a => a + 1);
+    acertouAtualRef.current = correto;
+    if (correto) acertosRef.current += 1;
+    setConfirmada(true); // força re-render para mostrar feedback
   };
 
   const avancar = () => {
     if (isUltima) {
       navigation.replace('DemoScore', {
-        acertos: acertos + (selecionada === questao.gabarito ? 1 : 0),
+        acertos: acertosRef.current,
         total: QUESTOES_DEMO.length,
       });
       return;
     }
+    acertouAtualRef.current = false;
     setIndice(i => i + 1);
     setSelecionada(null);
     setConfirmada(false);
@@ -198,7 +204,6 @@ export default function DemoScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.progressoRow}>
           {QUESTOES_DEMO.map((_, i) => (
@@ -217,12 +222,10 @@ export default function DemoScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Badge demo */}
         <View style={styles.demoBadge}>
           <Text style={styles.demoBadgeTexto}>🎮 Modo demonstração</Text>
         </View>
 
-        {/* Metadata */}
         <View style={styles.metaRow}>
           <View style={styles.metaChip}>
             <Text style={styles.metaTexto}>{questao.banca}</Text>
@@ -232,10 +235,8 @@ export default function DemoScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Enunciado */}
         <Text style={styles.enunciado}>{questao.enunciado}</Text>
 
-        {/* Alternativas */}
         <View style={styles.alternativas}>
           {questao.alternativas.map((alt) => (
             <TouchableOpacity
@@ -257,15 +258,18 @@ export default function DemoScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Feedback */}
         {confirmada && (
-          <View style={[styles.feedback, { backgroundColor: acertou ? '#0d2b1f' : '#2b0d1a', borderColor: acertou ? colors.correct : colors.lives }]}>
+          <View style={[styles.feedback, {
+            backgroundColor: acertou ? '#0d2b1f' : '#2b0d1a',
+            borderColor: acertou ? colors.correct : colors.lives,
+          }]}>
             <Text style={[styles.feedbackTitulo, { color: acertou ? colors.correct : colors.lives }]}>
               {acertou ? '✓  Correto!' : '✗  Incorreto'}
             </Text>
             {errou && (
               <Text style={styles.feedbackSub}>
-                A resposta correta é a alternativa <Text style={{ color: colors.correct, fontFamily: typography.bold }}>{questao.gabarito}</Text>
+                A resposta correta é a alternativa{' '}
+                <Text style={{ color: colors.correct, fontFamily: typography.bold }}>{questao.gabarito}</Text>
               </Text>
             )}
           </View>
@@ -273,7 +277,6 @@ export default function DemoScreen({ navigation }) {
 
       </ScrollView>
 
-      {/* Botão de ação */}
       <View style={styles.footer}>
         {!confirmada ? (
           <TouchableOpacity

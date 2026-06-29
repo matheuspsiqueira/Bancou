@@ -4,10 +4,12 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated,
 } from 'react-native';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 export default function AuthScreen({ navigation, route }) {
   const abaPadrao = route?.params?.tela === 'login' ? 1 : 0;
   const [abaAtiva, setAbaAtiva] = useState(abaPadrao);
+  const { signIn } = useAuth();
 
   // Cadastro
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -25,6 +27,9 @@ export default function AuthScreen({ navigation, route }) {
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [erroLogin, setErroLogin] = useState('');
 
+
+  const API = 'https://beec-2804-14d-5c42-854e-45d1-5a0c-ce83-b4b1.ngrok-free.app';
+
   const handleCadastro = async () => {
     setErroCad('');
     if (!nomeCompleto || !usernameCad || !emailCad || !senhaCad) {
@@ -41,7 +46,7 @@ export default function AuthScreen({ navigation, route }) {
     }
     setLoadingCad(true);
     try {
-      const res = await fetch('http://SEU_IP:8000/api/usuarios/registro/', {
+      const res = await fetch(`${API}/api/usuarios/registro/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,7 +63,7 @@ export default function AuthScreen({ navigation, route }) {
         setErroCad(msgs);
         return;
       }
-      navigation.replace('Home');
+      await signIn(data.access, data.refresh);
     } catch (e) {
       setErroCad('Erro de conexão. Tente novamente.');
     } finally {
@@ -74,7 +79,7 @@ export default function AuthScreen({ navigation, route }) {
     }
     setLoadingLogin(true);
     try {
-      const res = await fetch('http://SEU_IP:8000/api/usuarios/login/', {
+      const res = await fetch(`${API}/api/usuarios/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailLogin, password: senhaLogin }),
@@ -84,8 +89,8 @@ export default function AuthScreen({ navigation, route }) {
         setErroLogin('E-mail ou senha incorretos.');
         return;
       }
-      // TODO: salvar tokens (AsyncStorage)
-      navigation.replace('Home');
+      await signIn(data.access, data.refresh);
+
     } catch (e) {
       setErroLogin('Erro de conexão. Tente novamente.');
     } finally {

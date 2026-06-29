@@ -29,10 +29,15 @@ class PerfilView(APIView):
             data=request.data,
             partial=True,
             context={'request': request},
-        )
+        )   
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(UsuarioSerializer(request.user, context={'request': request}).data)
+    
+    def delete(self, request):
+        user = request.user
+        user.delete()
+        return Response({'detail': 'Conta excluída com sucesso.'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class AlterarSenhaView(APIView):
