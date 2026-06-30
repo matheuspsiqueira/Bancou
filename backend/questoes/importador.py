@@ -1,4 +1,5 @@
 import anthropic
+import json as _json
 import base64
 import json
 import os
@@ -270,3 +271,53 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
         total += 1
 
     return total
+
+
+def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file):
+    """
+    Importa questões a partir de um arquivo JSON já estruturado,
+    sem passar pela extração via IA. Usa o mesmo schema que o
+    PROMPT_EXTRACAO já produz, então um JSON exportado da extração
+    automática (ou editado manualmente) pode ser reimportado direto.
+
+    Schema esperado:
+    {
+      "questoes": [
+        {
+          "numero_questao": 1,
+          "enunciado": "...",
+          "texto_base": {"titulo": "...", "conteudo": "...", "fonte": "..."} | null,
+          "texto_base_compartilhado": true | false,
+          "questoes_que_compartilham_texto_base": [1, 2, 3],
+          "alternativas": [{"letra": "A", "texto": "..."}, ...],
+          "gabarito": "A",
+          "materia": "Direito Constitucional",
+          "tem_imagem": false
+        }
+      ]
+    }
+    """
+    conteudo = json_file.read()
+    if isinstance(conteudo, bytes):
+        conteudo = conteudo.decode('utf-8')
+
+    try:
+        dados = _json.loads(conteudo)
+    except _json.JSONDecodeError as e:
+        raise ValueError(f'JSON inválido: {e}')
+
+    questoes = dados.get('questoes')
+    if not questoes:
+        raise ValueError('O JSON precisa ter uma chave "questoes" com uma lista de questões.')
+
+    # Validação mínima de cada questão antes de salvar
+    for i, q in enumerate(questoes):
+        if 'numero_questao' not in q:
+            raise ValueError(f'Questão no índice {i} não tem "numero_questao".')
+        if 'enunciado' not in q:
+            raise ValueError(f'Questão {q.get("numero_questao", i)} não tem "enunciado".')
+
+    # Reaproveita a mesma função de gravação usada pela extração via IA.
+    # Gabarito já vem embutido em cada questão (campo "gabarito"), então
+    # passamos um dict vazio — a função usa q.get('gabarito', '') como fallback.
+    return _salvar_questoes(questoes, {}, banca, concurso_nome, cargo, ano)

@@ -7,11 +7,11 @@ from django import forms
 import json
 
 from .models import Banca, Concurso, Materia, Questao, Alternativa
-from .importador import importar_questoes_do_pdf
+from .importador import importar_questoes_do_pdf, importar_questoes_de_json
 
 
 # ---------------------------------------------------------------------------
-# Form de upload
+# Forms de upload
 # ---------------------------------------------------------------------------
 
 class ImportarProvaForm(forms.Form):
@@ -25,6 +25,21 @@ class ImportarProvaForm(forms.Form):
     ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
     pdf_prova = forms.FileField(label='PDF da Prova')
     pdf_gabarito = forms.FileField(label='PDF do Gabarito', required=False)
+
+
+class ImportarJsonForm(forms.Form):
+    banca = forms.ModelChoiceField(
+        queryset=Banca.objects.all(),
+        label='Banca',
+        help_text='Selecione ou <a href="/admin/questoes/banca/add/" target="_blank">cadastre uma nova banca</a>',
+    )
+    concurso_nome = forms.CharField(max_length=200, label='Nome do concurso')
+    cargo = forms.CharField(max_length=200, label='Cargo', required=False)
+    ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
+    arquivo_json = forms.FileField(
+        label='Arquivo JSON',
+        help_text='JSON já estruturado no formato de extração (sem passar pela IA).',
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -121,16 +136,18 @@ class QuestaoAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         extras = [
             path('importar-prova/', self.admin_site.admin_view(self.view_importar_prova), name='importar_prova'),
+            path('importar-json/', self.admin_site.admin_view(self.view_importar_json), name='importar_json'),
         ]
         return extras + urls
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['importar_url'] = 'importar-prova/'
+        extra_context['importar_json_url'] = 'importar-json/'
         return super().changelist_view(request, extra_context=extra_context)
 
     # ------------------------------------------------------------------
-    # View de importação
+    # View de importação via PDF (com IA)
     # ------------------------------------------------------------------
 
     def view_importar_prova(self, request):
@@ -156,9 +173,42 @@ class QuestaoAdmin(admin.ModelAdmin):
         context = {
             **self.admin_site.each_context(request),
             'form': form,
-            'title': 'Importar Prova',
+            'title': 'Importar Prova (PDF + IA)',
             'opts': self.model._meta,
         }
+        return render(request, 'admin/questoes/importar_prova.html', context)
+
+    # ------------------------------------------------------------------
+    # View de importação via JSON pronto (sem IA)
+    # ------------------------------------------------------------------
+
+    def view_importar_json(self, request):
+        if request.method == 'POST':
+            form = ImportarJsonForm(request.POST, request.FILES)
+            if form.is_valid():
+                try:
+                    total = importar_questoes_de_json(
+                        banca=form.cleaned_data['banca'],
+                        concurso_nome=form.cleaned_data['concurso_nome'],
+                        cargo=form.cleaned_data['cargo'],
+                        ano=form.cleaned_data['ano'],
+                        json_file=request.FILES['arquivo_json'],
+                    )
+                    messages.success(request, f'✅ {total} questões importadas (via JSON) para a fila de revisão!')
+                    return redirect('../')
+                except Exception as e:
+                    messages.error(request, f'❌ Erro ao processar: {e}')
+        else:
+            form = ImportarJsonForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'form': form,
+            'title': 'Importar Prova (JSON pronto)',
+            'opts': self.model._meta,
+        }
+        # Reaproveita o mesmo template do import de PDF — o form muda,
+        # o layout (título + botão) é genérico o suficiente.
         return render(request, 'admin/questoes/importar_prova.html', context)
 
     # ------------------------------------------------------------------

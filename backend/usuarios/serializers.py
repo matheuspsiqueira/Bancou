@@ -44,7 +44,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
-        fields = ('id', 'email', 'username', 'nome_completo', 'avatar_url')
+        fields = (
+            'id', 'email', 'username', 'nome_completo', 'avatar_url',
+            'xp', 'moedas', 'vidas', 'streak',
+        )
+        # xp/moedas/vidas/streak só mudam via lógica de servidor
+        # (registrar-resultado/), nunca direto pelo cliente.
+        read_only_fields = ('xp', 'moedas', 'vidas', 'streak')
 
     def get_avatar_url(self, obj):
         request = self.context.get('request')
@@ -95,3 +101,43 @@ class AlterarSenhaSerializer(serializers.Serializer):
         usuario.set_password(self.validated_data['nova_senha'])
         usuario.save()
         return usuario
+
+
+class RegistrarResultadoSerializer(serializers.Serializer):
+    """
+    Recebe o resultado consolidado de UMA partida e calcula no servidor
+    as variações de XP, moedas e vidas. O app nunca envia "xp_ganho" pronto
+    — só o que aconteceu na partida — pra evitar manipulação de payload.
+    """
+    acertos = serializers.IntegerField(min_value=0)
+    erros = serializers.IntegerField(min_value=0)
+    abandonada = serializers.BooleanField(default=False)
+
+    XP_POR_ACERTO = 10
+    MOEDAS_POR_ACERTO = 2
+
+    def validate(self, attrs):
+        if attrs['acertos'] + attrs['erros'] > 10:
+            raise serializers.ValidationError('Uma partida tem no máximo 10 questões.')
+        return attrs
+
+    def save(self):
+        usuario = self.context['request'].user
+        acertos = self.validated_data['acertos']
+        erros = self.validated_data['erros']
+
+        xp_ganho = acertos * self.XP_POR_ACERTO
+        moedas_ganhas = acertos * self.MOEDAS_POR_ACERTO
+        vidas_perdidas = min(erros, usuario.vidas)
+
+        usuario.xp += xp_ganho
+        usuario.moedas += moedas_ganhas
+        usuario.vidas = max(0, usuario.vidas - vidas_perdidas)
+        usuario.save(update_fields=['xp', 'moedas', 'vidas'])
+
+        return {
+            'xp_ganho': xp_ganho,
+            'moedas_ganhas': moedas_ganhas,
+            'vidas_perdidas': vidas_perdidas,
+            'usuario': usuario,
+        }
