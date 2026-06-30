@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
 
-const API_URL = 'https://beec-2804-14d-5c42-854e-45d1-5a0c-ce83-b4b1.ngrok-free.app';
+const API_URL = 'https://1c4e-2804-14d-5c42-854e-198b-24ca-6475-d581.ngrok-free.app';
 
 export function AuthProvider({ children }) {
   const [autenticado, setAutenticado] = useState(false);
@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
       const refresh = await AsyncStorage.getItem('refresh_token');
       if (!refresh) { await signOut(); return resp; }
 
-      const refreshResp = await fetch(`${API_URL}/api/token/refresh/`, {
+      const refreshResp = await fetch(`${API_URL}/api/usuarios/token/refresh/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

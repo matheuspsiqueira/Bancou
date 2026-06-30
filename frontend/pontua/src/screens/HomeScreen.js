@@ -15,6 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = 'https://1c4e-2804-14d-5c42-854e-198b-24ca-6475-d581.ngrok-free.app';
 
 // ─── Tabela de níveis ──────────────────────────────────────────────────────
 const NIVEIS = [
@@ -367,13 +370,24 @@ function ModalEditarPerfil({ visible, onClose }) {
   const excluirConta = async () => {
     setCarregando(true);
     try {
-      const resp = await authFetch('/api/usuarios/perfil/', { method: 'DELETE' });
+      const access = await AsyncStorage.getItem('access_token');
+      console.log('TOKEN:', access);
+      console.log('URL:', `${API_URL}/api/usuarios/perfil/`);
+      const resp = await fetch(`${API_URL}/api/usuarios/perfil/`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${access}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
       if (resp.ok || resp.status === 204) {
         await signOut();
       } else {
         Alert.alert('Erro', 'Não foi possível excluir a conta. Tente novamente.');
       }
-    } catch {
+    } catch (e) {
+      console.log('ERRO DELETE:', e);
       Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
     } finally {
       setCarregando(false);
