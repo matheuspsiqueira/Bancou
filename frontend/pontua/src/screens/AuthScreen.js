@@ -6,7 +6,7 @@ import {
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 
-const API = 'https://b23b-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
+const API = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 // ─── Input com toggle de visibilidade ─────────────────────────────────────────
 function Input({ label, secureTextEntry, ...props }) {
@@ -377,7 +377,10 @@ export default function AuthScreen({ navigation, route }) {
               secureTextEntry
             />
 
-            <TouchableOpacity style={styles.esqueciBtn}>
+            <TouchableOpacity
+              style={styles.esqueciBtn}
+              onPress={() => navigation.navigate('RecuperarSenha')}
+            >
               <Text style={styles.esqueciTexto}>Esqueci minha senha</Text>
             </TouchableOpacity>
 

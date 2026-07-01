@@ -1,0 +1,239 @@
+// src/screens/RecuperarSenhaScreen.js
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const API_URL = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
+
+function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
+  return (
+    <>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.inputSenhaWrapper}>
+        <TextInput
+          style={styles.inputSenha}
+          placeholder={placeholder}
+          placeholderTextColor="#9090B0"
+          secureTextEntry={!ver}
+          value={value}
+          onChangeText={onChangeText}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TouchableOpacity style={styles.inputSenhaOlho} onPress={() => setVer((v) => !v)} activeOpacity={0.7}>
+          <Text style={styles.inputSenhaOlhoIcon}>{ver ? '🙈' : '👁️'}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}
+
+export default function RecuperarSenhaScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
+  const [etapa, setEtapa]           = useState('email'); // 'email' | 'codigo'
+  const [email, setEmail]           = useState('');
+  const [codigo, setCodigo]         = useState('');
+  const [novaSenha, setNovaSenha]   = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [verNova, setVerNova]       = useState(false);
+  const [verConfirmacao, setVerConfirmacao] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+
+  const solicitarCodigo = async () => {
+    if (!email.trim()) {
+      Alert.alert('Atenção', 'Digite seu e-mail.');
+      return;
+    }
+    setCarregando(true);
+    try {
+      await fetch(`${API_URL}/api/usuarios/recuperar-senha/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      // Resposta é sempre genérica — avançamos pra próxima etapa independente do resultado
+      setEtapa('codigo');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const confirmarNovaSenha = async () => {
+    if (!codigo.trim() || !novaSenha || !confirmacao) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
+    }
+    if (novaSenha !== confirmacao) {
+      Alert.alert('Atenção', 'A nova senha e a confirmação não coincidem.');
+      return;
+    }
+    if (novaSenha.length < 8) {
+      Alert.alert('Atenção', 'A nova senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+
+    setCarregando(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/usuarios/recuperar-senha/confirmar/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        body: JSON.stringify({
+          email: email.trim(),
+          codigo: codigo.trim(),
+          nova_senha: novaSenha,
+          nova_senha2: confirmacao,
+        }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        Alert.alert('Senha redefinida!', 'Faça login com sua nova senha.', [
+          { text: 'OK', onPress: () => navigation.navigate('Auth', { tela: 'login' }) },
+        ]);
+      } else {
+        const msg = data.codigo?.[0] || data.nova_senha?.[0] || data.detail || 'Erro ao redefinir senha.';
+        Alert.alert('Erro', msg);
+      }
+    } catch {
+      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }}
+    >
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.voltarBtn}>
+        <Text style={styles.voltarText}>‹  Voltar</Text>
+      </TouchableOpacity>
+
+      {etapa === 'email' && (
+        <>
+          <Text style={styles.titulo}>Esqueceu a senha?</Text>
+          <Text style={styles.subtitulo}>
+            Digite o e-mail da sua conta. Vamos enviar um código de 6 dígitos para redefinir sua senha.
+          </Text>
+
+          <Text style={styles.inputLabel}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="seu@email.com"
+            placeholderTextColor="#9090B0"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TouchableOpacity
+            style={[styles.botao, carregando && { opacity: 0.6 }]}
+            onPress={solicitarCodigo}
+            disabled={carregando}
+            activeOpacity={0.85}
+          >
+            {carregando ? <ActivityIndicator color="#FFF" /> : <Text style={styles.botaoTexto}>Enviar código</Text>}
+          </TouchableOpacity>
+        </>
+      )}
+
+      {etapa === 'codigo' && (
+        <>
+          <Text style={styles.titulo}>Digite o código</Text>
+          <Text style={styles.subtitulo}>
+            Enviamos um código de 6 dígitos para {email}. Ele expira em 15 minutos.
+          </Text>
+
+          <Text style={styles.inputLabel}>Código</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="000000"
+            placeholderTextColor="#9090B0"
+            value={codigo}
+            onChangeText={setCodigo}
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+
+          <CampoSenha
+            label="Nova senha"
+            placeholder="Digite a nova senha"
+            value={novaSenha}
+            onChangeText={setNovaSenha}
+            ver={verNova}
+            setVer={setVerNova}
+          />
+          <CampoSenha
+            label="Confirmar nova senha"
+            placeholder="Repita a nova senha"
+            value={confirmacao}
+            onChangeText={setConfirmacao}
+            ver={verConfirmacao}
+            setVer={setVerConfirmacao}
+          />
+
+          <TouchableOpacity
+            style={[styles.botao, carregando && { opacity: 0.6 }]}
+            onPress={confirmarNovaSenha}
+            disabled={carregando}
+            activeOpacity={0.85}
+          >
+            {carregando ? <ActivityIndicator color="#FFF" /> : <Text style={styles.botaoTexto}>Redefinir senha</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={solicitarCodigo} style={{ marginTop: 4, alignItems: 'center' }}>
+            <Text style={styles.reenviarText}>Reenviar código</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#1a1a2e' },
+  voltarBtn: { marginBottom: 20 },
+  voltarText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#6C63FF' },
+  titulo: { fontFamily: 'Nunito_900Black', fontSize: 26, color: '#FFFFFF', marginBottom: 8 },
+  subtitulo: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#9090B0', lineHeight: 21, marginBottom: 28 },
+  inputLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: '#252540', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontFamily: 'Inter_400Regular', fontSize: 15, color: '#FFFFFF',
+    marginBottom: 20, borderWidth: 1, borderColor: '#35355a',
+  },
+  inputSenhaWrapper: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#252540', borderRadius: 12,
+    borderWidth: 1, borderColor: '#35355a',
+    marginBottom: 16, paddingRight: 12,
+  },
+  inputSenha: {
+    flex: 1, color: '#FFFFFF',
+    fontFamily: 'Inter_400Regular', fontSize: 15,
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  inputSenhaOlho: { padding: 4 },
+  inputSenhaOlhoIcon: { fontSize: 18 },
+  botao: {
+    backgroundColor: '#6C63FF', borderRadius: 14,
+    paddingVertical: 16, alignItems: 'center', marginTop: 8,
+  },
+  botaoTexto: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+  reenviarText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#6C63FF' },
+});

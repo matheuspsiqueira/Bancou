@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Usuario
+import random
+from datetime import timedelta
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 
 
 class RegistroSerializer(serializers.ModelSerializer):
@@ -150,3 +155,63 @@ class RegistrarResultadoSerializer(serializers.Serializer):
             'vidas_perdidas': vidas_perdidas,
             'usuario': usuario,
         }
+
+
+class SolicitarRecuperacaoSenhaSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        # Não guardamos se existe ou não aqui — resposta pro cliente é sempre genérica,
+        # pra não vazar quais e-mails estão cadastrados na base
+        self.usuario = Usuario.objects.filter(email__iexact=value).first()
+        return value
+
+    def save(self):
+        if self.usuario:
+            codigo = f'{random.randint(0, 999999):06d}'
+            self.usuario.codigo_recuperacao_senha = codigo
+            self.usuario.codigo_recuperacao_expira_em = timezone.now() + timedelta(minutes=15)
+            self.usuario.save(update_fields=['codigo_recuperacao_senha', 'codigo_recuperacao_expira_em'])
+
+            send_mail(
+                subject='Pontua — Código de recuperação de senha',
+                message=(
+                    f'Seu código de recuperação de senha é: {codigo}\n\n'
+                    f'Ele expira em 15 minutos. Se você não solicitou isso, ignore este e-mail.'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[self.usuario.email],
+            )
+
+
+class ConfirmarRecuperacaoSenhaSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    codigo = serializers.CharField(max_length=6)
+    nova_senha = serializers.CharField(write_only=True, validators=[validate_password])
+    nova_senha2 = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs['nova_senha'] != attrs['nova_senha2']:
+            raise serializers.ValidationError({'nova_senha': 'As senhas não coincidem.'})
+
+        usuario = Usuario.objects.filter(email__iexact=attrs['email']).first()
+
+        codigo_invalido = (
+            not usuario
+            or not usuario.codigo_recuperacao_senha
+            or usuario.codigo_recuperacao_senha != attrs['codigo']
+            or usuario.codigo_recuperacao_expira_em is None
+            or timezone.now() > usuario.codigo_recuperacao_expira_em
+        )
+        if codigo_invalido:
+            raise serializers.ValidationError({'codigo': 'Código inválido ou expirado.'})
+
+        self.usuario = usuario
+        return attrs
+
+    def save(self):
+        self.usuario.set_password(self.validated_data['nova_senha'])
+        self.usuario.codigo_recuperacao_senha = None
+        self.usuario.codigo_recuperacao_expira_em = None
+        self.usuario.save(update_fields=['password', 'codigo_recuperacao_senha', 'codigo_recuperacao_expira_em'])
+        return self.usuario

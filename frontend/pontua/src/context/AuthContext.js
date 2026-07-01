@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
 
-const API_URL = 'https://b23b-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
+const API_URL = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 export function AuthProvider({ children }) {
   const [autenticado, setAutenticado] = useState(false);

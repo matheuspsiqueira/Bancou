@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny
 from .models import Usuario
 from .serializers import (
     RegistroSerializer,
@@ -10,6 +11,8 @@ from .serializers import (
     AtualizarPerfilSerializer,
     AlterarSenhaSerializer,
     RegistrarResultadoSerializer,
+    SolicitarRecuperacaoSenhaSerializer,
+    ConfirmarRecuperacaoSenhaSerializer,
 )
 
 
@@ -129,3 +132,28 @@ def checar_regeneracao_vidas(usuario):
         usuario.vidas = usuario.VIDAS_MAXIMAS
         usuario.vidas_atualizadas_em = agora
         usuario.save(update_fields=['vidas', 'vidas_atualizadas_em'])
+
+
+class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):
+    serializer_class = SolicitarRecuperacaoSenhaSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {'detail': 'Se o e-mail existir em nossa base, um código foi enviado.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ConfirmarRecuperacaoSenhaView(generics.GenericAPIView):
+    serializer_class = ConfirmarRecuperacaoSenhaSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'Senha redefinida com sucesso.'}, status=status.HTTP_200_OK)

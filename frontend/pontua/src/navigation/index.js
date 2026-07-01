@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import SplashScreen    from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import AuthScreen      from '../screens/AuthScreen';
+import RecuperarSenhaScreen from '../screens/RecuperarSenhaScreen';
 import DemoScreen      from '../screens/DemoScreen';
 import DemoScoreScreen from '../screens/DemoScoreScreen';
 import HomeScreen      from '../screens/HomeScreen';
@@ -43,6 +44,7 @@ function RootNavigator() {
           <Stack.Screen name="Splash"      component={SplashScreen} />
           <Stack.Screen name="Onboarding"  component={OnboardingScreen} />
           <Stack.Screen name="Auth"        component={AuthScreen} />
+          <Stack.Screen name="RecuperarSenha" component={RecuperarSenhaScreen} />
           <Stack.Screen name="Demo"        component={DemoScreen} />
           <Stack.Screen name="DemoScore"   component={DemoScoreScreen} />
         </>

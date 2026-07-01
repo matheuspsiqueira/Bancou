@@ -16,6 +16,8 @@ class Usuario(AbstractUser):
     # ─── Controle (uso futuro: regeneração automática de vidas/streak) ──
     data_ultima_partida = models.DateField(null=True, blank=True)
     vidas_atualizadas_em = models.DateTimeField(null=True, blank=True)
+    codigo_recuperacao_senha = models.CharField(max_length=6, null=True, blank=True)
+    codigo_recuperacao_expira_em = models.DateTimeField(null=True, blank=True)
 
     VIDAS_MAXIMAS = 5
 
