@@ -48,8 +48,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'nome_completo', 'avatar_url',
             'xp', 'moedas', 'vidas', 'streak',
         )
-        # xp/moedas/vidas/streak só mudam via lógica de servidor
-        # (registrar-resultado/), nunca direto pelo cliente.
         read_only_fields = ('xp', 'moedas', 'vidas', 'streak')
 
     def get_avatar_url(self, obj):
@@ -63,9 +61,7 @@ class AtualizarPerfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ('nome_completo', 'username', 'email', 'avatar')
-        extra_kwargs = {
-            'avatar': {'required': False},
-        }
+        extra_kwargs = {'avatar': {'required': False}}
 
     def validate_username(self, value):
         usuario_atual = self.instance
@@ -104,11 +100,6 @@ class AlterarSenhaSerializer(serializers.Serializer):
 
 
 class RegistrarResultadoSerializer(serializers.Serializer):
-    """
-    Recebe o resultado consolidado de UMA partida e calcula no servidor
-    as variações de XP, moedas e vidas. O app nunca envia "xp_ganho" pronto
-    — só o que aconteceu na partida — pra evitar manipulação de payload.
-    """
     acertos = serializers.IntegerField(min_value=0)
     erros = serializers.IntegerField(min_value=0)
     abandonada = serializers.BooleanField(default=False)
@@ -122,6 +113,9 @@ class RegistrarResultadoSerializer(serializers.Serializer):
         return attrs
 
     def save(self):
+        import datetime
+        from django.utils import timezone
+
         usuario = self.context['request'].user
         acertos = self.validated_data['acertos']
         erros = self.validated_data['erros']
@@ -133,7 +127,22 @@ class RegistrarResultadoSerializer(serializers.Serializer):
         usuario.xp += xp_ganho
         usuario.moedas += moedas_ganhas
         usuario.vidas = max(0, usuario.vidas - vidas_perdidas)
-        usuario.save(update_fields=['xp', 'moedas', 'vidas'])
+
+        # ── Streak ────────────────────────────────────────────────────
+        hoje = timezone.localdate()
+        ultima = usuario.data_ultima_partida
+
+        if ultima is None:
+            usuario.streak = 1
+        elif ultima == hoje:
+            pass  # múltiplas partidas no mesmo dia — não altera streak
+        elif ultima == hoje - datetime.timedelta(days=1):
+            usuario.streak += 1  # jogou ontem — mantém sequência
+        else:
+            usuario.streak = 1  # pulou dias — reseta
+
+        usuario.data_ultima_partida = hoje
+        usuario.save(update_fields=['xp', 'moedas', 'vidas', 'streak', 'data_ultima_partida'])
 
         return {
             'xp_ganho': xp_ganho,

@@ -105,5 +105,5 @@ SIMPLE_JWT = {
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://1c4e-2804-14d-5c42-854e-198b-24ca-6475-d581.ngrok-free.app',
+    'https://b23b-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app',
 ]

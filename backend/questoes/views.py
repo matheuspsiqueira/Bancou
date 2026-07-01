@@ -3,6 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from usuarios.views import checar_regeneracao_vidas  # ← import no topo do arquivo
+
 
 from .models import Banca, Concurso, Materia, Questao
 from .serializers import (
@@ -63,8 +65,11 @@ class PartidaQuestoesView(APIView):
     QUANTIDADE = 10
 
     def get(self, request):
+        checar_regeneracao_vidas(request.user)
         tipo = request.query_params.get('tipo')
         filtro_id = request.query_params.get('id')
+
+        com_tempo = request.query_params.get('com_tempo') == '1'
 
         questoes = Questao.objects.filter(
             status=Questao.Status.APROVADA,
@@ -74,6 +79,11 @@ class PartidaQuestoesView(APIView):
         ).select_related(
             'concurso', 'concurso__banca', 'materia'
         ).prefetch_related('alternativas')
+
+        # Modo com tempo: exclui questões com texto-base
+        # (usuário não tem tempo de ler contexto longo em 60s)
+        if com_tempo:
+            questoes = questoes.exclude(contexto__gt='')
 
         if tipo and filtro_id:
             if tipo == 'banca':

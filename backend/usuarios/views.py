@@ -34,6 +34,7 @@ class PerfilView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
+        checar_regeneracao_vidas(request.user)  # ← adiciona essa linha
         serializer = UsuarioSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
@@ -110,3 +111,21 @@ class RecuperarVidaView(APIView):
         usuario.vidas += 1
         usuario.save(update_fields=['vidas'])
         return Response(UsuarioSerializer(usuario, context={'request': request}).data)
+    
+
+    # ─── Helper: regeneração diária de vidas ─────────────────────────────────
+def checar_regeneracao_vidas(usuario):
+    """
+    Reseta as vidas para o máximo se a última atualização foi antes de hoje.
+    Chamado de forma lazy em endpoints estratégicos (perfil, iniciar partida).
+    """
+    from django.utils import timezone
+    agora = timezone.now()
+    precisa_resetar = (
+        usuario.vidas_atualizadas_em is None or
+        usuario.vidas_atualizadas_em.date() < agora.date()
+    )
+    if precisa_resetar and usuario.vidas < usuario.VIDAS_MAXIMAS:
+        usuario.vidas = usuario.VIDAS_MAXIMAS
+        usuario.vidas_atualizadas_em = agora
+        usuario.save(update_fields=['vidas', 'vidas_atualizadas_em'])
