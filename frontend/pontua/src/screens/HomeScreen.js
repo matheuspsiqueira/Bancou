@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'https://1c4e-2804-14d-5c42-854e-198b-24ca-6475-d581.ngrok-free.app';
+const API_URL = 'https://b23b-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 // ─── Tabela de níveis ──────────────────────────────────────────────────────
 const NIVEIS = [
@@ -58,34 +58,6 @@ function getSaudacao() {
 
 // ─── Valores mock para campos ainda não no backend ────────────────────────
 const MOCK = { xp: 1240, liga: 'Prata', streak: 7, vidas: 4, moedas: 320 };
-
-// ─── Filtros disponíveis ──────────────────────────────────────────────────
-const FILTROS = {
-  banca: [
-    { id: 'cespe',   label: 'CESPE / CEBRASPE' },
-    { id: 'fcc',     label: 'FCC' },
-    { id: 'fgv',     label: 'FGV' },
-    { id: 'unesp',   label: 'UNESP' },
-    { id: 'vunesp',  label: 'VUNESP' },
-    { id: 'iades',   label: 'IADES' },
-  ],
-  materia: [
-    { id: 'dir_const',   label: 'Direito Constitucional' },
-    { id: 'dir_admin',   label: 'Direito Administrativo' },
-    { id: 'portugues',   label: 'Português' },
-    { id: 'logica',      label: 'Raciocínio Lógico' },
-    { id: 'informatica', label: 'Informática' },
-    { id: 'adm_pub',     label: 'Administração Pública' },
-  ],
-  concurso: [
-    { id: 'tj',      label: 'TJ — Tribunal de Justiça' },
-    { id: 'trf',     label: 'TRF — Tribunal Regional Federal' },
-    { id: 'pf',      label: 'PF — Polícia Federal' },
-    { id: 'inss',    label: 'INSS' },
-    { id: 'receita', label: 'Receita Federal' },
-    { id: 'mpf',     label: 'MPF — Ministério Público Federal' },
-  ],
-};
 
 const RANKING_MOCK = [
   { pos: 1, nome: 'Carolina S.', xp: 2840, voce: false },
@@ -371,8 +343,6 @@ function ModalEditarPerfil({ visible, onClose }) {
     setCarregando(true);
     try {
       const access = await AsyncStorage.getItem('access_token');
-      console.log('TOKEN:', access);
-      console.log('URL:', `${API_URL}/api/usuarios/perfil/`);
       const resp = await fetch(`${API_URL}/api/usuarios/perfil/`, {
         method: 'DELETE',
         headers: {
@@ -387,7 +357,6 @@ function ModalEditarPerfil({ visible, onClose }) {
         Alert.alert('Erro', 'Não foi possível excluir a conta. Tente novamente.');
       }
     } catch (e) {
-      console.log('ERRO DELETE:', e);
       Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
     } finally {
       setCarregando(false);
@@ -464,17 +433,82 @@ function ModalEditarPerfil({ visible, onClose }) {
 }
 
 // ─── Modal: Iniciar Partida ───────────────────────────────────────────────
+// Agora consome os endpoints reais do backend:
+//   GET /api/questoes/bancas/
+//   GET /api/questoes/materias/
+//   GET /api/questoes/concursos/
+// e tem o toggle de modo Com Tempo / Sem Tempo na etapa inicial.
 function ModalPartida({ visible, onClose, onIniciar }) {
-  const [etapa, setEtapa]     = useState('inicio');
-  const [tipoFiltro, setTipo] = useState(null);
+  const { authFetch } = useAuth();
 
-  const fechar = () => { setEtapa('inicio'); setTipo(null); onClose(); };
-  const iniciarComFiltro = (opcao) => { fechar(); onIniciar(opcao); };
+  const [etapa, setEtapa]         = useState('inicio');
+  const [tipoFiltro, setTipo]     = useState(null);
+  const [comTempo, setComTempo]   = useState(false);
+
+  const [opcoes, setOpcoes]       = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro]           = useState(null);
+
+  // Cache simples por tipo, pra não rebuscar toda vez que volta nessa etapa
+  const cacheRef = React.useRef({});
+
+  const ENDPOINTS = {
+    banca:    '/api/questoes/bancas/',
+    materia:  '/api/questoes/materias/',
+    concurso: '/api/questoes/concursos/',
+  };
 
   const tituloFiltro = {
     banca:    'Escolha a banca',
     materia:  'Escolha a matéria',
     concurso: 'Escolha o concurso',
+  };
+
+  const labelDe = (tipo, item) => {
+    if (tipo === 'concurso') {
+      return `${item.nome}${item.ano ? ` (${item.ano})` : ''} — ${item.banca_nome}`;
+    }
+    return item.nome;
+  };
+
+  const buscarOpcoes = useCallback(async (tipo) => {
+    if (cacheRef.current[tipo]) {
+      setOpcoes(cacheRef.current[tipo]);
+      return;
+    }
+    setCarregando(true);
+    setErro(null);
+    try {
+      const resp = await authFetch(ENDPOINTS[tipo]);
+      if (!resp.ok) throw new Error('Falha ao buscar opções');
+      const data = await resp.json();
+      cacheRef.current[tipo] = data;
+      setOpcoes(data);
+    } catch (e) {
+      setErro('Não foi possível carregar as opções. Verifique sua conexão.');
+    } finally {
+      setCarregando(false);
+    }
+  }, [authFetch]);
+
+  const escolherTipo = (tipo) => {
+    setTipo(tipo);
+    setEtapa('opcoes');
+    buscarOpcoes(tipo);
+  };
+
+  const fechar = () => {
+    setEtapa('inicio');
+    setTipo(null);
+    setOpcoes([]);
+    setErro(null);
+    setComTempo(false);
+    onClose();
+  };
+
+  const iniciarComFiltro = (filtro) => {
+    fechar();
+    onIniciar({ ...(filtro || {}), comTempo });
   };
 
   return (
@@ -489,6 +523,29 @@ function ModalPartida({ visible, onClose, onIniciar }) {
               <Text style={styles.modalSubtitulo}>
                 10 questões · +10 XP e +2 🪙 por acerto · perde ❤️ por erro
               </Text>
+
+              {/* Toggle de tempo */}
+              <View style={styles.toggleTempoRow}>
+                <TouchableOpacity
+                  style={[styles.toggleTempoBtn, !comTempo && styles.toggleTempoBtnAtivo]}
+                  onPress={() => setComTempo(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.toggleTempoText, !comTempo && styles.toggleTempoTextAtivo]}>
+                    🧘  Sem tempo
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleTempoBtn, comTempo && styles.toggleTempoBtnAtivo]}
+                  onPress={() => setComTempo(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.toggleTempoText, comTempo && styles.toggleTempoTextAtivo]}>
+                    ⏱️  Com tempo (60s)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.btnPrincipal} onPress={() => iniciarComFiltro(null)} activeOpacity={0.85}>
                 <Text style={styles.btnPrincipalText}>⚡  Iniciar agora — questões aleatórias</Text>
               </TouchableOpacity>
@@ -513,7 +570,7 @@ function ModalPartida({ visible, onClose, onIniciar }) {
                 <TouchableOpacity
                   key={item.tipo}
                   style={styles.filtroTipoItem}
-                  onPress={() => { setTipo(item.tipo); setEtapa('opcoes'); }}
+                  onPress={() => escolherTipo(item.tipo)}
                   activeOpacity={0.7}
                 >
                   <Text style={{ fontSize: 26 }}>{item.icone}</Text>
@@ -534,19 +591,45 @@ function ModalPartida({ visible, onClose, onIniciar }) {
               </TouchableOpacity>
               <Text style={styles.modalTitulo}>{tituloFiltro[tipoFiltro]}</Text>
               <Text style={styles.modalSubtitulo}>A partida terá 10 questões deste filtro</Text>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
-                {FILTROS[tipoFiltro].map((op) => (
-                  <TouchableOpacity
-                    key={op.id}
-                    style={styles.opcaoFiltroItem}
-                    onPress={() => iniciarComFiltro({ tipo: tipoFiltro, id: op.id, label: op.label })}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.opcaoFiltroLabel}>{op.label}</Text>
-                    <Text style={{ color: '#6C63FF', fontSize: 18 }}>›</Text>
+
+              {carregando && (
+                <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                  <ActivityIndicator color="#6C63FF" />
+                </View>
+              )}
+
+              {!carregando && erro && (
+                <View style={styles.filtroErroBox}>
+                  <Text style={styles.filtroErroText}>{erro}</Text>
+                  <TouchableOpacity onPress={() => buscarOpcoes(tipoFiltro)} style={styles.filtroErroBtn}>
+                    <Text style={styles.filtroErroBtnText}>Tentar novamente</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                </View>
+              )}
+
+              {!carregando && !erro && opcoes.length === 0 && (
+                <View style={styles.filtroErroBox}>
+                  <Text style={styles.filtroErroText}>
+                    Nenhuma opção disponível ainda para este filtro.
+                  </Text>
+                </View>
+              )}
+
+              {!carregando && !erro && opcoes.length > 0 && (
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
+                  {opcoes.map((op) => (
+                    <TouchableOpacity
+                      key={op.id}
+                      style={styles.opcaoFiltroItem}
+                      onPress={() => iniciarComFiltro({ tipo: tipoFiltro, id: op.id, label: labelDe(tipoFiltro, op) })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.opcaoFiltroLabel}>{labelDe(tipoFiltro, op)}</Text>
+                      <Text style={{ color: '#6C63FF', fontSize: 18 }}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
             </>
           )}
         </Pressable>
@@ -720,7 +803,7 @@ function AbaPerfil({ onLogout }) {
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const [abaAtiva,     setAbaAtiva]     = useState('inicio');
   const [modalPartida, setModalPartida] = useState(false);
   const insets = useSafeAreaInsets();
@@ -737,10 +820,10 @@ export default function HomeScreen() {
     );
   };
 
+  // filtro: { tipo, id, label, comTempo } ou { comTempo } se for aleatório
   const handleIniciarPartida = (filtro) => {
     setModalPartida(false);
-    // navigation.navigate('Partida', { filtro });
-    console.log('Iniciar partida:', filtro ?? 'Aleatório');
+    navigation.navigate('Partida', { filtro });
   };
 
   const streak = usuario?.streak ?? MOCK.streak;
@@ -914,6 +997,25 @@ const styles = StyleSheet.create({
   modalTitulo:    { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 4 },
   modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', marginBottom: 20, lineHeight: 18 },
 
+  // Toggle de tempo
+  toggleTempoRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 20,
+  },
+  toggleTempoBtn: {
+    flex: 1, backgroundColor: '#252540', borderRadius: 12,
+    paddingVertical: 12, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#35355a',
+  },
+  toggleTempoBtnAtivo: {
+    backgroundColor: '#6C63FF22', borderColor: '#6C63FF',
+  },
+  toggleTempoText: {
+    fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0',
+  },
+  toggleTempoTextAtivo: {
+    fontFamily: 'Nunito_700Bold', color: '#6C63FF',
+  },
+
   // Inputs normais (Editar Perfil)
   inputLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 6, marginTop: 4 },
   input: {
@@ -987,7 +1089,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#252540',
   },
-  opcaoFiltroLabel: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#FFFFFF' },
+  opcaoFiltroLabel: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#FFFFFF', flex: 1, marginRight: 8 },
+
+  filtroErroBox: {
+    paddingVertical: 24, alignItems: 'center', gap: 12,
+  },
+  filtroErroText: {
+    fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0',
+    textAlign: 'center', lineHeight: 19,
+  },
+  filtroErroBtn: {
+    backgroundColor: '#252540', borderRadius: 999,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderWidth: 1, borderColor: '#35355a',
+  },
+  filtroErroBtnText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#6C63FF' },
 
   tabBar: {
     flexDirection: 'row', backgroundColor: '#252540',

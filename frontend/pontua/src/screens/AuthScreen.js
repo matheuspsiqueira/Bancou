@@ -6,7 +6,7 @@ import {
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 
-const API = 'https://1c4e-2804-14d-5c42-854e-198b-24ca-6475-d581.ngrok-free.app';
+const API = 'https://b23b-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 // ─── Input com toggle de visibilidade ─────────────────────────────────────────
 function Input({ label, secureTextEntry, ...props }) {
