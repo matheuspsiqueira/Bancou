@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Banca(models.Model):
@@ -106,3 +107,23 @@ class Alternativa(models.Model):
 
     def __str__(self):
         return f'{self.letra}) {self.texto[:60]}'
+
+
+class Partida(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='partidas')
+    questoes_ids = models.JSONField(default=list)       # ids das questões sorteadas, na ordem
+    respondidas_ids = models.JSONField(default=list)    # ids já corrigidos — impede corrigir a mesma 2x
+    acertos = models.PositiveIntegerField(default=0)
+    erros = models.PositiveIntegerField(default=0)
+    com_tempo = models.BooleanField(default=False)
+    finalizada = models.BooleanField(default=False)
+    abandonada = models.BooleanField(default=False)
+    xp_ganho = models.PositiveIntegerField(default=0)      # guardado pra idempotência
+    moedas_ganhas = models.PositiveIntegerField(default=0) # guardado pra idempotência
+    vidas_perdidas = models.PositiveIntegerField(default=0)
+    criada_em = models.DateTimeField(auto_now_add=True)
+    finalizada_em = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        status = 'finalizada' if self.finalizada else 'em andamento'
+        return f'Partida #{self.id} de {self.usuario} ({status})'

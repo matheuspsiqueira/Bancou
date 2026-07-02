@@ -4,14 +4,16 @@ from .views import (
     BancasDisponiveisView,
     MateriasDisponiveisView,
     ConcursosDisponiveisView,
-    PartidaQuestoesView,
+    IniciarPartidaView,
     CorrigirRespostaView,
+    FinalizarPartidaView,
 )
 
 urlpatterns = [
     path('bancas/', BancasDisponiveisView.as_view(), name='bancas-disponiveis'),
     path('materias/', MateriasDisponiveisView.as_view(), name='materias-disponiveis'),
     path('concursos/', ConcursosDisponiveisView.as_view(), name='concursos-disponiveis'),
-    path('partida/', PartidaQuestoesView.as_view(), name='partida-questoes'),
+    path('iniciar-partida/', IniciarPartidaView.as_view(), name='iniciar-partida'),
     path('corrigir/', CorrigirRespostaView.as_view(), name='corrigir-resposta'),
+    path('finalizar-partida/<int:partida_id>/', FinalizarPartidaView.as_view(), name='finalizar-partida'),
 ]
