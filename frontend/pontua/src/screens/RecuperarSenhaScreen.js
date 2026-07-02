@@ -11,8 +11,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { API_URL } from '../config';
 
-const API_URL = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
   return (

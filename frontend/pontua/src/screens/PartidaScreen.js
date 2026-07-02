@@ -109,6 +109,7 @@ export default function PartidaScreen({ navigation, route }) {
   const acertosRef    = useRef(0);
   const errosRef      = useRef(0);
   const vidasRef      = useRef(usuario?.vidas ?? 5);
+  const partidaIdRef  = useRef(null);
 
   // ── Estado de vidas/modal ───────────────────────────────────────────────
   const [vidasAtual,   setVidasAtual]   = useState(usuario?.vidas ?? 5);
@@ -147,12 +148,13 @@ export default function PartidaScreen({ navigation, route }) {
         params.append('com_tempo', '1');
       }
       const query = params.toString();
-      let path = `/api/questoes/partida/${query ? `?${query}` : ''}`;
+      let path = `/api/questoes/iniciar-partida/${query ? `?${query}` : ''}`;   // ← trocado
       const resp = await authFetch(path);
       const data = await resp.json();
       if (!resp.ok) {
         throw new Error(data.detail || 'Erro ao buscar questões.');
       }
+      partidaIdRef.current = data.partida_id;   // ← linha nova
       setQuestoes(data.questoes);
     } catch (e) {
       setErroReq(e.message || 'Não foi possível carregar as questões.');
@@ -204,7 +206,11 @@ export default function PartidaScreen({ navigation, route }) {
     try {
       const resp = await authFetch('/api/questoes/corrigir/', {
         method: 'POST',
-        body: JSON.stringify({ questao_id: questao.id, letra: '_' }),
+        body: JSON.stringify({
+          partida_id: partidaIdRef.current,   // ← linha nova
+          questao_id: questao.id,
+          letra: '_',
+        }),
       });
       const data = await resp.json();
       setGabarito(data.gabarito);
@@ -237,7 +243,11 @@ export default function PartidaScreen({ navigation, route }) {
     try {
       const resp = await authFetch('/api/questoes/corrigir/', {
         method: 'POST',
-        body: JSON.stringify({ questao_id: questaoAtual.id, letra: selecionada }),
+        body: JSON.stringify({
+          partida_id: partidaIdRef.current,   // ← linha nova
+          questao_id: questaoAtual.id,
+          letra: selecionada,
+        }),
       });
       const data = await resp.json();
       const correta = data.correta;
@@ -288,15 +298,13 @@ export default function PartidaScreen({ navigation, route }) {
     const acertos = acertosRef.current;
     const erros   = errosRef.current;
 
-    // Registra resultado no backend (versão simples — MVP)
     try {
-      const resp = await authFetch('/api/usuarios/registrar-resultado/', {
+      const resp = await authFetch(`/api/questoes/finalizar-partida/${partidaIdRef.current}/`, {
         method: 'POST',
-        body: JSON.stringify({ acertos, erros, abandonada }),
+        body: JSON.stringify({ abandonada }),
       });
       if (resp.ok) {
         const data = await resp.json();
-        // Atualiza o contexto local com os novos valores do servidor
         atualizarUsuario({
           xp:     data.usuario.xp,
           moedas: data.usuario.moedas,
@@ -311,7 +319,6 @@ export default function PartidaScreen({ navigation, route }) {
           abandonada,
         });
       } else {
-        // Mesmo com erro no backend, vai pra ScoreScreen com dados locais
         navigation.replace('Score', {
           acertos, erros, total: questoes.length,
           xpGanho: acertos * 10, moedasGanhas: acertos * 2, abandonada,

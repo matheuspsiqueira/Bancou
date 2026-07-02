@@ -1,10 +1,11 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../config';
+
 
 const AuthContext = createContext();
 
-const API_URL = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
 
 export function AuthProvider({ children }) {
   const [autenticado, setAutenticado] = useState(false);

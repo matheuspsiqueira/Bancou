@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../config';
 
-const API = 'https://3c6d-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app';
+
 
 // ─── Input com toggle de visibilidade ─────────────────────────────────────────
 function Input({ label, secureTextEntry, ...props }) {
@@ -177,7 +178,7 @@ export default function AuthScreen({ navigation, route }) {
     }
     setLoadingCad(true);
     try {
-      const res = await fetch(`${API}/api/usuarios/registro/`, {
+      const res = await fetch(`${API_URL}/api/usuarios/registro/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function AuthScreen({ navigation, route }) {
     }
     setLoadingLogin(true);
     try {
-      const res = await fetch(`${API}/api/usuarios/login/`, {
+      const res = await fetch(`${API_URL}/api/usuarios/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailLogin, password: senhaLogin }),
