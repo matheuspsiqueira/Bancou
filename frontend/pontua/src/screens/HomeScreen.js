@@ -743,8 +743,8 @@ function AbaPerfil({ onLogout }) {
         <View style={styles.avatar}>
           <Image source={require('../assets/ponts-foco.png')} style={styles.avatarImg} resizeMode="contain" />
         </View>
-        <Text style={styles.perfilNome}>{nome}</Text>
-        <Text style={styles.perfilUsername}>@{username}</Text>
+        <Text style={styles.perfilNome}>{username}</Text>
+        <Text style={styles.perfilUsername}>{nome}</Text>
         <View style={styles.nivelBadge}>
           <Text style={styles.nivelBadgeText}>Nível {titulo}</Text>
         </View>
@@ -766,7 +766,7 @@ function AbaPerfil({ onLogout }) {
           </View>
           <View style={styles.perfilStatDivider} />
           <View style={styles.perfilStatBox}>
-            <Text style={styles.perfilStatVal}>{liga}</Text>
+            <Text style={styles.perfilStatVal}>{/*liga*/}Em breve</Text>
             <Text style={styles.perfilStatLabel}>🏆 Liga</Text>
           </View>
         </View>
