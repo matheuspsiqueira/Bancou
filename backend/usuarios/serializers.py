@@ -68,6 +68,16 @@ class AtualizarPerfilSerializer(serializers.ModelSerializer):
         fields = ('nome_completo', 'username', 'email', 'avatar')
         extra_kwargs = {'avatar': {'required': False}}
 
+    def validate_avatar(self, value):
+        if value:
+            MAX_MB = 5
+            if value.size > MAX_MB * 1024 * 1024:
+                raise serializers.ValidationError(f'A imagem deve ter no máximo {MAX_MB}MB.')
+            tipos_permitidos = ('image/jpeg', 'image/png', 'image/webp')
+            if value.content_type not in tipos_permitidos:
+                raise serializers.ValidationError('Formato de imagem inválido. Use JPEG, PNG ou WEBP.')
+        return value
+
     def validate_username(self, value):
         usuario_atual = self.instance
         if Usuario.objects.filter(username__iexact=value).exclude(pk=usuario_atual.pk).exists():

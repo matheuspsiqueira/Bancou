@@ -1,5 +1,6 @@
 // src/context/AuthContext.js
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 
@@ -11,6 +12,15 @@ export function AuthProvider({ children }) {
   const [autenticado, setAutenticado] = useState(false);
   const [checando,    setChecando]    = useState(true);
   const [usuario,     setUsuario]     = useState(null);
+
+  // Refs pra ler o estado mais recente dentro do listener do AppState
+  // sem precisar recriar o listener a cada mudança de autenticado/usuario.
+  const autenticadoRef = useRef(autenticado);
+  const appStateRef     = useRef(AppState.currentState);
+
+  useEffect(() => {
+    autenticadoRef.current = autenticado;
+  }, [autenticado]);
 
   // ── Verifica token ao abrir o app ─────────────────────────────────────
   useEffect(() => {
@@ -32,6 +42,28 @@ export function AuthProvider({ children }) {
     verificar();
   }, []);
 
+  // ── Recarrega o perfil sempre que o app volta a ficar ativo ───────────
+  // Cobre o caso do Android pausar/matar parcialmente o processo ao
+  // minimizar o app: sem isso, o estado do usuário fica "congelado" ou
+  // mesclado de forma inconsistente até um novo mount da Splash.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (proximoEstado) => {
+      const voltouParaAtivo =
+        appStateRef.current.match(/inactive|background/) && proximoEstado === 'active';
+
+      appStateRef.current = proximoEstado;
+
+      if (voltouParaAtivo && autenticadoRef.current) {
+        const token = await AsyncStorage.getItem('access_token');
+        if (token) {
+          await carregarPerfil(token);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   // ── Busca dados do perfil na API ──────────────────────────────────────
   const carregarPerfil = async (token) => {
     try {
@@ -43,7 +75,7 @@ export function AuthProvider({ children }) {
       });
       if (resp.ok) {
         const data = await resp.json();
-        setUsuario((prev) => ({ ...prev, ...data }));
+        setUsuario(data); // substitui por completo — evita mesclar dados velhos com novos
       }
     } catch {
       // silencioso — campos mock serão usados para os campos ausentes
