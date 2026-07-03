@@ -9,10 +9,10 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { usePontsAlert } from '../context/PontsAlertContext';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer)
@@ -90,6 +90,7 @@ function ModalSemVidas({ visible, onAssistirAd, onAssinar, onEncerrar }) {
 export default function PartidaScreen({ navigation, route }) {
   const { filtro } = route.params ?? {};
   const { authFetch, usuario, atualizarUsuario } = useAuth();
+  const { alertar } = usePontsAlert();
   const insets = useSafeAreaInsets();
 
   // ── Estado de carregamento ──────────────────────────────────────────────
@@ -125,10 +126,11 @@ export default function PartidaScreen({ navigation, route }) {
   useEffect(() => {
     // Bloqueia entrada se usuário está sem vidas
     if ((usuario?.vidas ?? 5) === 0) {
-      Alert.alert(
+      alertar(
         'Sem vidas!',
         'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou assine o Premium.',
-        [{ text: 'Voltar', onPress: () => navigation.goBack() }]
+        [{ text: 'Voltar', onPress: () => navigation.goBack() }],
+        { pose: 'ops' }
       );
       return;
     }
@@ -270,7 +272,7 @@ export default function PartidaScreen({ navigation, route }) {
         }
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível verificar a resposta. Tente novamente.');
+      alertar('Erro', 'Não foi possível verificar a resposta. Tente novamente.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCorrigindo(false);
     }
@@ -339,19 +341,13 @@ export default function PartidaScreen({ navigation, route }) {
     // 2. Atualizar vidasRef e setVidasAtual com o retorno
     // 3. Chamar setModalSemVidas(false) e avancarQuestao()
     // Por enquanto não faz nada — modal permanece aberto.
-    Alert.alert(
-      'Em breve',
-      'Os anúncios recompensados estão chegando em breve!',
-    );
+    alertar('Em breve', 'Os anúncios recompensados estão chegando em breve!', [{ text: 'OK' }]);
   };
 
   const handleAssinar = () => {
     // TODO: navegar para tela de assinatura Premium
     // Enquanto não existir, só informa — modal permanece aberto.
-    Alert.alert(
-      'Em breve',
-      'A assinatura Premium está chegando em breve!',
-    );
+    alertar('Em breve', 'A assinatura Premium está chegando em breve!', [{ text: 'OK' }]);
   };
 
   const handleEncerrar = () => {
@@ -418,13 +414,14 @@ export default function PartidaScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.btnSair}
           onPress={() =>
-            Alert.alert(
+            alertar(
               'Sair da partida?',
               'Seu progresso parcial será salvo.',
               [
-                { text: 'Continuar jogando', style: 'cancel' },
+                { text: 'Continuar', style: 'cancel' },
                 { text: 'Sair', style: 'destructive', onPress: () => finalizarPartida(true) },
-              ]
+              ],
+              { pose: 'pensando' }
             )
           }
           activeOpacity={0.7}

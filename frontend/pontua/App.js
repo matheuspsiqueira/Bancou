@@ -14,6 +14,7 @@ import {
 import Navigation from './src/navigation';
 import { colors } from './src/theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PontsAlertProvider } from './src/context/PontsAlertContext';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -35,7 +36,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <Navigation />
+      <PontsAlertProvider>
+        <Navigation />
+      </PontsAlertProvider>
     </SafeAreaProvider>
   );
 }

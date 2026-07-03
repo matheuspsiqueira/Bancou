@@ -11,10 +11,10 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { usePontsAlert } from '../context/PontsAlertContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import * as ImagePicker from 'expo-image-picker';
@@ -121,6 +121,7 @@ function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
 // ─── Modal: Alterar Senha ─────────────────────────────────────────────────
 function ModalAlterarSenha({ visible, onClose }) {
   const { authFetch } = useAuth();
+  const { alertar } = usePontsAlert();
   const [senhaAtual,     setSenhaAtual]     = useState('');
   const [novaSenha,      setNovaSenha]      = useState('');
   const [confirmacao,    setConfirmacao]    = useState('');
@@ -140,28 +141,29 @@ function ModalAlterarSenha({ visible, onClose }) {
   };
 
   const esqueceuSenha = () => {
-    Alert.alert(
+    alertar(
       'Esqueceu sua senha?',
       'Para redefinir sua senha, faça logout e use a opção "Esqueci minha senha" na tela de login.',
-      [{ text: 'Entendi' }]
+      [{ text: 'Entendi' }],
+      { pose: 'pensando' }
     );
   };
 
   const salvar = async () => {
     if (!senhaAtual || !novaSenha || !confirmacao) {
-      Alert.alert('Atenção', 'Preencha todos os campos.');
+      alertar('Atenção', 'Preencha todos os campos.', [{ text: 'OK' }]);
       return;
     }
     if (novaSenha !== confirmacao) {
-      Alert.alert('Atenção', 'A nova senha e a confirmação não coincidem.');
+      alertar('Atenção', 'A nova senha e a confirmação não coincidem.', [{ text: 'OK' }]);
       return;
     }
     if (novaSenha.length < 8) {
-      Alert.alert('Atenção', 'A nova senha deve ter pelo menos 8 caracteres.');
+      alertar('Atenção', 'A nova senha deve ter pelo menos 8 caracteres.', [{ text: 'OK' }]);
       return;
     }
     if (novaSenha === senhaAtual) {
-      Alert.alert('Atenção', 'A nova senha deve ser diferente da senha atual.');
+      alertar('Atenção', 'A nova senha deve ser diferente da senha atual.', [{ text: 'OK' }]);
       return;
     }
 
@@ -177,9 +179,12 @@ function ModalAlterarSenha({ visible, onClose }) {
       });
       const data = await resp.json();
       if (resp.ok) {
-        Alert.alert('Senha alterada!', 'Sua senha foi atualizada com sucesso.', [
-          { text: 'OK', onPress: fechar },
-        ]);
+        alertar(
+          'Senha alterada!',
+          'Sua senha foi atualizada com sucesso.',
+          [{ text: 'OK', onPress: fechar }],
+          { pose: 'torcendo' }
+        );
       } else {
         const msg =
           data.senha_atual?.[0]      ||
@@ -187,10 +192,10 @@ function ModalAlterarSenha({ visible, onClose }) {
           data.non_field_errors?.[0] ||
           data.detail                ||
           'Erro ao alterar senha.';
-        Alert.alert('Erro', msg);
+        alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }
@@ -283,6 +288,7 @@ function ModalAlterarSenha({ visible, onClose }) {
 // ─── Modal: Editar Perfil ─────────────────────────────────────────────────
 function ModalEditarPerfil({ visible, onClose }) {
   const { authFetch, usuario, atualizarUsuario, signOut } = useAuth();
+  const { alertar } = usePontsAlert();
   const [username,   setUsername]   = useState('');
   const [nome,       setNome]       = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -303,7 +309,7 @@ function ModalEditarPerfil({ visible, onClose }) {
   const escolherFoto = async () => {
     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissao.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à sua galeria pra trocar a foto.');
+      alertar('Permissão necessária', 'Precisamos de acesso à sua galeria pra trocar a foto.', [{ text: 'OK' }]);
       return;
     }
 
@@ -335,7 +341,7 @@ function ModalEditarPerfil({ visible, onClose }) {
 
   const salvar = async () => {
     if (!username.trim()) {
-      Alert.alert('Atenção', 'O username não pode ficar em branco.');
+      alertar('Atenção', 'O username não pode ficar em branco.', [{ text: 'OK' }]);
       return;
     }
     setCarregando(true);
@@ -379,9 +385,12 @@ function ModalEditarPerfil({ visible, onClose }) {
           nome_completo: data.nome_completo,
           avatar_url: data.avatar_url,
         });
-        Alert.alert('Perfil atualizado!', 'Suas informações foram salvas.', [
-          { text: 'OK', onPress: fechar },
-        ]);
+        alertar(
+          'Perfil atualizado!',
+          'Suas informações foram salvas.',
+          [{ text: 'OK', onPress: fechar }],
+          { pose: 'torcendo' }
+        );
       } else {
         const msg =
           data.username?.[0]      ||
@@ -389,23 +398,24 @@ function ModalEditarPerfil({ visible, onClose }) {
           data.avatar?.[0]        ||
           data.detail             ||
           'Erro ao atualizar perfil.';
-        Alert.alert('Erro', msg);
+        alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }
   };
 
   const confirmarExclusao = () => {
-    Alert.alert(
+    alertar(
       'Excluir conta',
       'Tem certeza? Esta ação é permanente e todos os seus dados serão apagados.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Excluir minha conta', style: 'destructive', onPress: excluirConta },
-      ]
+      ],
+      { pose: 'ops' } // trocar por 'chorando' quando a pose existir
     );
   };
 
@@ -424,10 +434,10 @@ function ModalEditarPerfil({ visible, onClose }) {
       if (resp.ok || resp.status === 204) {
         await signOut();
       } else {
-        Alert.alert('Erro', 'Não foi possível excluir a conta. Tente novamente.');
+        alertar('Erro', 'Não foi possível excluir a conta. Tente novamente.', [{ text: 'OK' }], { pose: 'ops' });
       }
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }
@@ -888,15 +898,17 @@ export default function HomeScreen({ navigation }) {
   const [modalPartida, setModalPartida] = useState(false);
   const insets = useSafeAreaInsets();
   const { signOut, usuario } = useAuth();
+  const { alertar } = usePontsAlert();
 
   const handleLogout = () => {
-    Alert.alert(
+    alertar(
       'Sair da conta',
       'Tem certeza que deseja sair?',
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Sair', style: 'destructive', onPress: signOut },
-      ]
+      ],
+      { pose: 'triste' }
     );
   };
 

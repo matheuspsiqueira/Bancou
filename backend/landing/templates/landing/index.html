@@ -1,0 +1,147 @@
+{% extends 'landing/base.html' %}
+{% load static %}
+
+{% block content %}
+
+<section class="hero">
+  <p class="hero-tag">Para quem estuda pra concurso público</p>
+  <h1 class="hero-logo">Pontua<span>.</span></h1>
+  <p class="hero-slogan">Estude. Acumule pontos. Conquiste seu futuro.</p>
+
+  <div class="quiz-mockup" aria-hidden="true">
+    <div class="quiz-mockup-top">
+      <span class="quiz-chip">FGV · Direito Administrativo</span>
+      <span class="quiz-vidas">❤️ 4</span>
+    </div>
+    <p class="quiz-pergunta">
+      Segundo o princípio da legalidade, a Administração Pública só pode fazer aquilo que:
+    </p>
+    <div class="quiz-opcao">A lei expressamente proíbe</div>
+    <div class="quiz-opcao certa">A lei expressamente autoriza</div>
+    <div class="quiz-opcao">O interesse público sugerir</div>
+    <div class="quiz-footer">
+      <span class="quiz-xp">⭐ +10 XP</span>
+      <span class="quiz-moedas">🪙 +2</span>
+    </div>
+  </div>
+
+  <div class="hero-actions">
+    <button class="btn-primario" disabled>
+      Baixar o app <span class="badge-em-breve">Em breve</span>
+    </button>
+    <a href="#como-funciona" class="btn-secundario">Ver como funciona</a>
+  </div>
+  <p class="hero-nota">Chegando em breve para Android, gratuito na Google Play.</p>
+
+  <div class="chips-row">
+    <span class="chip">🔥 Streak diário</span>
+    <span class="chip">🪙 Moedas &amp; XP</span>
+    <span class="chip">❤️ Sistema de vidas</span>
+    <span class="chip">🏆 Ranking semanal</span>
+    <span class="chip">📚 Bancas reais</span>
+  </div>
+</section>
+
+<section id="ideia">
+  <p class="section-label">O problema</p>
+  <h2 class="section-title">Estudar pra concurso não precisa ser solitário</h2>
+  <p class="section-sub">
+    Concurso público é uma das metas mais comuns do Brasil — e uma das mais cansativas de manter.
+    Sem rotina, sem progresso visível e sem retorno rápido, é fácil perder o ritmo.
+    O Pontua transforma sua preparação em um jogo diário: você responde questões reais de provas
+    anteriores, acumula pontos e vê sua evolução a cada partida.
+  </p>
+</section>
+
+<section id="features">
+  <p class="section-label">O que você encontra no app</p>
+  <h2 class="section-title">Feito pra virar hábito</h2>
+  <p class="section-sub">Cada partida leva poucos minutos — dá pra estudar no ônibus, na fila do banco ou naquele intervalo entre uma tarefa e outra.</p>
+
+  <div class="features-grid">
+    <div class="feat-card">
+      <span class="feat-icon">⚡</span>
+      <h3>Partidas rápidas</h3>
+      <p>10 questões por partida, filtradas por banca, matéria ou concurso específico. Ritmo ágil, sem enrolação.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">📚</span>
+      <h3>Questões reais</h3>
+      <p>Perguntas extraídas de provas oficiais de bancas como FGV, CESPE, VUNESP e outras — o mesmo estilo que você vai encontrar na hora H.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">⭐</span>
+      <h3>XP &amp; níveis</h3>
+      <p>Cada acerto soma pontos de experiência. Suba de nível conforme estuda e acompanhe sua evolução no perfil.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🔥</span>
+      <h3>Streak diário</h3>
+      <p>Mantenha sua sequência de dias estudando. O maior desafio do concurseiro não é aprender — é não parar.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">❤️</span>
+      <h3>Sistema de vidas</h3>
+      <p>Cada erro custa uma vida. Isso mantém o foco durante a partida, do mesmo jeito que uma prova de verdade cobra atenção.</p>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🏆</span>
+      <h3>Ranking semanal</h3>
+      <p>Compare seu desempenho com outros concurseiros e suba de liga toda semana.</p>
+    </div>
+  </div>
+</section>
+
+<section id="como-funciona">
+  <p class="section-label">Como funciona</p>
+  <h2 class="section-title">Do download à primeira partida</h2>
+
+  <div class="passos">
+    <div class="passo">
+      <div class="passo-num">1</div>
+      <div>
+        <h4>Baixe e experimente sem cadastro</h4>
+        <p>Assim que o app for lançado, você já consegue jogar 10 questões de demonstração antes mesmo de criar uma conta.</p>
+      </div>
+    </div>
+    <div class="passo">
+      <div class="passo-num">2</div>
+      <div>
+        <h4>Escolha seu foco</h4>
+        <p>Questões aleatórias ou filtradas por banca, matéria ou concurso específico — você decide onde quer treinar.</p>
+      </div>
+    </div>
+    <div class="passo">
+      <div class="passo-num">3</div>
+      <div>
+        <h4>Jogue partidas de 10 questões</h4>
+        <p>Responda, acumule XP e moedas, e acompanhe seu aproveitamento em cada rodada.</p>
+      </div>
+    </div>
+    <div class="passo">
+      <div class="passo-num">4</div>
+      <div>
+        <h4>Volte todo dia</h4>
+        <p>Mantenha o streak, suba de nível e de liga. A constância é o que separa quem estuda de quem passa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mascote-section">
+  <img class="mascote-img" src="{% static 'landing/img/ponts-animado.png' %}" alt="Ponts, o mascote do Pontua, comemorando">
+  <p class="section-label" style="margin-bottom: var(--md);">Esse é o Ponts</p>
+  <p>Ele acompanha você em cada partida — comemora os acertos, incentiva nos dias difíceis e lembra você de manter o streak em dia.</p>
+</section>
+
+<section>
+  <div class="cta-final">
+    <h2>Sua aprovação começa com uma partida</h2>
+    <p>O Pontua está a caminho da Google Play. Fique de olho — em breve você pode começar a estudar jogando.</p>
+    <button class="btn-primario" disabled>
+      Baixar o app <span class="badge-em-breve">Em breve</span>
+    </button>
+  </div>
+</section>
+
+{% endblock %}

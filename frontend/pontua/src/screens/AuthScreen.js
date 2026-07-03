@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { API_URL } from '../config';
+import { API_URL, SITE_URL } from '../config';
+import { Linking } from 'react-native';
 
 
 
@@ -60,81 +61,6 @@ function ModalDocumento({ visivel, titulo, conteudo, onFechar }) {
   );
 }
 
-// ─── Conteúdo dos documentos ──────────────────────────────────────────────────
-const TERMOS_DE_USO = `Termos de Uso — Pontua
-Última atualização: junho de 2025
-
-1. ACEITAÇÃO DOS TERMOS
-Ao criar uma conta no Pontua, você confirma que leu, entendeu e concorda com estes Termos de Uso. Se não concordar, não utilize o aplicativo.
-
-2. DESCRIÇÃO DO SERVIÇO
-O Pontua é uma plataforma gamificada de estudos para concursos públicos. Oferecemos questões de provas anteriores, sistema de pontuação, ranking e desafios diários para auxiliar na sua preparação.
-
-3. ELEGIBILIDADE
-Para criar uma conta, você deve ter pelo menos 13 anos de idade. Menores de 18 anos devem ter autorização de um responsável legal.
-
-4. CONTA DE USUÁRIO
-Você é responsável por manter a confidencialidade da sua senha e por todas as atividades realizadas na sua conta. Notifique-nos imediatamente sobre qualquer uso não autorizado.
-
-5. CONTEÚDO E PROPRIEDADE INTELECTUAL
-As questões disponibilizadas são de provas públicas e de domínio público, conforme legislação brasileira. O sistema de gamificação, design, mascote Ponts e marca Pontua são propriedade exclusiva do Pontua.
-
-6. CONDUTA DO USUÁRIO
-É proibido: usar mecanismos automáticos (bots) para responder questões; compartilhar credenciais de acesso; tentar manipular o sistema de ranking; publicar conteúdo ofensivo ou ilegal.
-
-7. MODIFICAÇÕES DO SERVIÇO
-Podemos modificar, suspender ou encerrar qualquer parte do serviço a qualquer momento, com aviso prévio de 30 dias para alterações substanciais.
-
-8. LIMITAÇÃO DE RESPONSABILIDADE
-O Pontua é uma ferramenta de estudo complementar. Não garantimos aprovação em concursos. O serviço é fornecido "como está", sem garantias de disponibilidade ininterrupta.
-
-9. LEI APLICÁVEL
-Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca do Rio de Janeiro/RJ para dirimir eventuais conflitos.
-
-10. CONTATO
-Dúvidas: suporte@pontua.app`;
-
-const POLITICA_PRIVACIDADE = `Política de Privacidade — Pontua
-Última atualização: junho de 2025
-
-1. INTRODUÇÃO
-Esta Política descreve como o Pontua coleta, usa e protege suas informações pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
-
-2. DADOS QUE COLETAMOS
-• Dados de cadastro: nome completo, nome de usuário, e-mail e senha (armazenada de forma criptografada).
-• Dados de uso: questões respondidas, pontuação, tempo de estudo, sequência de dias (streak).
-• Dados do dispositivo: modelo, sistema operacional e identificador para envio de notificações (opcional).
-
-3. COMO USAMOS SEUS DADOS
-• Criar e gerenciar sua conta;
-• Exibir seu progresso, ranking e conquistas;
-• Enviar notificações de desafios e lembretes de estudo (se autorizado);
-• Melhorar o aplicativo com base em padrões de uso agregados e anônimos.
-
-4. COMPARTILHAMENTO DE DADOS
-Não vendemos seus dados pessoais. Podemos compartilhar com:
-• Prestadores de serviço essenciais (hospedagem, analytics) sob acordo de confidencialidade;
-• Autoridades, quando exigido por lei.
-
-5. RETENÇÃO DE DADOS
-Seus dados são mantidos enquanto sua conta estiver ativa. Ao excluir a conta, os dados pessoais identificáveis são removidos em até 30 dias, exceto onde a lei exige retenção maior.
-
-6. SEUS DIREITOS (LGPD)
-Você tem direito a: confirmar a existência de tratamento; acessar seus dados; corrigir dados incompletos ou desatualizados; solicitar anonimização ou exclusão; revogar consentimento a qualquer momento.
-
-Para exercer seus direitos: privacidade@pontua.app
-
-7. SEGURANÇA
-Utilizamos criptografia em trânsito (HTTPS) e em repouso. Senhas são armazenadas com hash seguro. Realizamos revisões periódicas de segurança.
-
-8. COOKIES E TECNOLOGIAS SIMILARES
-O aplicativo não utiliza cookies. Utilizamos armazenamento local apenas para manter sua sessão ativa.
-
-9. ALTERAÇÕES NESTA POLÍTICA
-Notificaremos mudanças relevantes por e-mail ou notificação no app com antecedência mínima de 15 dias.
-
-10. CONTATO
-Encarregado de Dados (DPO): privacidade@pontua.app`;
 
 // ─── Tela principal ───────────────────────────────────────────────────────────
 export default function AuthScreen({ navigation, route }) {
@@ -239,18 +165,8 @@ export default function AuthScreen({ navigation, route }) {
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
-      <ModalDocumento
-        visivel={modalTermos}
-        titulo="Termos de Uso"
-        conteudo={TERMOS_DE_USO}
-        onFechar={() => setModalTermos(false)}
-      />
-      <ModalDocumento
-        visivel={modalPrivacidade}
-        titulo="Política de Privacidade"
-        conteudo={POLITICA_PRIVACIDADE}
-        onFechar={() => setModalPrivacidade(false)}
-      />
+      
+      
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
@@ -331,14 +247,14 @@ export default function AuthScreen({ navigation, route }) {
                 Li e aceito os{' '}
                 <Text
                   style={styles.termosLink}
-                  onPress={() => setModalTermos(true)}
+                  onPress={() => Linking.openURL(`${SITE_URL}/termos/`)}
                 >
                   Termos de Uso
                 </Text>
                 {' '}e a{' '}
                 <Text
                   style={styles.termosLink}
-                  onPress={() => setModalPrivacidade(true)}
+                  onPress={() => Linking.openURL(`${SITE_URL}/privacidade/`)}
                 >
                   Política de Privacidade
                 </Text>

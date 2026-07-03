@@ -7,11 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_URL } from '../config';
+import { usePontsAlert } from '../context/PontsAlertContext';
 
 
 function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
@@ -39,6 +39,7 @@ function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
 
 export default function RecuperarSenhaScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { alertar } = usePontsAlert();
 
   const [etapa, setEtapa]           = useState('email'); // 'email' | 'codigo'
   const [email, setEmail]           = useState('');
@@ -51,7 +52,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
 
   const solicitarCodigo = async () => {
     if (!email.trim()) {
-      Alert.alert('Atenção', 'Digite seu e-mail.');
+      alertar('Atenção', 'Digite seu e-mail.', [{ text: 'OK' }]);
       return;
     }
     setCarregando(true);
@@ -64,7 +65,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
       // Resposta é sempre genérica — avançamos pra próxima etapa independente do resultado
       setEtapa('codigo');
     } catch {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }
@@ -72,15 +73,15 @@ export default function RecuperarSenhaScreen({ navigation }) {
 
   const confirmarNovaSenha = async () => {
     if (!codigo.trim() || !novaSenha || !confirmacao) {
-      Alert.alert('Atenção', 'Preencha todos os campos.');
+      alertar('Atenção', 'Preencha todos os campos.', [{ text: 'OK' }]);
       return;
     }
     if (novaSenha !== confirmacao) {
-      Alert.alert('Atenção', 'A nova senha e a confirmação não coincidem.');
+      alertar('Atenção', 'A nova senha e a confirmação não coincidem.', [{ text: 'OK' }]);
       return;
     }
     if (novaSenha.length < 8) {
-      Alert.alert('Atenção', 'A nova senha deve ter pelo menos 8 caracteres.');
+      alertar('Atenção', 'A nova senha deve ter pelo menos 8 caracteres.', [{ text: 'OK' }]);
       return;
     }
 
@@ -98,15 +99,18 @@ export default function RecuperarSenhaScreen({ navigation }) {
       });
       const data = await resp.json();
       if (resp.ok) {
-        Alert.alert('Senha redefinida!', 'Faça login com sua nova senha.', [
-          { text: 'OK', onPress: () => navigation.navigate('Auth', { tela: 'login' }) },
-        ]);
+        alertar(
+          'Senha redefinida!',
+          'Faça login com sua nova senha.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Auth', { tela: 'login' }) }],
+          { pose: 'torcendo' }
+        );
       } else {
         const msg = data.codigo?.[0] || data.nova_senha?.[0] || data.detail || 'Erro ao redefinir senha.';
-        Alert.alert('Erro', msg);
+        alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }

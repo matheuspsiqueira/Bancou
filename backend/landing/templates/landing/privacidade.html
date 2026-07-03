@@ -1,0 +1,60 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Política de Privacidade — Pontua{% endblock %}
+{% block description %}Política de Privacidade do aplicativo Pontua, em conformidade com a LGPD.{% endblock %}
+
+{% block content %}
+<div class="legal-header">
+  <a href="{% url 'landing:index' %}" class="legal-back">← Voltar</a>
+  <h1>Política de Privacidade</h1>
+  <p class="atualizado">Última atualização: junho de 2025</p>
+</div>
+
+<div class="legal-body">
+
+  <h2>1. Introdução</h2>
+  <p>Esta Política descreve como o Pontua coleta, usa e protege suas informações pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
+
+  <h2>2. Dados que Coletamos</h2>
+  <ul>
+    <li><strong>Dados de cadastro:</strong> nome completo, nome de usuário, e-mail e senha (armazenada de forma criptografada).</li>
+    <li><strong>Dados de uso:</strong> questões respondidas, pontuação, tempo de estudo, sequência de dias (streak).</li>
+    <li><strong>Dados do dispositivo:</strong> modelo, sistema operacional e identificador para envio de notificações (opcional).</li>
+  </ul>
+
+  <h2>3. Como Usamos seus Dados</h2>
+  <ul>
+    <li>Criar e gerenciar sua conta;</li>
+    <li>Exibir seu progresso, ranking e conquistas;</li>
+    <li>Enviar notificações de desafios e lembretes de estudo (se autorizado);</li>
+    <li>Melhorar o aplicativo com base em padrões de uso agregados e anônimos.</li>
+  </ul>
+
+  <h2>4. Compartilhamento de Dados</h2>
+  <p>Não vendemos seus dados pessoais. Podemos compartilhar com:</p>
+  <ul>
+    <li>Prestadores de serviço essenciais (hospedagem, analytics) sob acordo de confidencialidade;</li>
+    <li>Autoridades, quando exigido por lei.</li>
+  </ul>
+
+  <h2>5. Retenção de Dados</h2>
+  <p>Seus dados são mantidos enquanto sua conta estiver ativa. Ao excluir a conta, os dados pessoais identificáveis são removidos em até 30 dias, exceto onde a lei exige retenção maior.</p>
+
+  <h2>6. Seus Direitos (LGPD)</h2>
+  <p>Você tem direito a: confirmar a existência de tratamento; acessar seus dados; corrigir dados incompletos ou desatualizados; solicitar anonimização ou exclusão; revogar consentimento a qualquer momento.</p>
+  <p>Para exercer seus direitos: <a class="mail" href="mailto:privacidade@pontua.app">privacidade@pontua.app</a></p>
+
+  <h2>7. Segurança</h2>
+  <p>Utilizamos criptografia em trânsito (HTTPS) e em repouso. Senhas são armazenadas com hash seguro. Realizamos revisões periódicas de segurança.</p>
+
+  <h2>8. Cookies e Tecnologias Similares</h2>
+  <p>O aplicativo não utiliza cookies. Utilizamos armazenamento local apenas para manter sua sessão ativa.</p>
+
+  <h2>9. Alterações nesta Política</h2>
+  <p>Notificaremos mudanças relevantes por e-mail ou notificação no app com antecedência mínima de 15 dias.</p>
+
+  <h2>10. Contato</h2>
+  <p>Encarregado de Dados (DPO): <a class="mail" href="mailto:privacidade@pontua.app">privacidade@pontua.app</a></p>
+
+</div>
+{% endblock %}
