@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +36,44 @@ function Vidas({ atual }) {
     <View style={styles.vidasRow}>
       <Text style={styles.vidaIcone}>❤️</Text>
       <Text style={styles.vidaNumero}>{atual}</Text>
+    </View>
+  );
+}
+
+// ─── Componente de imagem da questão ───────────────────────────────────────
+// Isolado em componente próprio + `key={questao.id}` no uso, pra que o
+// estado de erro resete sozinho a cada troca de questão.
+function ImagemQuestao({ uri }) {
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
+
+  if (!uri || erro) {
+    return (
+      <View style={styles.imagemErroBox}>
+        <Text style={styles.imagemErroTexto}>🖼️ Não foi possível carregar a imagem desta questão</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.imagemContainer}>
+      {carregando && (
+        <ActivityIndicator
+          size="small"
+          color={C.primary}
+          style={styles.imagemLoading}
+        />
+      )}
+      <Image
+        source={{ uri }}
+        style={styles.imagemQuestao}
+        resizeMode="contain"
+        onLoadEnd={() => setCarregando(false)}
+        onError={() => {
+          setCarregando(false);
+          setErro(true);
+        }}
+      />
     </View>
   );
 }
@@ -409,6 +448,11 @@ export default function PartidaScreen({ navigation, route }) {
         {/* Enunciado */}
         <Text style={styles.enunciado}>{questaoAtual.enunciado}</Text>
 
+        {/* Imagem da questão (quando houver) */}
+        {questaoAtual.tem_imagem && questaoAtual.imagem && (
+          <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
+        )}
+
         {/* Alternativas */}
         <View style={styles.alternativas}>
           {questaoAtual.alternativas.map((alt) => (
@@ -583,6 +627,29 @@ const styles = StyleSheet.create({
 
   enunciado: {
     fontFamily: 'Inter_400Regular', fontSize: 16, color: C.text, lineHeight: 26,
+  },
+
+  // Imagem da questão
+  imagemContainer: {
+    backgroundColor: C.card, borderRadius: 14,
+    borderWidth: 1, borderColor: C.border,
+    padding: 8, alignItems: 'center', justifyContent: 'center',
+    minHeight: 200,
+  },
+  imagemQuestao: {
+    width: '100%', height: 240, borderRadius: 8,
+  },
+  imagemLoading: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  imagemErroBox: {
+    backgroundColor: C.card, borderRadius: 14,
+    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    padding: 20, alignItems: 'center', justifyContent: 'center',
+  },
+  imagemErroTexto: {
+    fontFamily: 'Inter_400Regular', fontSize: 13, color: C.text2, textAlign: 'center',
   },
 
   alternativas: { gap: 10 },

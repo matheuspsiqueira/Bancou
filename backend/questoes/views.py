@@ -1,12 +1,14 @@
 # questoes/views.py
 import random
 
+from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 
+from usuarios.models import Usuario
 from usuarios.views import checar_regeneracao_vidas
 from usuarios.services import creditar_resultado_partida
 from usuarios.serializers import UsuarioSerializer
@@ -50,7 +52,7 @@ class ConcursosDisponiveisView(APIView):
         return Response(ConcursoSerializer(concursos, many=True).data)
 
 
-# ─── Inicia a partida: sorteia questões E cria o registro no banco ────────
+# ─── Inicia a partida: sorteia questões, DESCONTA 1 VIDA e cria o registro ─
 
 class IniciarPartidaView(APIView):
     """
@@ -60,22 +62,32 @@ class IniciarPartidaView(APIView):
     GET /api/questoes/iniciar-partida/?tipo=concurso&id=12&com_tempo=1
 
     Sorteia até 10 questões aprovadas e cria uma Partida no banco,
-    guardando exatamente quais questões foram sorteadas. Retorna as
-    questões (sem gabarito) + o partida_id, que o app precisa devolver
-    em /corrigir/ e /finalizar-partida/.
+    guardando exatamente quais questões foram sorteadas. Consome 1 vida
+    do usuário no momento da criação — mecânica de "energia": a vida é
+    gasta ao entrar na partida, independente de quantos acertos/erros
+    ela tiver. Retorna as questões (sem gabarito) + o partida_id + o
+    número de vidas restantes.
     """
     permission_classes = [IsAuthenticated]
     QUANTIDADE = 10
 
     def get(self, request):
         checar_regeneracao_vidas(request.user)
+        request.user.refresh_from_db(fields=['vidas'])
+
+        # Checagem rápida antes de gastar esforço montando o sorteio
+        if request.user.vidas <= 0:
+            return Response(
+                {'detail': 'Você não tem vidas suficientes para iniciar uma partida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         tipo = request.query_params.get('tipo')
         filtro_id = request.query_params.get('id')
         com_tempo = request.query_params.get('com_tempo') == '1'
 
         questoes = Questao.objects.filter(
             status=Questao.Status.APROVADA,
-            tem_imagem=False,
         ).exclude(
             tipo=Questao.Tipo.DISCURSIVA
         ).select_related(
@@ -83,7 +95,9 @@ class IniciarPartidaView(APIView):
         ).prefetch_related('alternativas')
 
         if com_tempo:
-            questoes = questoes.exclude(contexto__gt='')
+            # No modo com tempo, evita questões com contexto longo ou com
+            # imagem — exigem mais tempo de leitura do que o timer permite.
+            questoes = questoes.exclude(contexto__gt='').exclude(tem_imagem=True)
 
         if tipo and filtro_id:
             if tipo == 'banca':
@@ -118,17 +132,35 @@ class IniciarPartidaView(APIView):
         mapa = {q.id: q for q in questoes_selecionadas}
         questoes_ordenadas = [mapa[i] for i in ids_selecionados if i in mapa]
 
-        partida = Partida.objects.create(
-            usuario=request.user,
-            questoes_ids=[q.id for q in questoes_ordenadas],
-            com_tempo=com_tempo,
-        )
+        # Desconta a vida e cria a partida atomicamente, com lock na linha
+        # do usuário — evita que 2 toques rápidos em "Iniciar Partida"
+        # (ou retry de rede) descontem 2 vidas por engano.
+        with transaction.atomic():
+            usuario = Usuario.objects.select_for_update().get(pk=request.user.pk)
 
-        serializer = QuestaoPartidaSerializer(questoes_ordenadas, many=True)
+            if usuario.vidas <= 0:
+                return Response(
+                    {'detail': 'Você não tem vidas suficientes para iniciar uma partida.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario.vidas -= 1
+            usuario.save(update_fields=['vidas'])
+
+            partida = Partida.objects.create(
+                usuario=usuario,
+                questoes_ids=[q.id for q in questoes_ordenadas],
+                com_tempo=com_tempo,
+            )
+
+        serializer = QuestaoPartidaSerializer(
+            questoes_ordenadas, many=True, context={'request': request}
+        )
         return Response({
             'partida_id': partida.id,
             'total': len(questoes_ordenadas),
             'questoes': serializer.data,
+            'vidas_restantes': usuario.vidas,
         })
 
 
@@ -141,7 +173,8 @@ class CorrigirRespostaView(APIView):
 
     Valida que a questão pertence à partida e ainda não foi respondida
     nela, acumula acerto/erro NO BANCO, e só então informa se a resposta
-    está correta + o gabarito.
+    está correta + o gabarito. Não mexe em vidas — a vida já foi paga
+    integralmente na entrada da partida.
     """
     permission_classes = [IsAuthenticated]
 
@@ -211,8 +244,10 @@ class FinalizarPartidaView(APIView):
     POST /api/questoes/finalizar-partida/<partida_id>/
     Body: { "abandonada": false }   (opcional, default false)
 
-    Calcula XP/moedas/vidas a partir de partida.acertos/partida.erros
-    (nunca de valores enviados pelo app) e credita no usuário.
+    Calcula XP/moedas a partir de partida.acertos/partida.erros (nunca
+    de valores enviados pelo app) e credita no usuário. A vida NÃO é
+    descontada aqui — já foi descontada na entrada (IniciarPartidaView).
+    partida.vidas_perdidas é sempre 1, refletindo o custo fixo de entrada.
     Idempotente: se chamada de novo pra mesma partida, retorna o
     resultado já salvo em vez de creditar duas vezes.
     """
@@ -247,7 +282,7 @@ class FinalizarPartidaView(APIView):
         partida.abandonada = abandonada
         partida.xp_ganho = resultado['xp_ganho']
         partida.moedas_ganhas = resultado['moedas_ganhas']
-        partida.vidas_perdidas = resultado['vidas_perdidas']
+        partida.vidas_perdidas = 1  # custo fixo, pago na entrada
         partida.finalizada_em = timezone.now()
         partida.save(update_fields=[
             'finalizada', 'abandonada', 'xp_ganho', 'moedas_ganhas',
@@ -257,6 +292,6 @@ class FinalizarPartidaView(APIView):
         return Response({
             'xp_ganho': resultado['xp_ganho'],
             'moedas_ganhas': resultado['moedas_ganhas'],
-            'vidas_perdidas': resultado['vidas_perdidas'],
+            'vidas_perdidas': partida.vidas_perdidas,
             'usuario': UsuarioSerializer(request.user, context={'request': request}).data,
         })
