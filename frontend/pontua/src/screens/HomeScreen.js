@@ -607,7 +607,7 @@ function ModalPartida({ visible, onClose, onIniciar }) {
             <>
               <Text style={styles.modalTitulo}>Iniciar partida</Text>
               <Text style={styles.modalSubtitulo}>
-                10 questões · +10 XP e +2 🪙 por acerto · perde ❤️ por erro
+                10 questões · +10 XP e +2 🪙 por acerto · consome ❤️ ao iniciar
               </Text>
 
               {/* Toggle de tempo */}

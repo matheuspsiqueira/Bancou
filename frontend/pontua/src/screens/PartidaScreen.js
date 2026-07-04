@@ -6,13 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Modal,
-  Pressable,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { usePontsAlert } from '../context/PontsAlertContext';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer)
@@ -41,56 +39,10 @@ function Vidas({ atual }) {
   );
 }
 
-// ─── Modal: Vidas zeradas ─────────────────────────────────────────────────
-function ModalSemVidas({ visible, onAssistirAd, onAssinar, onEncerrar }) {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalSemVidasCard}>
-          <Text style={styles.modalSemVidasEmoji}>💔</Text>
-          <Text style={styles.modalSemVidasTitulo}>Suas vidas acabaram!</Text>
-          <Text style={styles.modalSemVidasSub}>
-            Você usou todas as suas vidas. O que deseja fazer?
-          </Text>
-
-          <TouchableOpacity
-            style={styles.modalSemVidasBtnAd}
-            onPress={onAssistirAd}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.modalSemVidasBtnAdTexto}>
-              📺  Assistir anúncio · ganhar +1 ❤️
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.modalSemVidasBtnPremium}
-            onPress={onAssinar}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.modalSemVidasBtnPremiumTexto}>
-              ⭐  Assinar Premium
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.modalSemVidasBtnEncerrar}
-            onPress={onEncerrar}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.modalSemVidasBtnEncerrarTexto}>Encerrar partida</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 // ─── Tela principal ───────────────────────────────────────────────────────
 export default function PartidaScreen({ navigation, route }) {
   const { filtro } = route.params ?? {};
   const { authFetch, usuario, atualizarUsuario } = useAuth();
-  const { alertar } = usePontsAlert();
   const insets = useSafeAreaInsets();
 
   // ── Estado de carregamento ──────────────────────────────────────────────
@@ -109,12 +61,10 @@ export default function PartidaScreen({ navigation, route }) {
   // useRef pra contadores síncronos — igual ao DemoScreen
   const acertosRef    = useRef(0);
   const errosRef      = useRef(0);
-  const vidasRef      = useRef(usuario?.vidas ?? 5);
   const partidaIdRef  = useRef(null);
 
-  // ── Estado de vidas/modal ───────────────────────────────────────────────
-  const [vidasAtual,   setVidasAtual]   = useState(usuario?.vidas ?? 5);
-  const [modalSemVidas, setModalSemVidas] = useState(false);
+  // ── Vida consumida na entrada (fixa durante a partida inteira) ─────────
+  const [vidasAtual, setVidasAtual] = useState(usuario?.vidas ?? 3);
 
   // ── Timer ───────────────────────────────────────────────────────────────
   const comTempo     = filtro?.comTempo ?? false;
@@ -124,13 +74,12 @@ export default function PartidaScreen({ navigation, route }) {
 
   // ── Busca as questões ao montar ─────────────────────────────────────────
   useEffect(() => {
-    // Bloqueia entrada se usuário está sem vidas
-    if ((usuario?.vidas ?? 5) === 0) {
-      alertar(
+    // Bloqueia entrada se usuário está sem vidas (checagem definitiva é no backend)
+    if ((usuario?.vidas ?? 3) === 0) {
+      Alert.alert(
         'Sem vidas!',
         'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou assine o Premium.',
-        [{ text: 'Voltar', onPress: () => navigation.goBack() }],
-        { pose: 'ops' }
+        [{ text: 'Voltar', onPress: () => navigation.goBack() }]
       );
       return;
     }
@@ -150,14 +99,22 @@ export default function PartidaScreen({ navigation, route }) {
         params.append('com_tempo', '1');
       }
       const query = params.toString();
-      let path = `/api/questoes/iniciar-partida/${query ? `?${query}` : ''}`;   // ← trocado
+      let path = `/api/questoes/iniciar-partida/${query ? `?${query}` : ''}`;
       const resp = await authFetch(path);
       const data = await resp.json();
       if (!resp.ok) {
+        // Backend recusou (ex: sem vidas) — trata como erro de requisição
         throw new Error(data.detail || 'Erro ao buscar questões.');
       }
-      partidaIdRef.current = data.partida_id;   // ← linha nova
+      partidaIdRef.current = data.partida_id;
       setQuestoes(data.questoes);
+
+      // A vida já foi descontada no backend ao criar a partida.
+      // Sincroniza o número exibido e o contexto global.
+      if (typeof data.vidas_restantes === 'number') {
+        setVidasAtual(data.vidas_restantes);
+        atualizarUsuario({ vidas: data.vidas_restantes });
+      }
     } catch (e) {
       setErroReq(e.message || 'Não foi possível carregar as questões.');
     } finally {
@@ -193,9 +150,6 @@ export default function PartidaScreen({ navigation, route }) {
   const handleTempoEsgotado = useCallback(() => {
     const questaoAtual = questoes[indice];
     if (!questaoAtual) return;
-
-    // Tempo esgotado = erro: mostra gabarito por PAUSA_FEEDBACK_MS e avança
-    setGabarito(questaoAtual.gabarito_temp ?? null); // não temos gabarito ainda — chama corrigir com letra vazia
     registrarErroTempo(questaoAtual);
   }, [questoes, indice]);
 
@@ -209,7 +163,7 @@ export default function PartidaScreen({ navigation, route }) {
       const resp = await authFetch('/api/questoes/corrigir/', {
         method: 'POST',
         body: JSON.stringify({
-          partida_id: partidaIdRef.current,   // ← linha nova
+          partida_id: partidaIdRef.current,
           questao_id: questao.id,
           letra: '_',
         }),
@@ -220,18 +174,10 @@ export default function PartidaScreen({ navigation, route }) {
       // silencioso — gabarito não será exibido mas o fluxo continua
     }
 
-    // Desconta vida
-    const novasVidas = Math.max(0, vidasRef.current - 1);
-    vidasRef.current = novasVidas;
-    setVidasAtual(novasVidas);
-
-    // Avança automaticamente após pausa de feedback
+    // Sem desconto de vida aqui — a vida já foi paga na entrada da partida.
+    // Avança automaticamente após pausa de feedback.
     setTimeout(() => {
-      if (novasVidas === 0) {
-        setModalSemVidas(true);
-      } else {
-        avancarQuestao();
-      }
+      avancarQuestao();
     }, PAUSA_FEEDBACK_MS);
   };
 
@@ -246,7 +192,7 @@ export default function PartidaScreen({ navigation, route }) {
       const resp = await authFetch('/api/questoes/corrigir/', {
         method: 'POST',
         body: JSON.stringify({
-          partida_id: partidaIdRef.current,   // ← linha nova
+          partida_id: partidaIdRef.current,
           questao_id: questaoAtual.id,
           letra: selecionada,
         }),
@@ -262,17 +208,10 @@ export default function PartidaScreen({ navigation, route }) {
         acertosRef.current += 1;
       } else {
         errosRef.current += 1;
-        const novasVidas = Math.max(0, vidasRef.current - 1);
-        vidasRef.current = novasVidas;
-        setVidasAtual(novasVidas);
-
-        if (novasVidas === 0) {
-          // Mostra feedback brevemente antes do modal
-          setTimeout(() => setModalSemVidas(true), 600);
-        }
+        // Sem desconto de vida por erro — a vida já foi paga na entrada.
       }
     } catch {
-      alertar('Erro', 'Não foi possível verificar a resposta. Tente novamente.', [{ text: 'OK' }], { pose: 'ops' });
+      Alert.alert('Erro', 'Não foi possível verificar a resposta. Tente novamente.');
     } finally {
       setCorrigindo(false);
     }
@@ -334,27 +273,6 @@ export default function PartidaScreen({ navigation, route }) {
     }
   };
 
-  // ── Modal sem vidas: ações ─────────────────────────────────────────────
-  const handleAssistirAd = () => {
-    // TODO: integrar AdMob — quando o ad terminar de verdade:
-    // 1. Chamar POST /api/usuarios/recuperar-vida/
-    // 2. Atualizar vidasRef e setVidasAtual com o retorno
-    // 3. Chamar setModalSemVidas(false) e avancarQuestao()
-    // Por enquanto não faz nada — modal permanece aberto.
-    alertar('Em breve', 'Os anúncios recompensados estão chegando em breve!', [{ text: 'OK' }]);
-  };
-
-  const handleAssinar = () => {
-    // TODO: navegar para tela de assinatura Premium
-    // Enquanto não existir, só informa — modal permanece aberto.
-    alertar('Em breve', 'A assinatura Premium está chegando em breve!', [{ text: 'OK' }]);
-  };
-
-  const handleEncerrar = () => {
-    setModalSemVidas(false);
-    finalizarPartida(true);
-  };
-
   // ── Cor das alternativas ─────────────────────────────────────────────────
   const corFundo = (letra) => {
     if (!confirmada) return selecionada === letra ? C.primary : C.card;
@@ -414,14 +332,13 @@ export default function PartidaScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.btnSair}
           onPress={() =>
-            alertar(
+            Alert.alert(
               'Sair da partida?',
-              'Seu progresso parcial será salvo.',
+              'Seu progresso parcial será salvo. A vida usada não será devolvida.',
               [
-                { text: 'Continuar', style: 'cancel' },
+                { text: 'Continuar jogando', style: 'cancel' },
                 { text: 'Sair', style: 'destructive', onPress: () => finalizarPartida(true) },
-              ],
-              { pose: 'pensando' }
+              ]
             )
           }
           activeOpacity={0.7}
@@ -562,9 +479,8 @@ export default function PartidaScreen({ navigation, route }) {
             }
           </TouchableOpacity>
         ) : (
-          // Só mostra botão Próxima/Ver resultado se não foi tempo esgotado
-          // (tempo esgotado avança automaticamente)
-          !tempoEsgotado && vidasAtual > 0 && (
+          // Tempo esgotado avança automaticamente; nos demais casos mostra o botão
+          !tempoEsgotado && (
             <TouchableOpacity
               style={styles.botao}
               onPress={() => {
@@ -583,14 +499,6 @@ export default function PartidaScreen({ navigation, route }) {
           )
         )}
       </View>
-
-      {/* ── Modal: sem vidas ─────────────────────────────────────────── */}
-      <ModalSemVidas
-        visible={modalSemVidas}
-        onAssistirAd={handleAssistirAd}
-        onAssinar={handleAssinar}
-        onEncerrar={handleEncerrar}
-      />
     </View>
   );
 }
@@ -712,37 +620,4 @@ const styles = StyleSheet.create({
   },
   botaoDisabled: { opacity: 0.35 },
   botaoTexto: { fontFamily: 'Nunito_700Bold', fontSize: 17, color: C.text },
-
-  // Modal sem vidas
-  modalOverlay: {
-    flex: 1, backgroundColor: '#000000CC',
-    justifyContent: 'center', alignItems: 'center', padding: 24,
-  },
-  modalSemVidasCard: {
-    backgroundColor: C.card, borderRadius: 24,
-    padding: 28, width: '100%', alignItems: 'center', gap: 12,
-  },
-  modalSemVidasEmoji:   { fontSize: 48 },
-  modalSemVidasTitulo:  { fontFamily: 'Nunito_900Black', fontSize: 22, color: C.text, textAlign: 'center' },
-  modalSemVidasSub: {
-    fontFamily: 'Inter_400Regular', fontSize: 14, color: C.text2,
-    textAlign: 'center', lineHeight: 20, marginBottom: 8,
-  },
-  modalSemVidasBtnAd: {
-    backgroundColor: C.primary, borderRadius: 14,
-    paddingVertical: 16, width: '100%', alignItems: 'center',
-  },
-  modalSemVidasBtnAdTexto: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: C.text },
-  modalSemVidasBtnPremium: {
-    backgroundColor: '#FFD70022', borderRadius: 14,
-    paddingVertical: 16, width: '100%', alignItems: 'center',
-    borderWidth: 1.5, borderColor: C.gold,
-  },
-  modalSemVidasBtnPremiumTexto: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: C.gold },
-  modalSemVidasBtnEncerrar: {
-    paddingVertical: 14, width: '100%', alignItems: 'center',
-  },
-  modalSemVidasBtnEncerrarTexto: {
-    fontFamily: 'Inter_500Medium', fontSize: 14, color: C.text2,
-  },
 });
