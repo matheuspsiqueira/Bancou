@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'questoes',
     'usuarios',
     'landing',
+    'loja',
 ]
 
 MIDDLEWARE = [
@@ -106,7 +107,7 @@ SIMPLE_JWT = {
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://10f8-2804-14d-168a-98b7-8c06-692-f48f-7680.ngrok-free.app',
+    'https://e389-2804-14d-5c42-854e-dc87-e3a5-8318-b4f8.ngrok-free.app',
 ]
 
 
