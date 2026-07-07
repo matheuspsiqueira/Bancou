@@ -6,15 +6,15 @@ import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 // Mapa de poses disponíveis hoje. Adicione aqui assim que novas poses
 // forem geradas (ex: 'chorando' pra despedidas/exclusão de conta).
 const POSES = {
-  animado:    require('../assets/ponts-animado.png'),
-  constancia: require('../assets/ponts-constancia.png'),
-  dormindo:   require('../assets/ponts-dormindo.png'),
-  evolucao:   require('../assets/ponts-evolucao.png'),
-  foco:       require('../assets/ponts-foco.png'),
-  ops:        require('../assets/ponts-ops.png'),
-  pensando:   require('../assets/ponts-pensando.png'),
-  torcendo:   require('../assets/ponts-torcendo.png'),
-  triste:   require('../assets/ponts-triste.png'),
+  animado:    require('../assets/kou-animado.png'),
+  constancia: require('../assets/kou-constancia.png'),
+  dormindo:   require('../assets/kou-dormindo.png'),
+  evolucao:   require('../assets/kou-evolucao.png'),
+  foco:       require('../assets/kou-foco.png'),
+  ops:        require('../assets/kou-ops.png'),
+  pensando:   require('../assets/kou-pensando.png'),
+  torcendo:   require('../assets/kou-torcendo.png'),
+  triste:   require('../assets/kou-triste.png'),
 };
 
 export default function PontsAlert({ visivel, titulo, mensagem, botoes = [], pose, onFechar }) {

@@ -15,6 +15,7 @@ import DemoScoreScreen from '../screens/DemoScoreScreen';
 import HomeScreen      from '../screens/HomeScreen';
 import PartidaScreen from '../screens/PartidaScreen';
 import ScoreScreen   from '../screens/ScoreScreen';
+import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,7 +35,7 @@ function RootNavigator() {
       {autenticado ? (
         // ── Stack autenticado ──────────────────────────────────────────
         <>
-          <Stack.Screen name="Home"    component={HomeScreen} />
+          <Stack.Screen name="Home"    component={TabNavigator} />
           <Stack.Screen name="Partida" component={PartidaScreen} />
           <Stack.Screen name="Score"   component={ScoreScreen} />
         </>

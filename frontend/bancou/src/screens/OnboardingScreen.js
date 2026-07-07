@@ -10,14 +10,14 @@ const { width, height } = Dimensions.get('window');
 const slides = [
   {
     id: '1',
-    pose: require('../assets/ponts-foco.png'),
+    pose: require('../assets/kou-foco.png'),
     titulo: 'Estude com propósito',
     descricao: 'Questões reais de bancas oficiais, organizadas por matéria. Sem enrolação.',
     mostrarPular: true,
   },
   {
     id: '2',
-    pose: require('../assets/ponts-constancia.png'),
+    pose: require('../assets/kou-constancia.png'),
     titulo: 'Ganhe pontos, mantenha o streak',
     descricao: 'Cada questão respondida te aproxima da aprovação. Não quebre sua sequência!',
     chips: [
@@ -29,7 +29,7 @@ const slides = [
   },
   {
     id: '3',
-    pose: require('../assets/ponts-evolucao.png'),
+    pose: require('../assets/kou-evolucao.png'),
     titulo: 'Pronto para passar\nno concurso?',
     descricao: 'Crie sua conta e comece agora. Ou experimente sem cadastro.',
     isFinal: true,

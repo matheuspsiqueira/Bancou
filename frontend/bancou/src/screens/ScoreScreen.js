@@ -26,7 +26,7 @@ function getFaixa(acertos, total, abandonada) {
     return {
       titulo: 'Gabaritou! 🏆',
       subtitulo: 'Perfeito! Você dominou todas as questões desta partida.',
-      pose: require('../assets/ponts-animado.png'),
+      pose: require('../assets/kou-animado.png'),
       corTitulo: '#FFD700',
     };
   } else if (pct >= 0.7) {
@@ -40,7 +40,7 @@ function getFaixa(acertos, total, abandonada) {
     return {
       titulo: 'Bom trabalho!',
       subtitulo: 'Continue estudando com constância e os resultados vão melhorar.',
-      pose: require('../assets/ponts-constancia.png'),
+      pose: require('../assets/kou-constancia.png'),
       corTitulo: '#00C896',
     };
   } else {

@@ -1,3 +1,8 @@
+// src/screens/LojaScreen.js
+// Fase 1 da loja: apenas itens comprados com moedas do jogo (buffs + vida
+// extra). Compras com dinheiro real (IAP) ficam para a fase de produção,
+// conforme decidido — ver anotações do roadmap.
+// Consome GET /api/loja/itens/ e POST /api/loja/comprar-item/ (backend a implementar).
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -8,35 +13,35 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
-import { API_URL } from '../config';
+import TelaComHeader from '../components/TelaComHeader';
 
 const ICONES = {
-  pula_questao: '⏭️',
-  elimina_alternativas: '✂️',
-  xp_dobro: '⚡',
-  congela_streak: '🧊',
-  vida_extra: '❤️',
+  pula_questao:          '⏭️',
+  elimina_alternativas:  '✂️',
+  xp_dobro:              '⚡',
+  congela_streak:        '🧊',
+  vida_extra:            '❤️',
 };
 
-export default function LojaScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
+export default function LojaScreen() {
   const { usuario, authFetch, atualizarUsuario } = useAuth();
-  const { mostrarAlert } = usePontsAlert();
+  const { alertar } = usePontsAlert();
 
-  const [itens, setItens] = useState([]);
+  const [itens, setItens]         = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const [comprando, setComprando] = useState(null);
+  const [comprando, setComprando]   = useState(null);
 
   const carregarItens = useCallback(async () => {
+    setCarregando(true);
     try {
-      const res = await authFetch(`${API_URL}/api/loja/itens/`);
-      const data = await res.json();
+      const resp = await authFetch('/api/loja/itens/');
+      if (!resp.ok) throw new Error('Falha ao buscar itens da loja');
+      const data = await resp.json();
       setItens(data);
     } catch (e) {
-      mostrarAlert({ pose: 'ops', titulo: 'Ops!', mensagem: 'Não foi possível carregar a loja.' });
+      alertar('Erro', 'Não foi possível carregar a loja. Verifique sua conexão.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCarregando(false);
     }
@@ -47,47 +52,39 @@ export default function LojaScreen({ navigation }) {
   }, [carregarItens]);
 
   const comprarItem = async (item) => {
-    if (usuario.moedas < item.preco_moedas) {
-      mostrarAlert({ pose: 'ops', titulo: 'Moedas insuficientes', mensagem: 'Jogue mais partidas para ganhar moedas!' });
+    if ((usuario?.moedas ?? 0) < item.preco_moedas) {
+      alertar('Moedas insuficientes', 'Jogue mais partidas para ganhar moedas!', [{ text: 'OK' }], { pose: 'ops' });
       return;
     }
 
     setComprando(item.codigo);
     try {
-      const res = await authFetch(`${API_URL}/api/loja/comprar-item/`, {
+      const resp = await authFetch('/api/loja/comprar-item/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codigo_item: item.codigo }),
       });
 
-      if (!res.ok) throw new Error('Falha na compra');
+      if (!resp.ok) throw new Error('Falha na compra');
+      const data = await resp.json();
 
-      const data = await res.json();
-      atualizarUsuario({ moedas: data.saldo_moedas, vidas: data.vidas_atuais ?? usuario.vidas });
+      atualizarUsuario({
+        moedas: data.saldo_moedas,
+        ...(data.vidas_atuais != null ? { vidas: data.vidas_atuais } : {}),
+      });
 
-      mostrarAlert({ pose: 'torcendo', titulo: 'Compra realizada!', mensagem: `Você adquiriu: ${item.nome}` });
+      alertar('Compra realizada!', `Você adquiriu: ${item.nome}`, [{ text: 'OK' }], { pose: 'torcendo' });
     } catch (e) {
-      mostrarAlert({ pose: 'ops', titulo: 'Ops!', mensagem: 'Não foi possível concluir a compra.' });
+      alertar('Erro', 'Não foi possível concluir a compra.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setComprando(null);
     }
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.voltar}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.titulo}>Loja</Text>
-        <View style={styles.saldoMoedas}>
-          <Text style={styles.saldoTexto}>🪙 {usuario.moedas}</Text>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <TelaComHeader>
+      <ScrollView style={styles.abaContainer} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={styles.avisoConstrucao}>
-          <Image source={require('../assets/kou-pensando.png')} style={styles.kouConstrucao} />
+          <Image source={require('../assets/kou-pensando.png')} style={styles.kouConstrucao} resizeMode="contain" />
           <View style={{ flex: 1 }}>
             <Text style={styles.avisoTitulo}>Loja em construção 🚧</Text>
             <Text style={styles.avisoTexto}>
@@ -110,41 +107,24 @@ export default function LojaScreen({ navigation }) {
                   style={styles.botaoComprar}
                   onPress={() => comprarItem(item)}
                   disabled={comprando === item.codigo}
+                  activeOpacity={0.85}
                 >
-                  {comprando === item.codigo ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <Text style={styles.botaoComprarTexto}>🪙 {item.preco_moedas}</Text>
-                  )}
+                  {comprando === item.codigo
+                    ? <ActivityIndicator color="#FFFFFF" size="small" />
+                    : <Text style={styles.botaoComprarTexto}>🪙 {item.preco_moedas}</Text>
+                  }
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
       </ScrollView>
-    </View>
+    </TelaComHeader>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  voltar: { color: '#FFFFFF', fontSize: 24 },
-  titulo: { color: '#FFFFFF', fontSize: 22, fontFamily: 'Nunito_700Bold' },
-  saldoMoedas: {
-    backgroundColor: '#252540',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  saldoTexto: { color: '#FFD700', fontFamily: 'Nunito_700Bold', fontSize: 14 },
-  scroll: { padding: 16, paddingBottom: 48 },
+  abaContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   avisoConstrucao: {
     flexDirection: 'row',
     backgroundColor: '#252540',
@@ -156,9 +136,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FF6B35',
   },
-  kouConstrucao: { width: 48, height: 48, resizeMode: 'contain' },
-  avisoTitulo: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 16, marginBottom: 4 },
-  avisoTexto: { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
+  kouConstrucao: { width: 48, height: 48 },
+  avisoTitulo:   { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 16, marginBottom: 4 },
+  avisoTexto:    { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   card: {
     width: '47%',
@@ -168,9 +148,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  cardIcone: { fontSize: 32, marginBottom: 8 },
-  cardNome: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
-  cardDescricao: { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
+  cardIcone:      { fontSize: 32, marginBottom: 8 },
+  cardNome:       { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
+  cardDescricao:  { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
   botaoComprar: {
     backgroundColor: '#6C63FF',
     borderRadius: 999,

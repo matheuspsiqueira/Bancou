@@ -1,0 +1,165 @@
+// src/screens/PerfilScreen.js
+// Extraído de HomeScreen.js (era o componente AbaPerfil). O handleLogout
+// que antes vivia no componente principal HomeScreen agora mora aqui,
+// já que só a aba Perfil usa ele.
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { usePontsAlert } from '../context/PontsAlertContext';
+import TelaComHeader from '../components/TelaComHeader';
+import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
+import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
+import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
+import { MOCK } from '../utils/mockData';
+
+export default function PerfilScreen() {
+  const { usuario, signOut } = useAuth();
+  const { alertar } = usePontsAlert();
+  const [modalSenha,  setModalSenha]  = useState(false);
+  const [modalPerfil, setModalPerfil] = useState(false);
+
+  const xp      = usuario?.xp     ?? MOCK.xp;
+  const streak  = usuario?.streak  ?? MOCK.streak;
+  const moedas  = usuario?.moedas  ?? MOCK.moedas;
+  const titulo  = getTituloNivel(xp);
+  const xpProximo = getXpProximoNivel(xp);
+  const xpPct   = xpProximo ? Math.min(xp / xpProximo, 1) : 1;
+  const xpLabel = xpProximo
+    ? `⭐ ${xp.toLocaleString()} / ${xpProximo.toLocaleString()} XP`
+    : `⭐ ${xp.toLocaleString()} XP — Nível máximo`;
+  const nome     = usuario?.nome_completo ?? '…';
+  const username = usuario?.username      ?? '…';
+
+  const handleLogout = () => {
+    alertar(
+      'Sair da conta',
+      'Tem certeza que deseja sair?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: signOut },
+      ],
+      { pose: 'triste' }
+    );
+  };
+
+  return (
+    <TelaComHeader>
+      <ScrollView style={styles.abaContainer} contentContainerStyle={{ paddingBottom: 32 }}>
+        <View style={styles.perfilHeader}>
+          <View style={styles.avatar}>
+            <Image
+              source={usuario?.avatar_url ? { uri: usuario.avatar_url } : require('../assets/kou-foco.png')}
+              style={styles.avatarImg}
+              resizeMode={usuario?.avatar_url ? 'cover' : 'contain'}
+            />
+          </View>
+          <Text style={styles.perfilNome}>{username}</Text>
+          <Text style={styles.perfilUsername}>{nome}</Text>
+          <View style={styles.nivelBadge}>
+            <Text style={styles.nivelBadgeText}>Nível {titulo}</Text>
+          </View>
+          <View style={styles.xpBarraContainer}>
+            <View style={styles.xpBarraTrack}>
+              <View style={[styles.xpBarraFill, { width: `${xpPct * 100}%` }]} />
+            </View>
+            <Text style={styles.xpBarraLabel}>{xpLabel}</Text>
+          </View>
+          <View style={styles.perfilStatsRow}>
+            <View style={styles.perfilStatBox}>
+              <Text style={styles.perfilStatVal}>{streak}</Text>
+              <Text style={styles.perfilStatLabel}>🔥 Streak</Text>
+            </View>
+            <View style={styles.perfilStatDivider} />
+            <View style={styles.perfilStatBox}>
+              <Text style={styles.perfilStatVal}>{moedas}</Text>
+              <Text style={styles.perfilStatLabel}>🪙 Moedas</Text>
+            </View>
+            <View style={styles.perfilStatDivider} />
+            <View style={styles.perfilStatBox}>
+              <Text style={styles.perfilStatVal}>Em breve</Text>
+              <Text style={styles.perfilStatLabel}>🏆 Liga</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.secaoTitulo}>Conquistas</Text>
+        <View style={styles.emBreveCard}>
+          <Text style={styles.emBreveEmoji}>🏅</Text>
+          <Text style={styles.emBreveTitulo}>Em breve</Text>
+          <Text style={styles.emBreveDesc}>
+            Conquistas únicas que desbloqueiam conforme você avança. Cada uma conta uma história!
+          </Text>
+        </View>
+
+        <Text style={[styles.secaoTitulo, { marginTop: 8 }]}>Configurações</Text>
+
+        <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalPerfil(true)} activeOpacity={0.7}>
+          <Text style={styles.opcaoText}>✏️  Editar perfil</Text>
+          <Text style={{ color: '#9090B0', fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalSenha(true)} activeOpacity={0.7}>
+          <Text style={styles.opcaoText}>🔑  Alterar senha</Text>
+          <Text style={{ color: '#9090B0', fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.btnLogout} onPress={handleLogout} activeOpacity={0.8}>
+          <Text style={styles.btnLogoutText}>Sair da conta</Text>
+        </TouchableOpacity>
+
+        <ModalAlterarSenha visible={modalSenha}  onClose={() => setModalSenha(false)} />
+        <ModalEditarPerfil visible={modalPerfil} onClose={() => setModalPerfil(false)} />
+      </ScrollView>
+    </TelaComHeader>
+  );
+}
+
+const styles = StyleSheet.create({
+  abaContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  perfilHeader: {
+    alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16,
+    backgroundColor: '#252540', borderRadius: 14, marginBottom: 24,
+  },
+  avatar: {
+    width: 84, height: 84, borderRadius: 42,
+    backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center',
+    marginBottom: 12, borderWidth: 2, borderColor: '#6C63FF', overflow: 'hidden',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  perfilNome:      { fontFamily: 'Nunito_800ExtraBold', fontSize: 20, color: '#FFFFFF' },
+  perfilUsername:  { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', marginBottom: 8 },
+  nivelBadge: {
+    backgroundColor: '#6C63FF22', borderRadius: 999,
+    paddingHorizontal: 14, paddingVertical: 4, marginBottom: 16,
+    borderWidth: 1, borderColor: '#6C63FF55',
+  },
+  nivelBadgeText:   { fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#6C63FF' },
+  xpBarraContainer: { width: '100%', marginBottom: 20 },
+  xpBarraTrack:     { height: 8, backgroundColor: '#1a1a2e', borderRadius: 999, marginBottom: 6 },
+  xpBarraFill:      { height: 8, borderRadius: 999, backgroundColor: '#6C63FF' },
+  xpBarraLabel:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', textAlign: 'center' },
+  perfilStatsRow:   { flexDirection: 'row', alignItems: 'center' },
+  perfilStatBox:    { flex: 1, alignItems: 'center' },
+  perfilStatDivider:{ width: 1, height: 32, backgroundColor: '#1a1a2e' },
+  perfilStatVal:    { fontFamily: 'Nunito_900Black', fontSize: 20, color: '#FFFFFF' },
+  perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', marginTop: 2 },
+  secaoTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF', marginBottom: 12 },
+  emBreveCard: {
+    backgroundColor: '#252540', borderRadius: 14, padding: 24,
+    alignItems: 'center', marginBottom: 16,
+    borderWidth: 1, borderColor: '#6C63FF33', borderStyle: 'dashed',
+  },
+  emBreveEmoji:  { fontSize: 32, marginBottom: 8 },
+  emBreveTitulo: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#9090B0', marginBottom: 6 },
+  emBreveDesc:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', textAlign: 'center', lineHeight: 19 },
+  opcaoItem: {
+    backgroundColor: '#252540', borderRadius: 12, padding: 16,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
+  },
+  opcaoText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#FFFFFF' },
+  btnLogout: {
+    marginTop: 16, borderWidth: 1, borderColor: '#FF4069',
+    borderRadius: 14, padding: 14, alignItems: 'center',
+  },
+  btnLogoutText: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FF4069' },
+});
