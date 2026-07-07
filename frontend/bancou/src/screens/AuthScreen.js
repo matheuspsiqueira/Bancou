@@ -171,7 +171,7 @@ export default function AuthScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* Logo */}
-        <Text style={styles.logo}>Pontua<Text style={styles.ponto}>.</Text></Text>
+        <Text style={styles.logo}>Bancou<Text style={styles.ponto}>.</Text></Text>
         <Text style={styles.sub}>Sua aprovação começa aqui.</Text>
 
         {/* Abas */}

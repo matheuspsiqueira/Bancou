@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Pontua",
-    "slug": "pontua",
+    "name": "Bancou",
+    "slug": "bancou",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/ponts-animado1.png",
@@ -10,6 +10,7 @@
       "supportsTablet": false
     },
     "android": {
+      "package": "br.com.bancou.app",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/ponts-animado1.png",
         "backgroundImage": "./src/assets/ponts-animado1.png",

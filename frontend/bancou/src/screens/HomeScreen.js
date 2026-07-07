@@ -447,7 +447,7 @@ function ModalEditarPerfil({ visible, onClose }) {
     ? { uri: fotoPreview }
     : usuario?.avatar_url
       ? { uri: usuario.avatar_url }
-      : require('../assets/ponts-foco.png');
+      : require('../assets/kou-foco.png');
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={fechar}>
@@ -743,7 +743,7 @@ function AbaInicio({ onAbrirModal }) {
           </Text>
           <Text style={styles.boasVindasDesc}>pronto para pontuar?</Text>
         </View>
-        <Image source={require('../assets/ponts-foco.png')} style={styles.pontsImg} resizeMode="contain" />
+        <Image source={require('../assets/kou-foco.png')} style={styles.pontsImg} resizeMode="contain" />
       </View>
 
       <TouchableOpacity style={styles.btnEstudar} onPress={onAbrirModal} activeOpacity={0.85}>
@@ -827,7 +827,7 @@ function AbaPerfil({ onLogout }) {
       <View style={styles.perfilHeader}>
         <View style={styles.avatar}>
           <Image
-            source={usuario?.avatar_url ? { uri: usuario.avatar_url } : require('../assets/ponts-foco.png')}
+            source={usuario?.avatar_url ? { uri: usuario.avatar_url } : require('../assets/kou-foco.png')}
             style={styles.avatarImg}
             resizeMode={usuario?.avatar_url ? 'cover' : 'contain'}
           />
@@ -932,7 +932,7 @@ export default function HomeScreen({ navigation }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.logo}>
-          Pontua<Text style={{ color: '#FF6B35' }}>.</Text>
+          Bancou<Text style={{ color: '#FF6B35' }}>.</Text>
         </Text>
         <StatsHeader streak={streak} vidas={vidas} moedas={moedas} />
       </View>

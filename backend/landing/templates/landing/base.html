@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Pontua — Estude. Acumule pontos. Conquiste seu futuro.{% endblock %}</title>
-<meta name="description" content="{% block description %}Pontua é o app gamificado de questões de concurso público. Responda questões reais, acumule XP e mantenha seu streak de estudos todos os dias.{% endblock %}">
+<title>{% block title %}Bancou — Estude. Acumule pontos. Conquiste seu futuro.{% endblock %}</title>
+<meta name="description" content="{% block description %}Bancou é o app gamificado de questões de concurso público. Responda questões reais, acumule XP e mantenha seu streak de estudos todos os dias.{% endblock %}">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'landing/css/style.css' %}">
 </head>
@@ -12,7 +12,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a href="{% url 'landing:index' %}" class="nav-logo">Pontua<span>.</span></a>
+    <a href="{% url 'landing:index' %}" class="nav-logo">Bancou<span>.</span></a>
     <button class="nav-cta" disabled>Baixar · Em breve</button>
   </div>
 </nav>
@@ -20,14 +20,14 @@
 {% block content %}{% endblock %}
 
 <footer>
-  <div class="footer-logo">Pontua<span>.</span></div>
+  <div class="footer-logo">Bancou<span>.</span></div>
   <p style="color:var(--texto2); font-size:14px;">Estude. Acumule pontos. Conquiste seu futuro.</p>
   <div class="footer-links">
     <a href="{% url 'landing:termos' %}">Termos de Uso</a>
     <a href="{% url 'landing:privacidade' %}">Política de Privacidade</a>
-    <a href="mailto:suporte@pontua.app">suporte@pontua.app</a>
+    <a href="mailto:suporte@bancou.app">suporte@bancou.app</a>
   </div>
-  <p class="footer-copy">© {% now "Y" %} Pontua. Todos os direitos reservados.</p>
+  <p class="footer-copy">© {% now "Y" %} Bancou. Todos os direitos reservados.</p>
 </footer>
 
 </body>

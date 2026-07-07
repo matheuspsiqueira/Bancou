@@ -184,7 +184,7 @@ class SolicitarRecuperacaoSenhaSerializer(serializers.Serializer):
             self.usuario.save(update_fields=['codigo_recuperacao_senha', 'codigo_recuperacao_expira_em'])
 
             send_mail(
-                subject='Pontua — Código de recuperação de senha',
+                subject='Bancou — Código de recuperação de senha',
                 message=(
                     f'Seu código de recuperação de senha é: {codigo}\n\n'
                     f'Ele expira em 15 minutos. Se você não solicitou isso, ignore este e-mail.'

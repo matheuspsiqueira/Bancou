@@ -106,9 +106,9 @@ SIMPLE_JWT = {
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://9e1c-2804-14d-5c42-854e-29f8-83b2-e255-2e7.ngrok-free.app',
+    'https://10f8-2804-14d-168a-98b7-8c06-692-f48f-7680.ngrok-free.app',
 ]
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Pontua <naoresponda@pontua.app>'
+DEFAULT_FROM_EMAIL = 'Bancou <naoresponda@bancou.app.br>'

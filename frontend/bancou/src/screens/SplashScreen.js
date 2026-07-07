@@ -17,12 +17,12 @@ export default function SplashScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <Animated.View style={[styles.content, { opacity }]}>
         <Image
-          source={require('../assets/ponts.png')}
+          source={require('../assets/kou.png')}
           style={styles.mascote}
           resizeMode="contain"
         />
         <Text style={styles.logo}>
-          Pontua<Text style={styles.ponto}>.</Text>
+          Bancou<Text style={styles.ponto}>.</Text>
         </Text>
         <Text style={styles.tagline}>Estude. Acumule pontos. Conquiste seu futuro.</Text>
       </Animated.View>

@@ -28,28 +28,28 @@ function getFaixa(acertos, total) {
     return {
       titulo: 'Gabaritou! 🏆',
       subtitulo: 'Impressionante. Você já tá na frente de muita gente.',
-      pose: require('../assets/ponts-constancia.png'),
+      pose: require('../assets/kou-constancia.png'),
       corTitulo: '#FFD700',
     };
   } else if (pct >= 0.7) {
     return {
       titulo: 'Quase perfeito! ⭐',
       subtitulo: 'Com estudo constante, você chega lá rapidinho.',
-      pose: require('../assets/ponts-evolucao.png'),
+      pose: require('../assets/kou-evolucao.png'),
       corTitulo: '#6C63FF',
     };
   } else if (pct >= 0.4) {
     return {
       titulo: 'Bom começo!',
-      subtitulo: 'Você tem potencial. Falta consistência — e a Pontua te ajuda com isso.',
-      pose: require('../assets/ponts.png'),
+      subtitulo: 'Você tem potencial. Falta consistência — e o Bancou te ajuda com isso.',
+      pose: require('../assets/kou.png'),
       corTitulo: '#00C896',
     };
   } else {
     return {
       titulo: 'Não desanima!',
       subtitulo: 'Todo especialista já foi iniciante. O primeiro passo é agora.',
-      pose: require('../assets/ponts-foco.png'),
+      pose: require('../assets/kou-foco.png'),
       corTitulo: '#FF6B35',
     };
   }
