@@ -17,7 +17,7 @@ function getFaixa(acertos, total, abandonada) {
     return {
       titulo: 'Partida encerrada',
       subtitulo: 'Você foi até onde pôde. Continue estudando!',
-      pose: require('../assets/ponts-ops.png'),
+      pose: require('../assets/kou-ops.png'),
       corTitulo: '#FF6B35',
     };
   }
@@ -33,7 +33,7 @@ function getFaixa(acertos, total, abandonada) {
     return {
       titulo: 'Excelente! ⭐',
       subtitulo: 'Ótimo desempenho. Você está no caminho certo para a aprovação.',
-      pose: require('../assets/ponts-torcendo.png'),
+      pose: require('../assets/kou-torcendo.png'),
       corTitulo: '#6C63FF',
     };
   } else if (pct >= 0.4) {
@@ -47,7 +47,7 @@ function getFaixa(acertos, total, abandonada) {
     return {
       titulo: 'Não desanima!',
       subtitulo: 'Cada questão errada é uma lição. Revise e tente novamente.',
-      pose: require('../assets/ponts-ops.png'),
+      pose: require('../assets/kou-ops.png'),
       corTitulo: '#FF4069',
     };
   }
@@ -89,7 +89,7 @@ export default function ScoreScreen({ navigation, route }) {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Ponts */}
+      {/* Kou */}
       <Animated.View style={[styles.pontsWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <Image source={faixa.pose} style={styles.ponts} resizeMode="contain" />
       </Animated.View>
