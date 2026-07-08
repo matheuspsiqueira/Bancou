@@ -22,65 +22,13 @@ export function AuthProvider({ children }) {
     autenticadoRef.current = autenticado;
   }, [autenticado]);
 
-  // ── Verifica token ao abrir o app ─────────────────────────────────────
-  useEffect(() => {
-    const verificar = async () => {
-      try {
-        const token = await AsyncStorage.getItem('access_token');
-        if (token) {
-          setAutenticado(true);
-          await carregarPerfil(token);
-        } else {
-          setAutenticado(false);
-        }
-      } catch {
-        setAutenticado(false);
-      } finally {
-        setChecando(false);
-      }
-    };
-    verificar();
+  // ── signOut ───────────────────────────────────────────────────────────
+  const signOut = useCallback(async () => {
+    await AsyncStorage.removeItem('access_token');
+    await AsyncStorage.removeItem('refresh_token');
+    setUsuario(null);
+    setAutenticado(false);
   }, []);
-
-  // ── Recarrega o perfil sempre que o app volta a ficar ativo ───────────
-  // Cobre o caso do Android pausar/matar parcialmente o processo ao
-  // minimizar o app: sem isso, o estado do usuário fica "congelado" ou
-  // mesclado de forma inconsistente até um novo mount da Splash.
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (proximoEstado) => {
-      const voltouParaAtivo =
-        appStateRef.current.match(/inactive|background/) && proximoEstado === 'active';
-
-      appStateRef.current = proximoEstado;
-
-      if (voltouParaAtivo && autenticadoRef.current) {
-        const token = await AsyncStorage.getItem('access_token');
-        if (token) {
-          await carregarPerfil(token);
-        }
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-
-  // ── Busca dados do perfil na API ──────────────────────────────────────
-  const carregarPerfil = async (token) => {
-    try {
-      const resp = await fetch(`${API_URL}/api/usuarios/perfil/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'ngrok-skip-browser-warning': 'true',
-        },
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        setUsuario(data); // substitui por completo — evita mesclar dados velhos com novos
-      }
-    } catch {
-      // silencioso — campos mock serão usados para os campos ausentes
-    }
-  };
 
   // ── Chamada autenticada com refresh automático ────────────────────────
   const authFetch = useCallback(async (path, options = {}) => {
@@ -123,22 +71,68 @@ export function AuthProvider({ children }) {
     }
 
     return resp;
-  }, []);
+  }, [signOut]);
+
+  // ── Busca dados do perfil na API (agora via authFetch, com auto-refresh) ──
+  const carregarPerfil = useCallback(async () => {
+    try {
+      const resp = await authFetch('/api/usuarios/perfil/');
+      if (resp.ok) {
+        const data = await resp.json();
+        setUsuario(data); // substitui por completo — evita mesclar dados velhos com novos
+      }
+      // se não for ok (401 mesmo após tentativa de refresh), authFetch já
+      // chamou signOut() internamente — nada mais a fazer aqui.
+    } catch {
+      // silencioso — falha de rede, mantém o que já está em estado
+    }
+  }, [authFetch]);
+
+  // ── Verifica token ao abrir o app ─────────────────────────────────────
+  useEffect(() => {
+    const verificar = async () => {
+      try {
+        const token = await AsyncStorage.getItem('access_token');
+        if (token) {
+          setAutenticado(true);
+          await carregarPerfil();
+        } else {
+          setAutenticado(false);
+        }
+      } catch {
+        setAutenticado(false);
+      } finally {
+        setChecando(false);
+      }
+    };
+    verificar();
+  }, [carregarPerfil]);
+
+  // ── Recarrega o perfil sempre que o app volta a ficar ativo ───────────
+  // Cobre o caso do Android pausar/matar parcialmente o processo ao
+  // minimizar o app: sem isso, o estado do usuário fica "congelado" ou
+  // mesclado de forma inconsistente até um novo mount da Splash.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (proximoEstado) => {
+      const voltouParaAtivo =
+        appStateRef.current.match(/inactive|background/) && proximoEstado === 'active';
+
+      appStateRef.current = proximoEstado;
+
+      if (voltouParaAtivo && autenticadoRef.current) {
+        await carregarPerfil();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [carregarPerfil]);
 
   // ── signIn ────────────────────────────────────────────────────────────
   const signIn = async (access, refresh) => {
     await AsyncStorage.setItem('access_token', access);
     await AsyncStorage.setItem('refresh_token', refresh);
     setAutenticado(true);
-    await carregarPerfil(access);
-  };
-
-  // ── signOut ───────────────────────────────────────────────────────────
-  const signOut = async () => {
-    await AsyncStorage.removeItem('access_token');
-    await AsyncStorage.removeItem('refresh_token');
-    setUsuario(null);
-    setAutenticado(false);
+    await carregarPerfil();
   };
 
   // ── Atualiza campos do usuário localmente após edição ─────────────────

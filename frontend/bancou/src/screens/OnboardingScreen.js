@@ -22,7 +22,7 @@ const slides = [
     descricao: 'Cada questão respondida te aproxima da aprovação. Não quebre sua sequência!',
     chips: [
       { icon: '🔥', label: '7 dias', cor: colors.streak },
-      { icon: '❤️', label: '5 vidas', cor: colors.lives },
+      { icon: '❤️', label: '3 vidas', cor: colors.lives },
       { icon: '🪙', label: '320 moedas', cor: colors.coins },
     ],
     mostrarPular: true,

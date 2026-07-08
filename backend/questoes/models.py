@@ -87,6 +87,11 @@ class Questao(models.Model):
 
     def __str__(self):
         return f'Q{self.numero} — {self.concurso}'
+    
+    def save(self, *args, **kwargs):
+        if self.imagem and self.tem_imagem:
+            self.tem_imagem = False
+        super().save(*args, **kwargs)
 
     def precisa_atencao(self):
         return self.tem_imagem or self.baixa_confianca

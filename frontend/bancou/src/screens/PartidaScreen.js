@@ -127,7 +127,7 @@ export default function PartidaScreen({ navigation, route }) {
       alertar(
         'Sem vidas!',
         'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou compre na loja.',
-        [{ texto: 'Voltar', onPress: () => navigation.goBack() }],
+        [{ text: 'Voltar', onPress: () => navigation.goBack() }],
         { pose: 'ops' }
       );
       return;
@@ -478,8 +478,8 @@ export default function PartidaScreen({ navigation, route }) {
               'Sair da partida?',
               'Seu progresso parcial será salvo. A vida usada não será devolvida.',
               [
-                { texto: 'Continuar jogando', estilo: 'cancel' },
-                { texto: 'Sair', estilo: 'destructive', onPress: () => finalizarPartida(true) },
+                { text: 'Continuar', style: 'cancel' },
+                { text: 'Sair', style: 'destructive', onPress: () => finalizarPartida(true) },
               ],
               { pose: 'triste' }
             )
@@ -553,7 +553,7 @@ export default function PartidaScreen({ navigation, route }) {
         <Text style={styles.enunciado}>{questaoAtual.enunciado}</Text>
 
         {/* Imagem da questão (quando houver) */}
-        {questaoAtual.tem_imagem && questaoAtual.imagem && (
+        {questaoAtual.imagem && (
           <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
         )}
 
