@@ -13,6 +13,8 @@ from usuarios.views import checar_regeneracao_vidas
 from usuarios.services import creditar_resultado_partida
 from usuarios.serializers import UsuarioSerializer
 
+from loja.models import ItemLojaVirtual, InventarioBuff, UsoBuffPartida
+
 from .models import Banca, Concurso, Materia, Questao, Partida
 from .serializers import (
     BancaSerializer, MateriaSerializer, ConcursoSerializer,
@@ -235,6 +237,128 @@ class CorrigirRespostaView(APIView):
             'correta': correta,
             'gabarito': questao.gabarito,
         })
+
+
+# ─── Usa um buff da loja dentro de uma questão em andamento ────────────────
+
+class UsarBuffView(APIView):
+    """
+    POST /api/questoes/usar-buff/
+    Body: { "partida_id": 17, "questao_id": 42, "codigo_buff": "pula_questao" }
+
+    Consome 1 unidade do item do inventário do usuário (app loja) e aplica
+    o efeito na questão dentro da partida. Suporta:
+
+      - pula_questao: marca a questão como respondida com acerto no banco
+        (mesmo efeito de um CorrigirRespostaView com acerto), sem que o
+        usuário precise escolher uma alternativa.
+      - elimina_alternativas: NÃO marca nada como respondida — só sorteia
+        e retorna 2 letras de alternativas incorretas pra esconder no
+        frontend. O usuário ainda responde normalmente entre as restantes.
+
+    Segue o mesmo princípio de validação server-side do CorrigirRespostaView:
+    a questão precisa pertencer à partida e ainda não ter sido respondida.
+    """
+    permission_classes = [IsAuthenticated]
+    CODIGOS_VALIDOS = ['pula_questao', 'elimina_alternativas']
+
+    def post(self, request):
+        partida_id = request.data.get('partida_id')
+        questao_id = request.data.get('questao_id')
+        codigo_buff = request.data.get('codigo_buff')
+
+        if not partida_id or not questao_id or codigo_buff not in self.CODIGOS_VALIDOS:
+            return Response(
+                {'detail': 'Informe partida_id, questao_id e um codigo_buff válido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            partida = Partida.objects.get(id=partida_id, usuario=request.user, finalizada=False)
+        except Partida.DoesNotExist:
+            return Response(
+                {'detail': 'Partida não encontrada ou já finalizada.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            questao_id = int(questao_id)
+        except (TypeError, ValueError):
+            return Response({'detail': 'questao_id inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if questao_id not in partida.questoes_ids:
+            return Response(
+                {'detail': 'Essa questão não pertence a esta partida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if questao_id in partida.respondidas_ids:
+            return Response(
+                {'detail': 'Essa questão já foi respondida nesta partida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            questao = Questao.objects.get(id=questao_id, status=Questao.Status.APROVADA)
+        except Questao.DoesNotExist:
+            return Response({'detail': 'Questão não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            item = ItemLojaVirtual.objects.get(codigo=codigo_buff, ativo=True)
+        except ItemLojaVirtual.DoesNotExist:
+            return Response({'detail': 'Item de loja não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            inventario = InventarioBuff.objects.select_for_update().filter(
+                usuario=request.user, item=item, quantidade__gt=0
+            ).first()
+
+            if not inventario:
+                return Response(
+                    {'detail': 'Você não tem esse item no inventário.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # unique_together em UsoBuffPartida impede usar o mesmo buff
+            # 2x na mesma questão (proteção extra contra retry/duplo toque)
+            if UsoBuffPartida.objects.filter(partida=partida, questao=questao, item=item).exists():
+                return Response(
+                    {'detail': 'Esse buff já foi usado nesta questão.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            inventario.quantidade -= 1
+            inventario.save(update_fields=['quantidade'])
+
+            UsoBuffPartida.objects.create(
+                partida=partida, questao=questao, item=item, usuario=request.user,
+            )
+
+            if codigo_buff == 'pula_questao':
+                partida.respondidas_ids.append(questao_id)
+                partida.acertos += 1
+                partida.save(update_fields=['respondidas_ids', 'acertos'])
+
+                return Response({
+                    'efeito': 'pula_questao',
+                    'correta': True,
+                    'gabarito': questao.gabarito,
+                    'inventario_restante': inventario.quantidade,
+                })
+
+            # elimina_alternativas
+            letras_erradas = [
+                alt.letra for alt in questao.alternativas.all()
+                if alt.letra.strip().upper() != questao.gabarito.strip().upper()
+            ]
+            random.shuffle(letras_erradas)
+            eliminadas = letras_erradas[:2]
+
+            return Response({
+                'efeito': 'elimina_alternativas',
+                'alternativas_eliminadas': eliminadas,
+                'inventario_restante': inventario.quantidade,
+            })
 
 
 # ─── Finaliza a partida: credita XP/moedas a partir do que está no banco ──

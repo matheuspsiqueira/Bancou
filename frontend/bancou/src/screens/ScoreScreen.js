@@ -61,8 +61,11 @@ export default function ScoreScreen({ navigation, route }) {
     xpGanho      = 0,
     moedasGanhas = 0,
     abandonada   = false,
+    streakAnterior = 0,
+    streakNovo     = 0,
   } = route.params ?? {};
 
+  const streakAumentou = streakNovo > streakAnterior;
   const insets      = useSafeAreaInsets();
   const aproveitamento = total > 0 ? Math.round((acertos / total) * 100) : 0;
   const faixa       = getFaixa(acertos, total, abandonada);
@@ -71,16 +74,29 @@ export default function ScoreScreen({ navigation, route }) {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const xpAnim    = useRef(new Animated.Value(0)).current;
+  const streakAnim  = useRef(new Animated.Value(0)).current;
+  const streakScale = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    const sequencia = [
       Animated.parallel([
         Animated.timing(fadeAnim,  { toValue: 1, duration: 500, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
         Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
       ]),
       Animated.timing(xpAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-    ]).start();
+    ];
+
+    if (streakAumentou) {
+      sequencia.push(
+        Animated.parallel([
+          Animated.timing(streakAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(streakScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+        ])
+      );
+    }
+
+    Animated.sequence(sequencia).start();
   }, []);
 
   return (
@@ -136,6 +152,29 @@ export default function ScoreScreen({ navigation, route }) {
           </View>
         </Animated.View>
       </Animated.View>
+
+      {streakAumentou && (
+        <Animated.View
+          style={[
+            styles.streakCard,
+            { opacity: streakAnim, transform: [{ scale: streakScale }] },
+          ]}
+        >
+          <Image
+            source={require('../assets/kou-constancia.png')}
+            style={styles.streakPose}
+            resizeMode="contain"
+          />
+          <View style={styles.streakTextos}>
+            <Text style={styles.streakTitulo}>
+              🔥 Streak de {streakNovo} {streakNovo === 1 ? 'dia' : 'dias'}!
+            </Text>
+            <Text style={styles.streakSub}>
+              Volte amanhã pra manter o fogo aceso.
+            </Text>
+          </View>
+        </Animated.View>
+      )}
 
       {/* CTAs */}
       <Animated.View style={[styles.ctaWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -207,6 +246,22 @@ const styles = StyleSheet.create({
   recompensaIcone:  { fontSize: 22 },
   recompensaValor:  { fontFamily: 'Nunito_900Black', fontSize: 26, color: '#6C63FF' },
   recompensaLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
+
+  streakCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#2b1d16', borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#FF6B35',
+    paddingVertical: 14, paddingHorizontal: 16,
+    width: '100%', marginBottom: 20,
+  },
+  streakPose:   { width: 56, height: 56 },
+  streakTextos: { flex: 1 },
+  streakTitulo: {
+    fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#FF6B35', marginBottom: 2,
+  },
+  streakSub: {
+    fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', lineHeight: 17,
+  },
 
   ctaWrapper: { width: '100%', gap: 12 },
   botaoPrimario: {

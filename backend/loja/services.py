@@ -89,10 +89,35 @@ def comprar_item_virtual(usuario, codigo_item: str):
 
 
 def tem_xp_dobro_ativo(usuario) -> bool:
-    """Usar dentro de usuarios/services.py::creditar_resultado_partida
-    pra dobrar o XP creditado quando True. Ainda não integrado lá — ver
-    os pontos pendentes anotados na conversa sobre a loja.
+    """Usado dentro de usuarios/services.py::creditar_resultado_partida
+    pra dobrar o XP creditado quando True.
     """
     return BuffAtivo.objects.filter(
         usuario=usuario, item__codigo='xp_dobro', expira_em__gt=timezone.now()
     ).exists()
+
+
+@transaction.atomic
+def consumir_protecao_streak(usuario) -> bool:
+    """Tenta consumir 1 unidade de 'congela_streak' do inventário do usuário.
+    Retorna True se consumiu (streak deve ser preservado em vez de resetar),
+    False se não havia nenhuma unidade disponível (streak reseta normalmente).
+
+    Chamado de dentro de usuarios/services.py::creditar_resultado_partida,
+    exatamente no momento em que o streak resetaria por ter pulado um dia.
+    """
+    try:
+        item = ItemLojaVirtual.objects.get(codigo='congela_streak')
+    except ItemLojaVirtual.DoesNotExist:
+        return False
+
+    inventario = InventarioBuff.objects.select_for_update().filter(
+        usuario=usuario, item=item, quantidade__gt=0
+    ).first()
+
+    if not inventario:
+        return False
+
+    inventario.quantidade -= 1
+    inventario.save(update_fields=['quantidade'])
+    return True

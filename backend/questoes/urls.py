@@ -6,6 +6,7 @@ from .views import (
     ConcursosDisponiveisView,
     IniciarPartidaView,
     CorrigirRespostaView,
+    UsarBuffView,
     FinalizarPartidaView,
 )
 
@@ -15,5 +16,6 @@ urlpatterns = [
     path('concursos/', ConcursosDisponiveisView.as_view(), name='concursos-disponiveis'),
     path('iniciar-partida/', IniciarPartidaView.as_view(), name='iniciar-partida'),
     path('corrigir/', CorrigirRespostaView.as_view(), name='corrigir-resposta'),
+    path('usar-buff/', UsarBuffView.as_view(), name='usar-buff'),
     path('finalizar-partida/<int:partida_id>/', FinalizarPartidaView.as_view(), name='finalizar-partida'),
 ]

@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { usePontsAlert } from '../context/PontsAlertContext';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
-const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer)
+const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
 
 // ─── Cores ────────────────────────────────────────────────────────────────
 const C = {
@@ -82,6 +83,7 @@ function ImagemQuestao({ uri }) {
 export default function PartidaScreen({ navigation, route }) {
   const { filtro } = route.params ?? {};
   const { authFetch, usuario, atualizarUsuario } = useAuth();
+  const { alertar } = usePontsAlert();
   const insets = useSafeAreaInsets();
 
   // ── Estado de carregamento ──────────────────────────────────────────────
@@ -101,9 +103,16 @@ export default function PartidaScreen({ navigation, route }) {
   const acertosRef    = useRef(0);
   const errosRef      = useRef(0);
   const partidaIdRef  = useRef(null);
+  const streakAnteriorRef = useRef(usuario?.streak ?? 0);
 
   // ── Vida consumida na entrada (fixa durante a partida inteira) ─────────
   const [vidasAtual, setVidasAtual] = useState(usuario?.vidas ?? 3);
+
+  // ── Buffs (pula_questao / elimina_alternativas) ─────────────────────────
+  // inventario: { pula_questao: 2, elimina_alternativas: 1, ... }
+  const [inventario, setInventario] = useState({});
+  const [usandoBuff, setUsandoBuff] = useState(null); // codigo do buff em requisição, ou null
+  const [alternativasEliminadas, setAlternativasEliminadas] = useState([]);
 
   // ── Timer ───────────────────────────────────────────────────────────────
   const comTempo     = filtro?.comTempo ?? false;
@@ -111,18 +120,20 @@ export default function PartidaScreen({ navigation, route }) {
   const timerRef     = useRef(null);
   const expiradoRef  = useRef(false); // impede duplo-disparo
 
-  // ── Busca as questões ao montar ─────────────────────────────────────────
+  // ── Busca as questões + inventário de buffs ao montar ───────────────────
   useEffect(() => {
     // Bloqueia entrada se usuário está sem vidas (checagem definitiva é no backend)
     if ((usuario?.vidas ?? 3) === 0) {
-      Alert.alert(
+      alertar(
         'Sem vidas!',
-        'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou assine o Premium.',
-        [{ text: 'Voltar', onPress: () => navigation.goBack() }]
+        'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou compre na loja.',
+        [{ texto: 'Voltar', onPress: () => navigation.goBack() }],
+        { pose: 'ops' }
       );
       return;
     }
     buscarQuestoes();
+    buscarInventario();
   }, []);
 
   const buscarQuestoes = async () => {
@@ -158,6 +169,21 @@ export default function PartidaScreen({ navigation, route }) {
       setErroReq(e.message || 'Não foi possível carregar as questões.');
     } finally {
       setCarregando(false);
+    }
+  };
+
+  // Busca quantos buffs consumíveis o usuário tem (pula_questao,
+  // elimina_alternativas). Falha silenciosa — se der erro, os botões
+  // simplesmente não aparecem, mas o jogo continua normalmente.
+  const buscarInventario = async () => {
+    try {
+      const resp = await authFetch('/api/loja/inventario/');
+      if (resp.ok) {
+        const data = await resp.json();
+        setInventario(data);
+      }
+    } catch {
+      // silencioso
     }
   };
 
@@ -256,6 +282,72 @@ export default function PartidaScreen({ navigation, route }) {
     }
   };
 
+  // ── Usar buff: pula_questao ─────────────────────────────────────────────
+  // Marca a questão como respondida com acerto no backend, sem o usuário
+  // escolher alternativa. Segue o mesmo padrão visual do tempo esgotado:
+  // mostra feedback de acerto e avança sozinho após a pausa.
+  const usarPulaQuestao = async () => {
+    if (usandoBuff || confirmada || corrigindo) return;
+    const questaoAtual = questoes[indice];
+    setUsandoBuff('pula_questao');
+
+    try {
+      const resp = await authFetch('/api/questoes/usar-buff/', {
+        method: 'POST',
+        body: JSON.stringify({
+          partida_id: partidaIdRef.current,
+          questao_id: questaoAtual.id,
+          codigo_buff: 'pula_questao',
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Não foi possível usar o buff.');
+
+      clearInterval(timerRef.current);
+      setGabarito(data.gabarito);
+      setAcertouAtual(true);
+      setConfirmada(true);
+      acertosRef.current += 1;
+      setInventario((inv) => ({ ...inv, pula_questao: data.inventario_restante }));
+
+      setTimeout(() => {
+        avancarQuestao();
+      }, PAUSA_FEEDBACK_MS);
+    } catch (e) {
+      Alert.alert('Erro', e.message || 'Não foi possível usar o buff.');
+    } finally {
+      setUsandoBuff(null);
+    }
+  };
+
+  // ── Usar buff: elimina_alternativas ─────────────────────────────────────
+  // Não confirma a questão — só esconde 2 alternativas incorretas.
+  const usarEliminaAlternativas = async () => {
+    if (usandoBuff || confirmada || alternativasEliminadas.length > 0) return;
+    const questaoAtual = questoes[indice];
+    setUsandoBuff('elimina_alternativas');
+
+    try {
+      const resp = await authFetch('/api/questoes/usar-buff/', {
+        method: 'POST',
+        body: JSON.stringify({
+          partida_id: partidaIdRef.current,
+          questao_id: questaoAtual.id,
+          codigo_buff: 'elimina_alternativas',
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Não foi possível usar o buff.');
+
+      setAlternativasEliminadas(data.alternativas_eliminadas);
+      setInventario((inv) => ({ ...inv, elimina_alternativas: data.inventario_restante }));
+    } catch (e) {
+      Alert.alert('Erro', e.message || 'Não foi possível usar o buff.');
+    } finally {
+      setUsandoBuff(null);
+    }
+  };
+
   // ── Avançar questão ─────────────────────────────────────────────────────
   const avancarQuestao = useCallback(() => {
     const proximoIndice = indice + 1;
@@ -264,6 +356,7 @@ export default function PartidaScreen({ navigation, route }) {
     setConfirmada(false);
     setAcertouAtual(false);
     setGabarito(null);
+    setAlternativasEliminadas([]);
     expiradoRef.current = false;
 
     if (proximoIndice >= questoes.length) {
@@ -297,17 +390,23 @@ export default function PartidaScreen({ navigation, route }) {
           xpGanho:      data.xp_ganho,
           moedasGanhas: data.moedas_ganhas,
           abandonada,
+          streakAnterior: streakAnteriorRef.current,
+          streakNovo:     data.usuario.streak,
         });
       } else {
         navigation.replace('Score', {
           acertos, erros, total: questoes.length,
           xpGanho: acertos * 10, moedasGanhas: acertos * 2, abandonada,
+          streakAnterior: streakAnteriorRef.current,
+          streakNovo:     streakAnteriorRef.current,
         });
       }
     } catch {
       navigation.replace('Score', {
         acertos, erros, total: questoes.length,
         xpGanho: acertos * 10, moedasGanhas: acertos * 2, abandonada,
+        streakAnterior: streakAnteriorRef.current,
+        streakNovo:     streakAnteriorRef.current,
       });
     }
   };
@@ -364,6 +463,10 @@ export default function PartidaScreen({ navigation, route }) {
   const errou      = confirmada && !acertouAtual && selecionada !== null;
   const tempoEsgotado = confirmada && selecionada === null;
 
+  const temBuffPula    = (inventario.pula_questao ?? 0) > 0;
+  const temBuffElimina = (inventario.elimina_alternativas ?? 0) > 0 && alternativasEliminadas.length === 0;
+  const mostrarBuffs   = !confirmada && (temBuffPula || temBuffElimina);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* ── Header ──────────────────────────────────────────────────── */}
@@ -371,13 +474,14 @@ export default function PartidaScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.btnSair}
           onPress={() =>
-            Alert.alert(
+            alertar(
               'Sair da partida?',
               'Seu progresso parcial será salvo. A vida usada não será devolvida.',
               [
-                { text: 'Continuar jogando', style: 'cancel' },
-                { text: 'Sair', style: 'destructive', onPress: () => finalizarPartida(true) },
-              ]
+                { texto: 'Continuar jogando', estilo: 'cancel' },
+                { texto: 'Sair', estilo: 'destructive', onPress: () => finalizarPartida(true) },
+              ],
+              { pose: 'triste' }
             )
           }
           activeOpacity={0.7}
@@ -453,33 +557,74 @@ export default function PartidaScreen({ navigation, route }) {
           <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
         )}
 
+        {/* Botões de buff */}
+        {mostrarBuffs && (
+          <View style={styles.buffsRow}>
+            {temBuffPula && (
+              <TouchableOpacity
+                style={styles.buffBtn}
+                onPress={usarPulaQuestao}
+                disabled={!!usandoBuff}
+                activeOpacity={0.8}
+              >
+                {usandoBuff === 'pula_questao' ? (
+                  <ActivityIndicator color={C.primary} size="small" />
+                ) : (
+                  <Text style={styles.buffBtnTexto}>⏭️ Pular ({inventario.pula_questao})</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            {temBuffElimina && (
+              <TouchableOpacity
+                style={styles.buffBtn}
+                onPress={usarEliminaAlternativas}
+                disabled={!!usandoBuff}
+                activeOpacity={0.8}
+              >
+                {usandoBuff === 'elimina_alternativas' ? (
+                  <ActivityIndicator color={C.primary} size="small" />
+                ) : (
+                  <Text style={styles.buffBtnTexto}>✂️ Eliminar 2 ({inventario.elimina_alternativas})</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Alternativas */}
         <View style={styles.alternativas}>
-          {questaoAtual.alternativas.map((alt) => (
-            <TouchableOpacity
-              key={alt.id}
-              style={[
-                styles.alternativa,
-                {
-                  backgroundColor: corFundo(alt.letra),
-                  borderColor: corBorda(alt.letra),
-                },
-              ]}
-              onPress={() => !confirmada && setSelecionada(alt.letra)}
-              activeOpacity={confirmada ? 1 : 0.7}
-            >
-              <View style={[styles.letraContainer, { borderColor: corBorda(alt.letra) }]}>
-                <Text style={[
-                  styles.letra,
-                  confirmada && alt.letra === gabarito && { color: C.correct },
-                  confirmada && alt.letra === selecionada && alt.letra !== gabarito && { color: C.lives },
-                ]}>
-                  {alt.letra}
+          {questaoAtual.alternativas.map((alt) => {
+            const eliminada = alternativasEliminadas.includes(alt.letra);
+            return (
+              <TouchableOpacity
+                key={alt.id}
+                style={[
+                  styles.alternativa,
+                  {
+                    backgroundColor: corFundo(alt.letra),
+                    borderColor: corBorda(alt.letra),
+                  },
+                  eliminada && styles.alternativaEliminada,
+                ]}
+                onPress={() => !confirmada && !eliminada && setSelecionada(alt.letra)}
+                activeOpacity={confirmada || eliminada ? 1 : 0.7}
+                disabled={eliminada}
+              >
+                <View style={[styles.letraContainer, { borderColor: corBorda(alt.letra) }]}>
+                  <Text style={[
+                    styles.letra,
+                    confirmada && alt.letra === gabarito && { color: C.correct },
+                    confirmada && alt.letra === selecionada && alt.letra !== gabarito && { color: C.lives },
+                  ]}>
+                    {alt.letra}
+                  </Text>
+                </View>
+                <Text style={[styles.altTexto, eliminada && styles.altTextoEliminado]}>
+                  {alt.texto}
                 </Text>
-              </View>
-              <Text style={styles.altTexto}>{alt.texto}</Text>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Feedback */}
@@ -523,7 +668,8 @@ export default function PartidaScreen({ navigation, route }) {
             }
           </TouchableOpacity>
         ) : (
-          // Tempo esgotado avança automaticamente; nos demais casos mostra o botão
+          // Tempo esgotado ou buff de pular avançam automaticamente;
+          // nos demais casos mostra o botão manual.
           !tempoEsgotado && (
             <TouchableOpacity
               style={styles.botao}
@@ -652,11 +798,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular', fontSize: 13, color: C.text2, textAlign: 'center',
   },
 
+  // Botões de buff
+  buffsRow: { flexDirection: 'row', gap: 10 },
+  buffBtn: {
+    flex: 1, backgroundColor: C.card, borderRadius: 12,
+    borderWidth: 1.5, borderColor: C.primary,
+    paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+  },
+  buffBtnTexto: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: C.primary },
+
   alternativas: { gap: 10 },
   alternativa: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     padding: 14, borderRadius: 14, borderWidth: 1.5,
   },
+  alternativaEliminada: { opacity: 0.35 },
   letraContainer: {
     width: 28, height: 28, borderRadius: 8,
     borderWidth: 1.5, borderColor: C.border,
@@ -667,6 +823,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular', fontSize: 15, color: C.text,
     flex: 1, lineHeight: 22,
   },
+  altTextoEliminado: { textDecorationLine: 'line-through' },
 
   feedback: {
     borderRadius: 14, borderWidth: 1.5, padding: 16, gap: 6,

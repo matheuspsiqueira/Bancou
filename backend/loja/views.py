@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import ItemLojaVirtual
+from .models import ItemLojaVirtual, InventarioBuff
 from .serializers import ItemLojaVirtualSerializer
 from .services import comprar_item_virtual, SaldoInsuficienteError
 
@@ -66,3 +66,19 @@ class ComprarItemView(APIView):
             resposta['quantidade'] = resultado['quantidade']
 
         return Response(resposta, status=status.HTTP_200_OK)
+
+
+class InventarioLojaView(APIView):
+    """GET /api/loja/inventario/
+    Retorna {codigo_item: quantidade} pra cada item consumível que o
+    usuário tem em estoque (quantidade > 0). Usado pela PartidaScreen
+    pra decidir quais botões de buff mostrar durante a partida.
+    Ex. resposta: {"pula_questao": 2, "elimina_alternativas": 1}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        inventario = InventarioBuff.objects.filter(
+            usuario=request.user, quantidade__gt=0
+        ).select_related('item')
+        return Response({inv.item.codigo: inv.quantidade for inv in inventario})
