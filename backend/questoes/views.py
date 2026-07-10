@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from usuarios.models import Usuario
 from usuarios.views import checar_regeneracao_vidas
-from usuarios.services import creditar_resultado_partida
+from usuarios.services import creditar_resultado_partida, checar_decaimento_streak
 from usuarios.serializers import UsuarioSerializer
 
 from loja.models import ItemLojaVirtual, InventarioBuff, UsoBuffPartida
@@ -75,6 +75,7 @@ class IniciarPartidaView(APIView):
 
     def get(self, request):
         checar_regeneracao_vidas(request.user)
+        checar_decaimento_streak(request.user)
         request.user.refresh_from_db(fields=['vidas'])
 
         # Checagem rápida antes de gastar esforço montando o sorteio

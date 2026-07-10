@@ -382,6 +382,7 @@ export default function PartidaScreen({ navigation, route }) {
           xp:     data.usuario.xp,
           moedas: data.usuario.moedas,
           vidas:  data.usuario.vidas,
+          streak: data.usuario.streak,
         });
         navigation.replace('Score', {
           acertos,

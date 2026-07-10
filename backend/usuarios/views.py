@@ -14,6 +14,7 @@ from .serializers import (
     SolicitarRecuperacaoSenhaSerializer,
     ConfirmarRecuperacaoSenhaSerializer,
 )
+from usuarios.services import checar_decaimento_streak
 
 
 class RegistroView(generics.CreateAPIView):
@@ -38,6 +39,7 @@ class PerfilView(APIView):
 
     def get(self, request):
         checar_regeneracao_vidas(request.user)  # ← adiciona essa linha
+        checar_decaimento_streak(request.user)
         serializer = UsuarioSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 

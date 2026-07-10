@@ -4,7 +4,7 @@
     "slug": "bancou",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/ponts-animado1.png",
+    "icon": "./src/assets/kou-animado1.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false
@@ -12,13 +12,13 @@
     "android": {
       "package": "br.com.bancou.app",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/ponts-animado1.png",
-        "backgroundImage": "./src/assets/ponts-animado1.png",
+        "foregroundImage": "./src/assets/kou-animado1.png",
+        "backgroundImage": "./src/assets/kou-animado1.png",
         "backgroundColor": "#1a1a2e"
       }
     },
     "web": {
-      "favicon": "./src/assets/ponts-animado1.png"
+      "favicon": "./src/assets/kou-animado1.png"
     },
     "plugins": [
       "expo-font"

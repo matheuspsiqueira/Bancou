@@ -8,6 +8,30 @@ XP_POR_ACERTO = 10
 MOEDAS_POR_ACERTO = 2
 
 
+def checar_decaimento_streak(usuario):
+    """
+    Lazy check de streak — mesmo padrão do checar_regeneracao_vidas.
+    Deve ser chamado sempre que o perfil é carregado (PerfilView.get()
+    e IniciarPartidaView.get()), ANTES de qualquer partida ser jogada.
+
+    Se o usuário pulou pelo menos 1 dia sem jogar, o streak zera (vira 0),
+    a menos que ele tenha uma proteção de streak ativa pra consumir.
+    Não mexe em nada se ele já jogou hoje ou nunca jogou.
+    """
+    hoje = timezone.localdate()
+    ultima = usuario.data_ultima_partida
+
+    if ultima is None or ultima == hoje:
+        return  # nunca jogou, ou já jogou hoje — nada a fazer
+
+    if ultima < hoje - datetime.timedelta(days=1):
+        # pulou pelo menos 1 dia sem jogar — tenta proteção antes de zerar
+        if consumir_protecao_streak(usuario):
+            return
+        usuario.streak = 0
+        usuario.save(update_fields=['streak'])
+
+
 def creditar_resultado_partida(usuario, acertos, erros):
     """
     Aplica XP, moedas e streak no usuário a partir de contagens
