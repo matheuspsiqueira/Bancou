@@ -164,6 +164,7 @@ class IniciarPartidaView(APIView):
             'total': len(questoes_ordenadas),
             'questoes': serializer.data,
             'vidas_restantes': usuario.vidas,
+            'streak': usuario.streak,
         })
 
 

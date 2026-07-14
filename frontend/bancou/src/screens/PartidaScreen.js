@@ -103,7 +103,7 @@ export default function PartidaScreen({ navigation, route }) {
   const acertosRef    = useRef(0);
   const errosRef      = useRef(0);
   const partidaIdRef  = useRef(null);
-  const streakAnteriorRef = useRef(usuario?.streak ?? 0);
+  const streakAnteriorRef = useRef(0);
 
   // ── Vida consumida na entrada (fixa durante a partida inteira) ─────────
   const [vidasAtual, setVidasAtual] = useState(usuario?.vidas ?? 3);
@@ -164,6 +164,10 @@ export default function PartidaScreen({ navigation, route }) {
       if (typeof data.vidas_restantes === 'number') {
         setVidasAtual(data.vidas_restantes);
         atualizarUsuario({ vidas: data.vidas_restantes });
+      }
+      if (typeof data.streak === 'number') {
+        streakAnteriorRef.current = data.streak;
+        atualizarUsuario({ streak: data.streak });
       }
     } catch (e) {
       setErroReq(e.message || 'Não foi possível carregar as questões.');
