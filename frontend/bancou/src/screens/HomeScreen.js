@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { IconStreak, IconVidas, IconMoedas, IconXp, IconRanking } from '../components/icons';
 
 
 
@@ -75,15 +76,15 @@ function StatsHeader({ streak, vidas, moedas }) {
   return (
     <View style={styles.statsHeader}>
       <View style={styles.statChip}>
-        <Text style={styles.statEmoji}>🔥</Text>
+        <IconStreak size={14} />
         <Text style={[styles.statValue, { color: '#FF6B35' }]}>{streak}</Text>
       </View>
       <View style={styles.statChip}>
-        <Text style={styles.statEmoji}>❤️</Text>
+        <IconVidas size={14} />
         <Text style={[styles.statValue, { color: '#FF4069' }]}>{vidas}</Text>
       </View>
       <View style={styles.statChip}>
-        <Text style={styles.statEmoji}>🪙</Text>
+        <IconMoedas size={14} />
         <Text style={[styles.statValue, { color: '#FFD700' }]}>{moedas}</Text>
       </View>
     </View>
@@ -771,7 +772,9 @@ function AbaRanking() {
   return (
     <ScrollView style={styles.abaContainer} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={styles.emBreveCardRanking}>
-        <Text style={styles.emBreveEmoji}>🏆</Text>
+        <View style={{ marginBottom: 8 }}>
+          <IconRanking size={32} />
+        </View>
         <Text style={styles.emBreveTitulo}>Ranking · Em breve</Text>
         <Text style={styles.emBreveDesc}>
           As ligas semanais estão sendo preparadas. Abaixo você vê uma prévia de como vai funcionar!
@@ -779,7 +782,7 @@ function AbaRanking() {
       </View>
 
       <View style={[styles.ligaBanner, { opacity: 0.5 }]}>
-        <Text style={styles.ligaEmoji}>🏆</Text>
+        <IconRanking size={32} />
         <View>
           <Text style={styles.ligaTitulo}>Liga {liga}</Text>
           <Text style={styles.ligaSub}>Ranking semanal — encerra em 3 dias</Text>
@@ -790,7 +793,10 @@ function AbaRanking() {
         <View key={item.pos} style={[styles.rankingItem, item.voce && styles.rankingItemVoce, { opacity: 0.5 }]}>
           <Text style={styles.rankingPos}>{item.pos <= 3 ? medalhas[item.pos - 1] : `#${item.pos}`}</Text>
           <Text style={[styles.rankingNome, item.voce && styles.rankingNomeVoce]}>{item.nome}</Text>
-          <Text style={styles.rankingXp}>⭐ {item.xp.toLocaleString()}</Text>
+          <View style={styles.rankingXpRow}>
+            <IconXp size={12} />
+            <Text style={styles.rankingXp}>{item.xp.toLocaleString()}</Text>
+          </View>
         </View>
       ))}
 
@@ -817,8 +823,8 @@ function AbaPerfil({ onLogout }) {
   const xpProximo = getXpProximoNivel(xp);
   const xpPct   = xpProximo ? Math.min(xp / xpProximo, 1) : 1;
   const xpLabel = xpProximo
-    ? `⭐ ${xp.toLocaleString()} / ${xpProximo.toLocaleString()} XP`
-    : `⭐ ${xp.toLocaleString()} XP — Nível máximo`;
+    ? `${xp.toLocaleString()} / ${xpProximo.toLocaleString()} XP`
+    : `${xp.toLocaleString()} XP — Nível máximo`;
   const nome     = usuario?.nome_completo ?? '…';
   const username = usuario?.username      ?? '…';
 
@@ -841,22 +847,34 @@ function AbaPerfil({ onLogout }) {
           <View style={styles.xpBarraTrack}>
             <View style={[styles.xpBarraFill, { width: `${xpPct * 100}%` }]} />
           </View>
-          <Text style={styles.xpBarraLabel}>{xpLabel}</Text>
+          <View style={styles.xpBarraLabelRow}>
+            <IconXp size={12} />
+            <Text style={styles.xpBarraLabel}> {xpLabel}</Text>
+          </View>
         </View>
         <View style={styles.perfilStatsRow}>
           <View style={styles.perfilStatBox}>
             <Text style={styles.perfilStatVal}>{streak}</Text>
-            <Text style={styles.perfilStatLabel}>🔥 Streak</Text>
+            <View style={styles.perfilStatLabelRow}>
+              <IconStreak size={12} />
+              <Text style={styles.perfilStatLabel}> Streak</Text>
+            </View>
           </View>
           <View style={styles.perfilStatDivider} />
           <View style={styles.perfilStatBox}>
             <Text style={styles.perfilStatVal}>{moedas}</Text>
-            <Text style={styles.perfilStatLabel}>🪙 Moedas</Text>
+            <View style={styles.perfilStatLabelRow}>
+              <IconMoedas size={12} />
+              <Text style={styles.perfilStatLabel}> Moedas</Text>
+            </View>
           </View>
           <View style={styles.perfilStatDivider} />
           <View style={styles.perfilStatBox}>
             <Text style={styles.perfilStatVal}>{/*liga*/}Em breve</Text>
-            <Text style={styles.perfilStatLabel}>🏆 Liga</Text>
+            <View style={styles.perfilStatLabelRow}>
+              <IconRanking size={12} />
+              <Text style={styles.perfilStatLabel}> Liga</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -981,7 +999,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#252540', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 5, gap: 4,
   },
-  statEmoji:    { fontSize: 13 },
   statValue:    { fontFamily: 'Nunito_700Bold', fontSize: 13 },
 
   abaContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
@@ -1022,7 +1039,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#252540', borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16,
   },
-  ligaEmoji:  { fontSize: 32 },
   ligaTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFD700' },
   ligaSub:    { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
   rankingItem: {
@@ -1033,6 +1049,7 @@ const styles = StyleSheet.create({
   rankingPos:      { fontFamily: 'Nunito_700Bold', fontSize: 18, width: 36, textAlign: 'center', color: '#FFFFFF' },
   rankingNome:     { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 14, color: '#FFFFFF' },
   rankingNomeVoce: { color: '#6C63FF', fontFamily: 'Nunito_700Bold' },
+  rankingXpRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
   rankingXp:       { fontFamily: 'Nunito_700Bold', fontSize: 14, color: '#6C63FF' },
   ligaAviso:       { backgroundColor: '#252540', borderRadius: 10, padding: 12, marginTop: 8 },
   ligaAvisoText:   { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', textAlign: 'center', lineHeight: 17 },
@@ -1058,12 +1075,14 @@ const styles = StyleSheet.create({
   xpBarraContainer: { width: '100%', marginBottom: 20 },
   xpBarraTrack:     { height: 8, backgroundColor: '#1a1a2e', borderRadius: 999, marginBottom: 6 },
   xpBarraFill:      { height: 8, borderRadius: 999, backgroundColor: '#6C63FF' },
+  xpBarraLabelRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   xpBarraLabel:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', textAlign: 'center' },
   perfilStatsRow:   { flexDirection: 'row', alignItems: 'center' },
   perfilStatBox:    { flex: 1, alignItems: 'center' },
   perfilStatDivider:{ width: 1, height: 32, backgroundColor: '#1a1a2e' },
   perfilStatVal:    { fontFamily: 'Nunito_900Black', fontSize: 20, color: '#FFFFFF' },
-  perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', marginTop: 2 },
+  perfilStatLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
 
   opcaoItem: {
     backgroundColor: '#252540', borderRadius: 12, padding: 16,

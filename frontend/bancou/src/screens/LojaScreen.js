@@ -51,12 +51,26 @@ export default function LojaScreen() {
     carregarItens();
   }, [carregarItens]);
 
-  const comprarItem = async (item) => {
+  // ── Passo 1: valida saldo e pede confirmação antes de gastar moedas ──────
+  const solicitarCompra = (item) => {
     if ((usuario?.moedas ?? 0) < item.preco_moedas) {
       alertar('Moedas insuficientes', 'Jogue mais partidas para ganhar moedas!', [{ text: 'OK' }], { pose: 'ops' });
       return;
     }
 
+    alertar(
+      'Confirmar compra',
+      `Comprar ${item.nome} por 🪙 ${item.preco_moedas} moedas?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Comprar', onPress: () => executarCompra(item) },
+      ],
+      { pose: 'dinheiro' }
+    );
+  };
+
+  // ── Passo 2: só roda depois que o usuário confirma no alerta acima ───────
+  const executarCompra = async (item) => {
     setComprando(item.codigo);
     try {
       const resp = await authFetch('/api/loja/comprar-item/', {
@@ -105,7 +119,7 @@ export default function LojaScreen() {
                 <Text style={styles.cardDescricao}>{item.descricao}</Text>
                 <TouchableOpacity
                   style={styles.botaoComprar}
-                  onPress={() => comprarItem(item)}
+                  onPress={() => solicitarCompra(item)}
                   disabled={comprando === item.codigo}
                   activeOpacity={0.85}
                 >
