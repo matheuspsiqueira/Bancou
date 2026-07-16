@@ -11,6 +11,7 @@ import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
+import { IconXp, IconStreak, IconMoedas, IconRanking } from '../components/icons';
 
 export default function PerfilScreen() {
   const { usuario, signOut } = useAuth();
@@ -25,8 +26,8 @@ export default function PerfilScreen() {
   const xpProximo = getXpProximoNivel(xp);
   const xpPct   = xpProximo ? Math.min(xp / xpProximo, 1) : 1;
   const xpLabel = xpProximo
-    ? `⭐ ${xp.toLocaleString()} / ${xpProximo.toLocaleString()} XP`
-    : `⭐ ${xp.toLocaleString()} XP — Nível máximo`;
+    ? `${xp.toLocaleString()} / ${xpProximo.toLocaleString()} XP`
+    : `${xp.toLocaleString()} XP — Nível máximo`;
   const nome     = usuario?.nome_completo ?? '…';
   const username = usuario?.username      ?? '…';
 
@@ -62,22 +63,34 @@ export default function PerfilScreen() {
             <View style={styles.xpBarraTrack}>
               <View style={[styles.xpBarraFill, { width: `${xpPct * 100}%` }]} />
             </View>
-            <Text style={styles.xpBarraLabel}>{xpLabel}</Text>
+            <View style={styles.xpBarraLabelRow}>
+              <IconXp size={12} />
+              <Text style={styles.xpBarraLabel}> {xpLabel}</Text>
+            </View>
           </View>
           <View style={styles.perfilStatsRow}>
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>{streak}</Text>
-              <Text style={styles.perfilStatLabel}>🔥 Streak</Text>
+              <View style={styles.perfilStatLabelRow}>
+                <IconStreak size={12} />
+                <Text style={styles.perfilStatLabel}> Streak</Text>
+              </View>
             </View>
             <View style={styles.perfilStatDivider} />
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>{moedas}</Text>
-              <Text style={styles.perfilStatLabel}>🪙 Moedas</Text>
+              <View style={styles.perfilStatLabelRow}>
+                <IconMoedas size={12} />
+                <Text style={styles.perfilStatLabel}> Moedas</Text>
+              </View>
             </View>
             <View style={styles.perfilStatDivider} />
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>Em breve</Text>
-              <Text style={styles.perfilStatLabel}>🏆 Liga</Text>
+              <View style={styles.perfilStatLabelRow}>
+                <IconRanking size={12} />
+                <Text style={styles.perfilStatLabel}> Liga</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -137,12 +150,14 @@ const styles = StyleSheet.create({
   xpBarraContainer: { width: '100%', marginBottom: 20 },
   xpBarraTrack:     { height: 8, backgroundColor: '#1a1a2e', borderRadius: 999, marginBottom: 6 },
   xpBarraFill:      { height: 8, borderRadius: 999, backgroundColor: '#6C63FF' },
+  xpBarraLabelRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   xpBarraLabel:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', textAlign: 'center' },
   perfilStatsRow:   { flexDirection: 'row', alignItems: 'center' },
   perfilStatBox:    { flex: 1, alignItems: 'center' },
   perfilStatDivider:{ width: 1, height: 32, backgroundColor: '#1a1a2e' },
   perfilStatVal:    { fontFamily: 'Nunito_900Black', fontSize: 20, color: '#FFFFFF' },
-  perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', marginTop: 2 },
+  perfilStatLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
   secaoTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF', marginBottom: 12 },
   emBreveCard: {
     backgroundColor: '#252540', borderRadius: 14, padding: 24,

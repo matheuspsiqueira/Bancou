@@ -6,13 +6,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePontsAlert } from '../context/PontsAlertContext';
+import { IconInicio, IconLoja, IconDuelos, IconRanking, IconPerfil } from '../components/icons';
 
 const ICONES = {
-  Inicio:  '🏠',
-  Loja:    '🛒',
-  Duelos:  '⚔️',
-  Ranking: '🏆',
-  Perfil:  '👤',
+  Inicio:  IconInicio,
+  Loja:    IconLoja,
+  Duelos:  IconDuelos,
+  Ranking: IconRanking,
+  Perfil:  IconPerfil,
 };
 
 const LABELS = {
@@ -50,6 +51,9 @@ export default function TabBarCustomizada({ state, navigation }) {
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const emBreve = ROTAS_EM_BREVE.includes(route.name);
+        const IconeComponente = ICONES[route.name];
+
+        const iconeOpacity = emBreve ? 0.25 : isFocused ? 1 : 0.4;
 
         return (
           <TouchableOpacity
@@ -60,9 +64,9 @@ export default function TabBarCustomizada({ state, navigation }) {
           >
             {isFocused && !emBreve && <View style={styles.tabIndicador} />}
 
-            <Text style={[styles.tabIcone, isFocused && !emBreve && styles.tabIconeAtivo, emBreve && styles.tabIconeDesabilitado]}>
-              {ICONES[route.name]}
-            </Text>
+            <View style={[styles.tabIcone, { opacity: iconeOpacity }]}>
+              {IconeComponente && <IconeComponente size={22} />}
+            </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -95,9 +99,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: -10, width: 32, height: 3,
     backgroundColor: '#6C63FF', borderBottomLeftRadius: 3, borderBottomRightRadius: 3,
   },
-  tabIcone:      { fontSize: 22, marginBottom: 2, opacity: 0.4 },
-  tabIconeAtivo: { opacity: 1 },
-  tabIconeDesabilitado: { opacity: 0.25 },
+  tabIcone:      { marginBottom: 2 },
   tabLabel:      { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#9090B0' },
   tabLabelAtivo: { fontFamily: 'Inter_500Medium', color: '#6C63FF' },
   tabLabelDesabilitado: { color: '#9090B0', opacity: 0.5 },

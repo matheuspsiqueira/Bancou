@@ -8,6 +8,7 @@ import TelaComHeader from '../components/TelaComHeader';
 import ModalPartida from '../components/modals/ModalPartida';
 import { getSaudacao, getTituloNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
+import { IconRaio, IconAcenar } from '../components/icons';
 
 export default function InicioScreen({ navigation }) {
   const { usuario } = useAuth();
@@ -36,7 +37,10 @@ export default function InicioScreen({ navigation }) {
         <View style={styles.boasVindasCard}>
           <View style={{ flex: 1 }}>
             <Text style={styles.boasVindasSub}>{saudacao},</Text>
-            <Text style={styles.boasVindasNome}>{nome} 👋</Text>
+            <View style={styles.boasVindasNomeRow}>
+              <Text style={styles.boasVindasNome}>{nome}</Text>
+              <IconAcenar size={25} />
+            </View>
             <Text style={styles.boasVindasNivel}>
               Nível <Text style={{ color: '#6C63FF' }}>{titulo}</Text>
             </Text>
@@ -46,7 +50,10 @@ export default function InicioScreen({ navigation }) {
         </View>
 
         <TouchableOpacity style={styles.btnEstudar} onPress={() => setModalPartida(true)} activeOpacity={0.85}>
-          <Text style={styles.btnEstudarText}>⚡  Iniciar Partida</Text>
+          <View style={styles.btnEstudarConteudo}>
+            <IconRaio size={22} />
+            <Text style={styles.btnEstudarText}>Iniciar Partida</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.secaoTitulo}>Desafios do dia</Text>
@@ -75,6 +82,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginBottom: 16, overflow: 'hidden',
   },
   boasVindasSub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#9090B0' },
+  boasVindasNomeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   boasVindasNome:  { fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: '#FFFFFF', marginBottom: 2 },
   boasVindasNivel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 2 },
   boasVindasDesc:  { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0' },
@@ -84,6 +92,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginBottom: 24,
   },
   btnEstudarText: { fontFamily: 'Nunito_700Bold', fontSize: 17, color: '#FFFFFF' },
+  btnEstudarConteudo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   secaoTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF', marginBottom: 12 },
   emBreveCard: {
     backgroundColor: '#252540', borderRadius: 14, padding: 24,

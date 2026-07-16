@@ -16,13 +16,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
+import { IconMoedas, IconVidas, IconPular, IconEliminar, IconXpDobro, IconCongelar } from '../components/icons';
 
-const ICONES = {
-  pula_questao:          '⏭️',
-  elimina_alternativas:  '✂️',
-  xp_dobro:              '⚡',
-  congela_streak:        '🧊',
-  vida_extra:            '❤️',
+const ICONE_COMPONENTES = {
+  pula_questao:         IconPular,
+  elimina_alternativas: IconEliminar,
+  xp_dobro:             IconXpDobro,
+  congela_streak:       IconCongelar,
+  vida_extra:           IconVidas,
 };
 
 export default function LojaScreen() {
@@ -60,7 +61,7 @@ export default function LojaScreen() {
 
     alertar(
       'Confirmar compra',
-      `Comprar ${item.nome} por 🪙 ${item.preco_moedas} moedas?`,
+      `Comprar ${item.nome} por ${item.preco_moedas} moedas?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Comprar', onPress: () => executarCompra(item) },
@@ -112,24 +113,38 @@ export default function LojaScreen() {
           <ActivityIndicator color="#6C63FF" size="large" style={{ marginTop: 32 }} />
         ) : (
           <View style={styles.grid}>
-            {itens.map((item) => (
-              <View key={item.codigo} style={styles.card}>
-                <Text style={styles.cardIcone}>{ICONES[item.codigo] || '🎁'}</Text>
-                <Text style={styles.cardNome}>{item.nome}</Text>
-                <Text style={styles.cardDescricao}>{item.descricao}</Text>
-                <TouchableOpacity
-                  style={styles.botaoComprar}
-                  onPress={() => solicitarCompra(item)}
-                  disabled={comprando === item.codigo}
-                  activeOpacity={0.85}
-                >
-                  {comprando === item.codigo
-                    ? <ActivityIndicator color="#FFFFFF" size="small" />
-                    : <Text style={styles.botaoComprarTexto}>🪙 {item.preco_moedas}</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            ))}
+            {itens.map((item) => {
+              const IconeComponente = ICONE_COMPONENTES[item.codigo];
+              return (
+                <View key={item.codigo} style={styles.card}>
+                  {IconeComponente ? (
+                    <View style={styles.cardIconeCustom}>
+                      <IconeComponente size={32} />
+                    </View>
+                  ) : (
+                    <Text style={styles.cardIcone}>🎁</Text>
+                  )}
+                  <Text style={styles.cardNome}>{item.nome}</Text>
+                  <Text style={styles.cardDescricao}>{item.descricao}</Text>
+                  <TouchableOpacity
+                    style={styles.botaoComprar}
+                    onPress={() => solicitarCompra(item)}
+                    disabled={comprando === item.codigo}
+                    activeOpacity={0.85}
+                  >
+                    {comprando === item.codigo
+                      ? <ActivityIndicator color="#FFFFFF" size="small" />
+                      : (
+                        <View style={styles.botaoComprarConteudo}>
+                          <IconMoedas size={14} />
+                          <Text style={styles.botaoComprarTexto}>{item.preco_moedas}</Text>
+                        </View>
+                      )
+                    }
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -163,6 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardIcone:      { fontSize: 32, marginBottom: 8 },
+  cardIconeCustom:{ marginBottom: 8 },
   cardNome:       { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
   cardDescricao:  { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
   botaoComprar: {
@@ -171,5 +187,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
   },
+  botaoComprarConteudo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   botaoComprarTexto: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 14 },
 });
