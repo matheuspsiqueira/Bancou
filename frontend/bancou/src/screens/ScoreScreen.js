@@ -140,13 +140,13 @@ export default function ScoreScreen({ navigation, route }) {
         {/* Recompensas */}
         <Animated.View style={[styles.recompensasRow, { opacity: xpAnim }]}>
           <View style={styles.recompensaItem}>
-            <Text style={styles.recompensaIcone}>⭐</Text>
+            <Image source={require('../assets/icons/xp.png')} style={styles.recompensaIconePng} resizeMode="contain" />
             <Text style={styles.recompensaValor}>+{xpGanho}</Text>
             <Text style={styles.recompensaLabel}>XP</Text>
           </View>
           <View style={styles.recompensaDivisor} />
           <View style={styles.recompensaItem}>
-            <Text style={styles.recompensaIcone}>🪙</Text>
+            <Image source={require('../assets/icons/moeda.png')} style={styles.recompensaIconePng} resizeMode="contain" />
             <Text style={[styles.recompensaValor, { color: '#FFD700' }]}>+{moedasGanhas}</Text>
             <Text style={styles.recompensaLabel}>moedas</Text>
           </View>
@@ -166,9 +166,12 @@ export default function ScoreScreen({ navigation, route }) {
             resizeMode="contain"
           />
           <View style={styles.streakTextos}>
-            <Text style={styles.streakTitulo}>
-              🔥 Streak de {streakNovo} {streakNovo === 1 ? 'dia' : 'dias'}!
-            </Text>
+            <View style={styles.streakTituloRow}>
+              <Image source={require('../assets/icons/streak.png')} style={styles.streakIconePng} resizeMode="contain" />
+              <Text style={styles.streakTitulo}>
+                {' '}Streak de {streakNovo} {streakNovo === 1 ? 'dia' : 'dias'}!
+              </Text>
+            </View>
             <Text style={styles.streakSub}>
               Volte amanhã pra manter o fogo aceso.
             </Text>
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
   },
   recompensaItem:   { flex: 1, alignItems: 'center', gap: 4 },
   recompensaDivisor:{ width: 1, height: 48, backgroundColor: '#1a1a2e' },
-  recompensaIcone:  { fontSize: 22 },
+  recompensaIconePng: { width: 24, height: 24 },
   recompensaValor:  { fontFamily: 'Nunito_900Black', fontSize: 26, color: '#6C63FF' },
   recompensaLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
 
@@ -256,8 +259,10 @@ const styles = StyleSheet.create({
   },
   streakPose:   { width: 56, height: 56 },
   streakTextos: { flex: 1 },
+  streakTituloRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  streakIconePng:  { width: 14, height: 14 },
   streakTitulo: {
-    fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#FF6B35', marginBottom: 2,
+    fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#FF6B35',
   },
   streakSub: {
     fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', lineHeight: 17,

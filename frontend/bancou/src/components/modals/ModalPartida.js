@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 
@@ -94,9 +95,22 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
           {etapa === 'inicio' && (
             <>
               <Text style={styles.modalTitulo}>Iniciar partida</Text>
-              <Text style={styles.modalSubtitulo}>
-                10 questões · +10 XP e +2 🪙 por acerto · consome ❤️ ao iniciar
-              </Text>
+
+              <Text style={styles.modalSubtitulo}>10 questões</Text>
+
+              <View style={styles.modalSubtituloRow}>
+                <Text style={styles.modalSubtitulo}>+10 </Text>
+                <Image source={require('../../assets/icons/xp.png')} style={styles.subtituloIcone} resizeMode="contain" />
+                <Text style={styles.modalSubtitulo}> +2 </Text>
+                <Image source={require('../../assets/icons/moeda.png')} style={styles.subtituloIcone} resizeMode="contain" />
+                <Text style={styles.modalSubtitulo}> por acerto</Text>
+              </View>
+
+              <View style={styles.modalSubtituloRow}>
+                <Text style={styles.modalSubtitulo}>-1 </Text>
+                <Image source={require('../../assets/icons/vida.png')} style={styles.subtituloIcone} resizeMode="contain" />
+                <Text style={styles.modalSubtitulo}> por partida</Text>
+              </View>
 
               <View style={styles.toggleTempoRow}>
                 <TouchableOpacity
@@ -222,8 +236,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center', marginBottom: 20,
   },
   modalTitulo:    { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 4 },
-  modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', marginBottom: 20, lineHeight: 18 },
-  toggleTempoRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', lineHeight: 18, marginBottom: 2 },
+  modalSubtituloRow: {
+    flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 2,
+  },
+  subtituloIcone: { width: 13, height: 13 },
+  toggleTempoRow: { flexDirection: 'row', gap: 8, marginBottom: 20, marginTop: 20 },
   toggleTempoBtn: {
     flex: 1, backgroundColor: '#252540', borderRadius: 12,
     paddingVertical: 12, alignItems: 'center',

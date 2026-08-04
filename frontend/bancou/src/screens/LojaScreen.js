@@ -16,14 +16,19 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
-import { IconMoedas, IconVidas, IconPular, IconEliminar, IconXpDobro, IconCongelar } from '../components/icons';
+import { IconPular } from '../components/icons';
 
-const ICONE_COMPONENTES = {
-  pula_questao:         IconPular,
-  elimina_alternativas: IconEliminar,
-  xp_dobro:             IconXpDobro,
-  congela_streak:       IconCongelar,
-  vida_extra:           IconVidas,
+// Itens com imagem PNG própria (src/assets/icons/)
+const IMAGEM_ITEM = {
+  elimina_alternativas: require('../assets/icons/bomba.png'),
+  xp_dobro:             require('../assets/icons/xp.png'),
+  congela_streak:       require('../assets/icons/congelamento_streak.png'),
+  vida_extra:           require('../assets/icons/vida.png'),
+};
+
+// pula_questao ainda não tem PNG — segue usando o ícone SVG gradiente
+const ICONE_COMPONENTE_ITEM = {
+  pula_questao: IconPular,
 };
 
 export default function LojaScreen() {
@@ -104,7 +109,7 @@ export default function LojaScreen() {
             <Text style={styles.avisoTitulo}>Loja em construção 🚧</Text>
             <Text style={styles.avisoTexto}>
               Por enquanto você pode usar moedas para comprar buffs e vidas extras.
-              Em breve: pacotes de moedas, passe de batalha e assinatura Premium!
+              Em breve: pacotes de moedas, passe de batalha e mais!
             </Text>
           </View>
         </View>
@@ -114,10 +119,13 @@ export default function LojaScreen() {
         ) : (
           <View style={styles.grid}>
             {itens.map((item) => {
-              const IconeComponente = ICONE_COMPONENTES[item.codigo];
+              const imagemItem = IMAGEM_ITEM[item.codigo];
+              const IconeComponente = ICONE_COMPONENTE_ITEM[item.codigo];
               return (
                 <View key={item.codigo} style={styles.card}>
-                  {IconeComponente ? (
+                  {imagemItem ? (
+                    <Image source={imagemItem} style={styles.cardIconeImagem} resizeMode="contain" />
+                  ) : IconeComponente ? (
                     <View style={styles.cardIconeCustom}>
                       <IconeComponente size={32} />
                     </View>
@@ -136,7 +144,11 @@ export default function LojaScreen() {
                       ? <ActivityIndicator color="#FFFFFF" size="small" />
                       : (
                         <View style={styles.botaoComprarConteudo}>
-                          <IconMoedas size={14} />
+                          <Image
+                            source={require('../assets/icons/moeda.png')}
+                            style={styles.moedaIcone}
+                            resizeMode="contain"
+                          />
                           <Text style={styles.botaoComprarTexto}>{item.preco_moedas}</Text>
                         </View>
                       )
@@ -177,10 +189,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  cardIcone:      { fontSize: 32, marginBottom: 8 },
-  cardIconeCustom:{ marginBottom: 8 },
-  cardNome:       { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
-  cardDescricao:  { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
+  cardIcone:       { fontSize: 32, marginBottom: 8 },
+  cardIconeCustom: { marginBottom: 8 },
+  cardIconeImagem: { width: 40, height: 40, marginBottom: 8 },
+  cardNome:        { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
+  cardDescricao:   { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
   botaoComprar: {
     backgroundColor: '#6C63FF',
     borderRadius: 999,
@@ -188,5 +201,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   botaoComprarConteudo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  moedaIcone: { width: 16, height: 16 },
   botaoComprarTexto: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 14 },
 });

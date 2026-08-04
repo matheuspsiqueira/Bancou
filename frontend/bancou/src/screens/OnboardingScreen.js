@@ -21,9 +21,9 @@ const slides = [
     titulo: 'Ganhe pontos, mantenha o streak',
     descricao: 'Cada questão respondida te aproxima da aprovação. Não quebre sua sequência!',
     chips: [
-      { icon: '🔥', label: '7 dias', cor: colors.streak },
-      { icon: '❤️', label: '3 vidas', cor: colors.lives },
-      { icon: '🪙', label: '320 moedas', cor: colors.coins },
+      { icon: require('../assets/icons/streak.png'), label: '7 dias', cor: colors.streak },
+      { icon: require('../assets/icons/vida.png'), label: '3 vidas', cor: colors.lives },
+      { icon: require('../assets/icons/moeda.png'), label: '320 moedas', cor: colors.coins },
     ],
     mostrarPular: true,
   },
@@ -71,7 +71,7 @@ export default function OnboardingScreen({ navigation }) {
           <View style={styles.chipsRow}>
             {item.chips.map((chip, i) => (
               <View key={i} style={[styles.chip, { borderColor: chip.cor }]}>
-                <Text style={styles.chipIcon}>{chip.icon}</Text>
+                <Image source={chip.icon} style={styles.chipIcone} resizeMode="contain" />
                 <Text style={[styles.chipLabel, { color: chip.cor }]}>{chip.label}</Text>
               </View>
             ))}
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingVertical: 7,
     gap: spacing.sm, backgroundColor: colors.card,
   },
-  chipIcon: { fontSize: 16 },
+  chipIcone: { width: 16, height: 16 },
   chipLabel: {
     fontFamily: typography.bold,
     fontSize: fontSize.label,

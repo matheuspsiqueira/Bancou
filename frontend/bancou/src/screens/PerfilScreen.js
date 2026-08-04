@@ -11,7 +11,7 @@ import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
-import { IconXp, IconStreak, IconMoedas, IconRanking } from '../components/icons';
+import { IconRanking } from '../components/icons';
 
 export default function PerfilScreen() {
   const { usuario, signOut } = useAuth();
@@ -64,7 +64,7 @@ export default function PerfilScreen() {
               <View style={[styles.xpBarraFill, { width: `${xpPct * 100}%` }]} />
             </View>
             <View style={styles.xpBarraLabelRow}>
-              <IconXp size={12} />
+              <Image source={require('../assets/icons/xp.png')} style={styles.statIconePng} resizeMode="contain" />
               <Text style={styles.xpBarraLabel}> {xpLabel}</Text>
             </View>
           </View>
@@ -72,7 +72,7 @@ export default function PerfilScreen() {
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>{streak}</Text>
               <View style={styles.perfilStatLabelRow}>
-                <IconStreak size={12} />
+                <Image source={require('../assets/icons/streak.png')} style={styles.statIconePng} resizeMode="contain" />
                 <Text style={styles.perfilStatLabel}> Streak</Text>
               </View>
             </View>
@@ -80,7 +80,7 @@ export default function PerfilScreen() {
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>{moedas}</Text>
               <View style={styles.perfilStatLabelRow}>
-                <IconMoedas size={12} />
+                <Image source={require('../assets/icons/moeda.png')} style={styles.statIconePng} resizeMode="contain" />
                 <Text style={styles.perfilStatLabel}> Moedas</Text>
               </View>
             </View>
@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
   perfilStatVal:    { fontFamily: 'Nunito_900Black', fontSize: 20, color: '#FFFFFF' },
   perfilStatLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   perfilStatLabel:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
+  statIconePng: { width: 12, height: 12 },
   secaoTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF', marginBottom: 12 },
   emBreveCard: {
     backgroundColor: '#252540', borderRadius: 14, padding: 24,
