@@ -16,7 +16,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
-import { IconPular } from '../components/icons';
 
 // Itens com imagem PNG própria (src/assets/icons/)
 const IMAGEM_ITEM = {
@@ -24,11 +23,7 @@ const IMAGEM_ITEM = {
   xp_dobro:             require('../assets/icons/xp.png'),
   congela_streak:       require('../assets/icons/congelamento_streak.png'),
   vida_extra:           require('../assets/icons/vida.png'),
-};
-
-// pula_questao ainda não tem PNG — segue usando o ícone SVG gradiente
-const ICONE_COMPONENTE_ITEM = {
-  pula_questao: IconPular,
+  pula_questao:         require('../assets/icons/pula_questao.png'),
 };
 
 export default function LojaScreen() {
@@ -120,15 +115,10 @@ export default function LojaScreen() {
           <View style={styles.grid}>
             {itens.map((item) => {
               const imagemItem = IMAGEM_ITEM[item.codigo];
-              const IconeComponente = ICONE_COMPONENTE_ITEM[item.codigo];
               return (
                 <View key={item.codigo} style={styles.card}>
                   {imagemItem ? (
                     <Image source={imagemItem} style={styles.cardIconeImagem} resizeMode="contain" />
-                  ) : IconeComponente ? (
-                    <View style={styles.cardIconeCustom}>
-                      <IconeComponente size={32} />
-                    </View>
                   ) : (
                     <Text style={styles.cardIcone}>🎁</Text>
                   )}
@@ -190,7 +180,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardIcone:       { fontSize: 32, marginBottom: 8 },
-  cardIconeCustom: { marginBottom: 8 },
   cardIconeImagem: { width: 40, height: 40, marginBottom: 8 },
   cardNome:        { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
   cardDescricao:   { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },

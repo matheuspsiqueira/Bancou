@@ -88,7 +88,7 @@ export default function PerfilScreen() {
             <View style={styles.perfilStatBox}>
               <Text style={styles.perfilStatVal}>Em breve</Text>
               <View style={styles.perfilStatLabelRow}>
-                <IconRanking size={12} />
+                <Image source={require('../assets/icons/trofeu.png')} style={styles.statIconePng} resizeMode="contain" />
                 <Text style={styles.perfilStatLabel}> Liga</Text>
               </View>
             </View>

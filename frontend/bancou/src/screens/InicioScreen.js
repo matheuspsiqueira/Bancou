@@ -8,7 +8,7 @@ import TelaComHeader from '../components/TelaComHeader';
 import ModalPartida from '../components/modals/ModalPartida';
 import { getSaudacao, getTituloNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
-import { IconRaio, IconAcenar } from '../components/icons';
+import { IconRaio } from '../components/icons';
 
 export default function InicioScreen({ navigation }) {
   const { usuario } = useAuth();
@@ -39,7 +39,7 @@ export default function InicioScreen({ navigation }) {
             <Text style={styles.boasVindasSub}>{saudacao},</Text>
             <View style={styles.boasVindasNomeRow}>
               <Text style={styles.boasVindasNome}>{nome}</Text>
-              <IconAcenar size={25} />
+              <Image source={require('../assets/icons/mao.png')} style={styles.maoIcone} resizeMode="contain" />
             </View>
             <Text style={styles.boasVindasNivel}>
               Nível <Text style={{ color: '#6C63FF' }}>{titulo}</Text>
@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
   boasVindasSub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#9090B0' },
   boasVindasNomeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   boasVindasNome:  { fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: '#FFFFFF', marginBottom: 2 },
+  maoIcone:        { width: 25, height: 25 },
   boasVindasNivel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 2 },
   boasVindasDesc:  { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0' },
   pontsImg:        { width: 80, height: 90, marginLeft: 12 },
