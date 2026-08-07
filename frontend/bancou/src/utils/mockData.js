@@ -1,7 +1,7 @@
 // src/utils/mockData.js
 // Mock temporário — remover MOCK.liga e RANKING_MOCK quando o Ranking real existir.
 
-export const MOCK = { xp: 1240, liga: 'Prata', streak: 7, vidas: 4, moedas: 320 };
+export const MOCK = { xp: 1240, liga: 'Ouro' };
 
 export const RANKING_MOCK = [
   { pos: 1, nome: 'Carolina S.', xp: 2840, voce: false },

@@ -134,7 +134,10 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
               </View>
 
               <TouchableOpacity style={styles.btnPrincipal} onPress={() => iniciarComFiltro(null)} activeOpacity={0.85}>
-                <Text style={styles.btnPrincipalText}>⚡  Iniciar agora — questões aleatórias</Text>
+                <View style={styles.btnPrincipalConteudo}>
+                  <Image source={require('../../assets/icons/raio.png')} style={styles.raioIcone} resizeMode="contain" />
+                  <Text style={styles.btnPrincipalText}>Iniciar agora — questões aleatórias</Text>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity style={styles.btnFiltrar} onPress={() => setEtapa('escolha')} activeOpacity={0.7}>
                 <Text style={styles.btnFiltrarText}>🎯  Filtrar por tema</Text>
@@ -254,6 +257,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#6C63FF', borderRadius: 14,
     paddingVertical: 16, alignItems: 'center', marginBottom: 12,
   },
+  btnPrincipalConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  raioIcone: { width: 18, height: 18 },
   btnPrincipalText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
   btnFiltrar: {
     backgroundColor: '#252540', borderRadius: 14, paddingVertical: 14, alignItems: 'center',

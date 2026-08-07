@@ -8,7 +8,6 @@ import TelaComHeader from '../components/TelaComHeader';
 import ModalPartida from '../components/modals/ModalPartida';
 import { getSaudacao, getTituloNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
-import { IconRaio } from '../components/icons';
 
 export default function InicioScreen({ navigation }) {
   const { usuario } = useAuth();
@@ -51,7 +50,7 @@ export default function InicioScreen({ navigation }) {
 
         <TouchableOpacity style={styles.btnEstudar} onPress={() => setModalPartida(true)} activeOpacity={0.85}>
           <View style={styles.btnEstudarConteudo}>
-            <IconRaio size={22} />
+            <Image source={require('../assets/icons/raio.png')} style={styles.raioIcone} resizeMode="contain" />
             <Text style={styles.btnEstudarText}>Iniciar Partida</Text>
           </View>
         </TouchableOpacity>
@@ -94,6 +93,7 @@ const styles = StyleSheet.create({
   },
   btnEstudarText: { fontFamily: 'Nunito_700Bold', fontSize: 17, color: '#FFFFFF' },
   btnEstudarConteudo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  raioIcone: { width: 22, height: 22 },
   secaoTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#FFFFFF', marginBottom: 12 },
   emBreveCard: {
     backgroundColor: '#252540', borderRadius: 14, padding: 24,

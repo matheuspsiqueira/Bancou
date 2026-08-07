@@ -7,8 +7,17 @@ import { useAuth } from '../context/AuthContext';
 import TelaComHeader from '../components/TelaComHeader';
 import { MOCK, RANKING_MOCK } from '../utils/mockData';
 
-// Cor de cada liga (estilo LoL). Troféu (ícone) fica fixo — só a cor do
-// selo muda conforme a liga. Fallback cinza pra liga desconhecida.
+// Ícone próprio por liga (estilo LoL: Ferro → Diamante). Fallback pro
+// troféu genérico se a liga vier com nome desconhecido.
+const LIGA_ICONES = {
+  Ferro:    require('../assets/icons/liga_ferro.png'),
+  Bronze:   require('../assets/icons/liga_bronze.png'),
+  Prata:    require('../assets/icons/liga_prata.png'),
+  Ouro:     require('../assets/icons/liga_ouro.png'),
+  Platina:  require('../assets/icons/liga_platina.png'),
+  Diamante: require('../assets/icons/liga_diamante.png'),
+};
+
 const LIGA_CORES = {
   Ferro:    '#8E8E99',
   Bronze:   '#CD7F32',
@@ -18,11 +27,13 @@ const LIGA_CORES = {
   Diamante: '#63B3FF',
 };
 const corDaLiga = (liga) => LIGA_CORES[liga] ?? '#9090B0';
+const iconeDaLiga = (liga) => LIGA_ICONES[liga] ?? require('../assets/icons/trofeu.png');
 
 export default function RankingScreen() {
   const { usuario } = useAuth();
   const liga = usuario?.liga ?? MOCK.liga;
   const corLiga = corDaLiga(liga);
+  const iconeLiga = iconeDaLiga(liga);
   const medalhas = ['🥇', '🥈', '🥉'];
 
   return (
@@ -37,9 +48,7 @@ export default function RankingScreen() {
         </View>
 
         <View style={[styles.ligaBanner, { opacity: 0.5 }]}>
-          <View style={[styles.ligaSelo, { backgroundColor: corLiga + '33', borderColor: corLiga }]}>
-            <Image source={require('../assets/icons/trofeu.png')} style={styles.ligaSeloIcone} resizeMode="contain" />
-          </View>
+          <Image source={iconeLiga} style={styles.ligaSeloImagem} resizeMode="contain" />
           <View>
             <Text style={[styles.ligaTitulo, { color: corLiga }]}>Liga {liga}</Text>
             <Text style={styles.ligaSub}>Ranking semanal — encerra em 3 dias</Text>
@@ -81,11 +90,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#252540', borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16,
   },
-  ligaSelo: {
-    width: 48, height: 48, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
-  },
-  ligaSeloIcone: { width: 26, height: 26 },
+  ligaSeloImagem: { width: 52, height: 52 },
   ligaTitulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18 },
   ligaSub:    { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0' },
   rankingItem: {
