@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { tocar } from '../services/somService';
 
 // ─── Lógica de faixa de resultado ────────────────────────────────────────
 function getFaixa(acertos, total, abandonada) {
@@ -76,6 +77,17 @@ export default function ScoreScreen({ navigation, route }) {
   const xpAnim    = useRef(new Animated.Value(0)).current;
   const streakAnim  = useRef(new Animated.Value(0)).current;
   const streakScale = useRef(new Animated.Value(0.5)).current;
+
+  // ── Som de fim de partida ────────────────────────────────────────────
+  // Toca uma única vez ao montar a tela: sucesso se aproveitamento > 50%,
+  // erro caso contrário (partida abandonada sempre conta como erro).
+  useEffect(() => {
+    if (abandonada) {
+      tocar('erroFim');
+    } else {
+      tocar(aproveitamento > 49 ? 'sucessoFim' : 'erroFim');
+    }
+  }, []);
 
   useEffect(() => {
     const sequencia = [

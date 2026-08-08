@@ -8,6 +8,7 @@ import TelaComHeader from '../components/TelaComHeader';
 import ModalPartida from '../components/modals/ModalPartida';
 import { getSaudacao, getTituloNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
+import { tocar } from '../services/somService';
 
 export default function InicioScreen({ navigation }) {
   const { usuario } = useAuth();
@@ -17,6 +18,11 @@ export default function InicioScreen({ navigation }) {
   const saudacao = getSaudacao();
   const titulo   = getTituloNivel(xp);
   const nome     = usuario?.nome_completo?.split(' ')[0] ?? usuario?.username ?? '…';
+
+  const abrirModalPartida = () => {
+    tocar('pop');
+    setModalPartida(true);
+  };
 
   // filtro: { tipo, id, label, comTempo } ou { comTempo } se for aleatório.
   // 'Partida' vive na Stack pai (fora do TabNavigator) — o React Navigation
@@ -48,7 +54,7 @@ export default function InicioScreen({ navigation }) {
           <Image source={require('../assets/kou-foco.png')} style={styles.pontsImg} resizeMode="contain" />
         </View>
 
-        <TouchableOpacity style={styles.btnEstudar} onPress={() => setModalPartida(true)} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.btnEstudar} onPress={abrirModalPartida} activeOpacity={0.85}>
           <View style={styles.btnEstudarConteudo}>
             <Image source={require('../assets/icons/raio.png')} style={styles.raioIcone} resizeMode="contain" />
             <Text style={styles.btnEstudarText}>Iniciar Partida</Text>

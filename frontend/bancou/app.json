@@ -21,7 +21,8 @@
       "favicon": "./src/assets/kou-animado1.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ]
   }
 }

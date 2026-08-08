@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import {
   useFonts,
@@ -15,6 +15,7 @@ import Navigation from './src/navigation';
 import { colors } from './src/theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PontsAlertProvider } from './src/context/PontsAlertContext';
+import { iniciarSom } from './src/services/somService';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -25,6 +26,10 @@ export default function App() {
     Inter_500Medium,
     Inter_600SemiBold,
   });
+
+  useEffect(() => {
+    iniciarSom();
+  }, []);
 
   if (!fontsLoaded) {
     return (

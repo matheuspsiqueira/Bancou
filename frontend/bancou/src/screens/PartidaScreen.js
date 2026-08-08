@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
+import { tocar } from '../services/somService';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
@@ -227,6 +228,7 @@ export default function PartidaScreen({ navigation, route }) {
     setConfirmada(true);
     setAcertouAtual(false);
     errosRef.current += 1;
+    tocar('erroQuestao');
 
     try {
       const resp = await authFetch('/api/questoes/corrigir/', {
@@ -272,6 +274,7 @@ export default function PartidaScreen({ navigation, route }) {
       setGabarito(data.gabarito);
       setAcertouAtual(correta);
       setConfirmada(true);
+      tocar(correta ? 'sucessoQuestao' : 'erroQuestao');
 
       if (correta) {
         acertosRef.current += 1;
@@ -312,6 +315,7 @@ export default function PartidaScreen({ navigation, route }) {
       setAcertouAtual(true);
       setConfirmada(true);
       acertosRef.current += 1;
+      tocar('sucessoQuestao');
       setInventario((inv) => ({ ...inv, pula_questao: data.inventario_restante }));
 
       setTimeout(() => {

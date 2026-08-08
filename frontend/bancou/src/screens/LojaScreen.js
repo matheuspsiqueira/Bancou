@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
+import { tocar } from '../services/somService';
 
 // Itens com imagem PNG própria (src/assets/icons/)
 const IMAGEM_ITEM = {
@@ -87,6 +88,7 @@ export default function LojaScreen() {
         ...(data.vidas_atuais != null ? { vidas: data.vidas_atuais } : {}),
       });
 
+      tocar('compra');
       alertar('Compra realizada!', `Você adquiriu: ${item.nome}`, [{ text: 'OK' }], { pose: 'torcendo' });
     } catch (e) {
       alertar('Erro', 'Não foi possível concluir a compra.', [{ text: 'OK' }], { pose: 'ops' });

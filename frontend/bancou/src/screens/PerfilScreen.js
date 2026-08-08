@@ -3,7 +3,7 @@
 // que antes vivia no componente principal HomeScreen agora mora aqui,
 // já que só a aba Perfil usa ele.
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { usePontsAlert } from '../context/PontsAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
@@ -12,12 +12,14 @@ import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
 import { IconRanking } from '../components/icons';
+import { tocar, useSomHabilitado } from '../services/somService';
 
 export default function PerfilScreen() {
   const { usuario, signOut } = useAuth();
   const { alertar } = usePontsAlert();
   const [modalSenha,  setModalSenha]  = useState(false);
   const [modalPerfil, setModalPerfil] = useState(false);
+  const [somHabilitado, alternarSom] = useSomHabilitado();
 
   const xp      = usuario?.xp     ?? MOCK.xp;
   const streak  = usuario?.streak  ?? MOCK.streak;
@@ -32,6 +34,7 @@ export default function PerfilScreen() {
   const username = usuario?.username      ?? '…';
 
   const handleLogout = () => {
+    tocar('pop');
     alertar(
       'Sair da conta',
       'Tem certeza que deseja sair?',
@@ -105,6 +108,17 @@ export default function PerfilScreen() {
         </View>
 
         <Text style={[styles.secaoTitulo, { marginTop: 8 }]}>Configurações</Text>
+
+        <View style={styles.opcaoItem}>
+          <Text style={styles.opcaoText}>🔊  Efeitos sonoros</Text>
+          <Switch
+            value={somHabilitado}
+            onValueChange={alternarSom}
+            trackColor={{ false: '#1a1a2e', true: '#6C63FF' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#1a1a2e"
+          />
+        </View>
 
         <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalPerfil(true)} activeOpacity={0.7}>
           <Text style={styles.opcaoText}>✏️  Editar perfil</Text>
