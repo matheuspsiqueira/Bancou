@@ -101,7 +101,7 @@ export default function LojaScreen() {
     <TelaComHeader>
       <ScrollView style={styles.abaContainer} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={styles.avisoConstrucao}>
-          <Image source={require('../assets/kou-pensando.png')} style={styles.kouConstrucao} resizeMode="contain" />
+          <Image source={require('../assets/kou-obra.png')} style={styles.kouConstrucao} resizeMode="contain" />
           <View style={{ flex: 1 }}>
             <Text style={styles.avisoTitulo}>Loja em construção 🚧</Text>
             <Text style={styles.avisoTexto}>

@@ -1,6 +1,6 @@
 // src/components/modals/CampoSenha.js
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 
 export default function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
   return (
@@ -22,7 +22,13 @@ export default function CampoSenha({ label, value, onChangeText, ver, setVer, pl
           onPress={() => setVer((v) => !v)}
           activeOpacity={0.7}
         >
-          <Text style={styles.inputSenhaOlhoIcon}>{ver ? '🙈' : '👁️'}</Text>
+          <Image
+            source={ver
+              ? require('../../assets/icons/olho-aberto.png')
+              : require('../../assets/icons/olho-fechado.png')}
+            style={styles.inputSenhaOlhoIcone}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </View>
     </>
@@ -42,6 +48,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular', fontSize: 15,
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  inputSenhaOlho:     { padding: 4 },
-  inputSenhaOlhoIcon: { fontSize: 18 },
+  inputSenhaOlho:      { padding: 4 },
+  inputSenhaOlhoIcone: { width: 18, height: 18 },
 });

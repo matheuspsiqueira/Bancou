@@ -11,7 +11,7 @@ export default function DuelosScreen() {
   return (
     <TelaComHeader>
       <View style={styles.container}>
-        <Image source={require('../assets/kou-pensando.png')} style={styles.kou} resizeMode="contain" />
+        <Image source={require('../assets/kou-obra.png')} style={styles.kou} resizeMode="contain" />
         <Text style={styles.titulo}>Modo Duelo</Text>
         <Text style={styles.desc}>
           Desafie outros concurseiros em partidas 1x1 com as mesmas 10 questões.

@@ -118,18 +118,24 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                   onPress={() => setComTempo(false)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.toggleTempoText, !comTempo && styles.toggleTempoTextAtivo]}>
-                    🧘  Sem tempo
-                  </Text>
+                  <View style={styles.toggleTempoConteudo}>
+                    <Image source={require('../../assets/icons/sem-tempo.png')} style={styles.toggleTempoIcone} resizeMode="contain" />
+                    <Text style={[styles.toggleTempoText, !comTempo && styles.toggleTempoTextAtivo]}>
+                      Sem tempo
+                    </Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.toggleTempoBtn, comTempo && styles.toggleTempoBtnAtivo]}
                   onPress={() => setComTempo(true)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.toggleTempoText, comTempo && styles.toggleTempoTextAtivo]}>
-                    ⏱️  Com tempo (60s)
-                  </Text>
+                  <View style={styles.toggleTempoConteudo}>
+                    <Image source={require('../../assets/icons/com-tempo.png')} style={styles.toggleTempoIcone} resizeMode="contain" />
+                    <Text style={[styles.toggleTempoText, comTempo && styles.toggleTempoTextAtivo]}>
+                      Com tempo (60s)
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               </View>
 
@@ -140,7 +146,10 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity style={styles.btnFiltrar} onPress={() => setEtapa('escolha')} activeOpacity={0.7}>
-                <Text style={styles.btnFiltrarText}>🎯  Filtrar por tema</Text>
+                <View style={styles.btnFiltrarConteudo}>
+                  <Image source={require('../../assets/icons/filtro.png')} style={styles.filtroIcone} resizeMode="contain" />
+                  <Text style={styles.btnFiltrarText}>Filtrar por tema</Text>
+                </View>
               </TouchableOpacity>
             </>
           )}
@@ -251,6 +260,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#35355a',
   },
   toggleTempoBtnAtivo:  { backgroundColor: '#6C63FF22', borderColor: '#6C63FF' },
+  toggleTempoConteudo:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  toggleTempoIcone: { width: 26, height: 26 },
   toggleTempoText:      { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0' },
   toggleTempoTextAtivo: { fontFamily: 'Nunito_700Bold', color: '#6C63FF' },
   btnPrincipal: {
@@ -263,6 +274,8 @@ const styles = StyleSheet.create({
   btnFiltrar: {
     backgroundColor: '#252540', borderRadius: 14, paddingVertical: 14, alignItems: 'center',
   },
+  btnFiltrarConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  filtroIcone: { width: 18, height: 18 },
   btnFiltrarText: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#9090B0' },
   voltarBtn:      { marginBottom: 12 },
   voltarText:     { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#6C63FF' },

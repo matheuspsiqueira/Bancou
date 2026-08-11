@@ -16,6 +16,7 @@ const POSES = {
   torcendo:   require('../assets/kou-torcendo.png'),
   triste:   require('../assets/kou-triste.png'),
   dinheiro: require('../assets/kou-dinheiro.png'),
+  obra:     require('../assets/kou-obra.png'),
 };
 
 export default function PontsAlert({ visivel, titulo, mensagem, botoes = [], pose, onFechar }) {

@@ -1,21 +1,27 @@
 // src/services/somService.js
 //
 // Serviço central de efeitos sonoros do Bancou.
-// Usa expo-audio (createAudioPlayer), com os players pré-carregados
-// uma única vez e reaproveitados a cada chamada de tocar().
+// Usa expo-audio (createAudioPlayer), com um player pré-carregado por
+// efeito, reaproveitado a cada chamada de tocar().
 // A preferência de mudo é persistida via AsyncStorage.
 //
-// Pool de players: cada efeito tem 2 instâncias alternadas entre si.
-// A instância que vai tocar já está parada em 0 (foi resetada em segundo
-// plano na chamada anterior), então tocar() nunca precisa esperar um
-// seekTo() terminar antes do play() — é isso que elimina o delay.
+// Histórico (pra não repetir os mesmos erros no futuro):
+// - Pool de 2 instâncias por som: causava conflito no Android, onde
+//   play() em uma instância pausa automaticamente as outras (bug
+//   documentado no repositório do expo-audio). Resultado: delay de ~1s
+//   especificamente no "pop" a partir do 2º toque.
+// - Aquecimento (play+pause silencioso no boot): tocar/pausar várias
+//   instâncias em sequência no início do app deixava a lib instável e
+//   causava silêncio total depois de um tempo (bug conhecido do
+//   expo-audio: perde o rastro do estado interno após várias reproduções
+//   em sequência).
+// Por isso: nada de pool, nada de aquecimento. Implementação mínima.
 
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useCallback } from 'react';
 
 const CHAVE_MUTADO = '@bancou:som_mutado';
-const TAMANHO_POOL = 2;
 
 // Importante: o Metro só reconhece extensão de asset em minúsculo (mp3).
 const FONTES = {
@@ -29,20 +35,18 @@ const FONTES = {
   // abertura: require('../assets/sounds/abertura.mp3'), // reservado pro som de abertura do app
 };
 
-let pools = null;      // { nome: [player0, player1] }
-let indices = {};      // { nome: índice do próximo player a tocar }
+let players = null;
 let mutado = false;
 let ouvintes = []; // callbacks avisados quando `mutado` muda (usado pelo hook)
 
 function garantirPlayers() {
-  if (pools) return pools;
+  if (players) return players;
 
-  pools = {};
+  players = {};
   for (const [nome, fonte] of Object.entries(FONTES)) {
-    pools[nome] = Array.from({ length: TAMANHO_POOL }, () => createAudioPlayer(fonte));
-    indices[nome] = 0;
+    players[nome] = createAudioPlayer(fonte);
   }
-  return pools;
+  return players;
 }
 
 function notificarOuvintes() {
@@ -71,29 +75,18 @@ export async function iniciarSom() {
 export function tocar(nome) {
   if (mutado) return;
 
-  const grupo = garantirPlayers()[nome];
-  if (!grupo) {
+  const p = garantirPlayers()[nome];
+  if (!p) {
     console.warn(`[som] efeito "${nome}" não existe`);
     return;
   }
 
-  const i = indices[nome];
-  const player = grupo[i];
-
   try {
-    player.play();
+    p.seekTo(0);
+    p.play();
   } catch (e) {
     console.warn(`[som] falha ao tocar "${nome}"`, e);
   }
-
-  // Reseta em segundo plano a OUTRA instância do par, que já tocou antes
-  // e ficou parada no fim do áudio. Isso não bloqueia o play() acima —
-  // quando ela for chamada de novo (na próxima rodada), já vai estar
-  // pronta em 0, sem precisar esperar o seekTo.
-  const proximo = grupo[(i + 1) % TAMANHO_POOL];
-  proximo.seekTo(0).catch(() => {});
-
-  indices[nome] = (i + 1) % TAMANHO_POOL;
 }
 
 // Define e persiste o estado de mudo. Use setSomHabilitado() abaixo se
@@ -124,8 +117,6 @@ export function useSomHabilitado() {
   useEffect(() => {
     const ouvinte = (novoMutado) => setHabilitado(!novoMutado);
     ouvintes.push(ouvinte);
-    // sincroniza caso iniciarSom() ainda não tivesse terminado de ler o
-    // AsyncStorage quando este componente montou
     setHabilitado(!mutado);
 
     return () => {
@@ -142,7 +133,7 @@ export function useSomHabilitado() {
 
 // Chame ao desmontar o app, se necessário (geralmente não precisa)
 export function liberarSom() {
-  if (!pools) return;
-  Object.values(pools).forEach((grupo) => grupo.forEach((p) => p.release()));
-  pools = null;
+  if (!players) return;
+  Object.values(players).forEach((p) => p.release());
+  players = null;
 }

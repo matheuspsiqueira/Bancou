@@ -36,7 +36,7 @@ export default function TabBarCustomizada({ state, navigation }) {
         'Em breve!',
         'O modo Duelos ainda está em construção. Volte em breve para desafiar outros concurseiros!',
         [{ text: 'Entendi' }],
-        { pose: 'pensando' }
+        { pose: 'obra' }
       );
       return;
     }

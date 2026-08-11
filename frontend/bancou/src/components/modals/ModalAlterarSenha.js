@@ -10,6 +10,7 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { usePontsAlert } from '../../context/PontsAlertContext';
@@ -129,7 +130,13 @@ export default function ModalAlterarSenha({ visible, onClose }) {
               onPress={() => setVerAtual((v) => !v)}
               activeOpacity={0.7}
             >
-              <Text style={styles.inputSenhaOlhoIcon}>{verAtual ? '🙈' : '👁️'}</Text>
+              <Image
+                source={verAtual
+                  ? require('../../assets/icons/olho-aberto.png')
+                  : require('../../assets/icons/olho-fechado.png')}
+                style={styles.inputSenhaOlhoIcone}
+                resizeMode="contain"
+              />
             </TouchableOpacity>
           </View>
 
@@ -207,8 +214,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular', fontSize: 15,
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  inputSenhaOlho:     { padding: 4 },
-  inputSenhaOlhoIcon: { fontSize: 18 },
+  inputSenhaOlho:       { padding: 4 },
+  inputSenhaOlhoIcone:  { width: 18, height: 18 },
   btnPrincipal: {
     backgroundColor: '#6C63FF', borderRadius: 14,
     paddingVertical: 16, alignItems: 'center', marginBottom: 12,

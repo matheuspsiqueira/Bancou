@@ -40,7 +40,7 @@ export default function RankingScreen() {
     <TelaComHeader>
       <ScrollView style={styles.abaContainer} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={styles.emBreveCardRanking}>
-          <Image source={require('../assets/icons/trofeu.png')} style={styles.emBreveIconePng} resizeMode="contain" />
+          <Image source={require('../assets/kou-obra.png')} style={styles.emBreveImg} resizeMode="contain" />
           <Text style={styles.emBreveTitulo}>Ranking · Em breve</Text>
           <Text style={styles.emBreveDesc}>
             As ligas semanais estão sendo preparadas. Abaixo você vê uma prévia de como vai funcionar!
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 16,
     borderWidth: 1, borderColor: '#FFD70033', borderStyle: 'dashed',
   },
-  emBreveIconePng: { width: 32, height: 32, marginBottom: 8 },
+  emBreveImg: { width: 65, height: 90, marginRight: 13, marginBottom: 8 },
   emBreveTitulo: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#9090B0', marginBottom: 6 },
   emBreveDesc:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', textAlign: 'center', lineHeight: 19 },
   ligaBanner: {

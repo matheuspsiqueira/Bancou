@@ -21,7 +21,10 @@ export default function InicioScreen({ navigation }) {
 
   const abrirModalPartida = () => {
     tocar('pop');
-    setModalPartida(true);
+    // Adia a abertura do modal em 1 frame: evita que a criação da janela
+    // nativa do Modal compita com a chamada de áudio na mesma leva de
+    // trabalho da thread JS, o que causava um delay perceptível no som.
+     requestAnimationFrame(() => setModalPartida(true));
   };
 
   // filtro: { tipo, id, label, comTempo } ou { comTempo } se for aleatório.
@@ -63,7 +66,7 @@ export default function InicioScreen({ navigation }) {
 
         <Text style={styles.secaoTitulo}>Desafios do dia</Text>
         <View style={styles.emBreveCard}>
-          <Text style={styles.emBreveEmoji}>🎯</Text>
+          <Image source={require('../assets/kou-obra.png')} style={styles.emBreveImg} />
           <Text style={styles.emBreveTitulo}>Em breve</Text>
           <Text style={styles.emBreveDesc}>
             Desafios diários com recompensas de XP e moedas estão chegando. Fique de olho!
@@ -106,6 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 16,
     borderWidth: 1, borderColor: '#6C63FF33', borderStyle: 'dashed',
   },
+  emBreveImg: { width: 65, height: 90, marginRight: 13 },
   emBreveEmoji:  { fontSize: 32, marginBottom: 8 },
   emBreveTitulo: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#9090B0', marginBottom: 6 },
   emBreveDesc:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', textAlign: 'center', lineHeight: 19 },

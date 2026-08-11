@@ -11,7 +11,6 @@ import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { MOCK } from '../utils/mockData';
-import { IconRanking } from '../components/icons';
 import { tocar, useSomHabilitado } from '../services/somService';
 
 export default function PerfilScreen() {
@@ -35,15 +34,20 @@ export default function PerfilScreen() {
 
   const handleLogout = () => {
     tocar('pop');
-    alertar(
-      'Sair da conta',
-      'Tem certeza que deseja sair?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sair', style: 'destructive', onPress: signOut },
-      ],
-      { pose: 'triste' }
-    );
+    // Adia a abertura do alert em 1 frame: evita que a criação da janela
+    // nativa do modal compita com a chamada de áudio na mesma leva de
+    // trabalho da thread JS, o que causava um delay perceptível no som.
+    requestAnimationFrame(() => {
+      alertar(
+        'Sair da conta',
+        'Tem certeza que deseja sair?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Sair', style: 'destructive', onPress: signOut },
+        ],
+        { pose: 'triste' }
+      );
+    });
   };
 
   return (
@@ -100,7 +104,7 @@ export default function PerfilScreen() {
 
         <Text style={styles.secaoTitulo}>Conquistas</Text>
         <View style={styles.emBreveCard}>
-          <Text style={styles.emBreveEmoji}>🏅</Text>
+          <Image source={require('../assets/kou-obra.png')} style={styles.emBreveIconePng} resizeMode="contain" />
           <Text style={styles.emBreveTitulo}>Em breve</Text>
           <Text style={styles.emBreveDesc}>
             Conquistas únicas que desbloqueiam conforme você avança. Cada uma conta uma história!
@@ -110,7 +114,10 @@ export default function PerfilScreen() {
         <Text style={[styles.secaoTitulo, { marginTop: 8 }]}>Configurações</Text>
 
         <View style={styles.opcaoItem}>
-          <Text style={styles.opcaoText}>🔊  Efeitos sonoros</Text>
+          <View style={styles.opcaoTextRow}>
+            <Image source={require('../assets/icons/com-som.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+            <Text style={styles.opcaoText}> Efeitos sonoros</Text>
+          </View>
           <Switch
             value={somHabilitado}
             onValueChange={alternarSom}
@@ -121,12 +128,18 @@ export default function PerfilScreen() {
         </View>
 
         <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalPerfil(true)} activeOpacity={0.7}>
-          <Text style={styles.opcaoText}>✏️  Editar perfil</Text>
+          <View style={styles.opcaoTextRow}>
+            <Image source={require('../assets/icons/lapis.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+            <Text style={styles.opcaoText}> Editar perfil</Text>
+          </View>
           <Text style={{ color: '#9090B0', fontSize: 18 }}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalSenha(true)} activeOpacity={0.7}>
-          <Text style={styles.opcaoText}>🔑  Alterar senha</Text>
+          <View style={styles.opcaoTextRow}>
+            <Image source={require('../assets/icons/chave.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+            <Text style={styles.opcaoText}> Alterar senha</Text>
+          </View>
           <Text style={{ color: '#9090B0', fontSize: 18 }}>›</Text>
         </TouchableOpacity>
 
@@ -179,13 +192,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 16,
     borderWidth: 1, borderColor: '#6C63FF33', borderStyle: 'dashed',
   },
-  emBreveEmoji:  { fontSize: 32, marginBottom: 8 },
+  emBreveIconePng: { width: 48, height: 48, marginBottom: 8 },
   emBreveTitulo: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#9090B0', marginBottom: 6 },
   emBreveDesc:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', textAlign: 'center', lineHeight: 19 },
   opcaoItem: {
     backgroundColor: '#252540', borderRadius: 12, padding: 16,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
   },
+  opcaoTextRow: { flexDirection: 'row', alignItems: 'center' },
+  opcaoIconePng: { width: 18, height: 18 },
   opcaoText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#FFFFFF' },
   btnLogout: {
     marginTop: 16, borderWidth: 1, borderColor: '#FF4069',
