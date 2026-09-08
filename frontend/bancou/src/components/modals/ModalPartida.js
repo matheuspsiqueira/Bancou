@@ -39,6 +39,12 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
     concurso: 'Escolha o concurso',
   };
 
+  const TIPOS_FILTRO = [
+    { tipo: 'banca',    icone: require('../../assets/icons/bancas.png'),    label: 'Banca',    desc: 'CESPE, FCC, FGV…' },
+    { tipo: 'materia',  icone: require('../../assets/icons/materias.png'),  label: 'Matéria',  desc: 'Direito, Português, Lógica…' },
+    { tipo: 'concurso', icone: require('../../assets/icons/concursos.png'), label: 'Concurso', desc: 'TJ, PF, INSS, Receita…' },
+  ];
+
   const labelDe = (tipo, item) => {
     if (tipo === 'concurso') {
       return `${item.nome}${item.ano ? ` (${item.ano})` : ''} — ${item.banca_nome}`;
@@ -161,18 +167,14 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
               </TouchableOpacity>
               <Text style={styles.modalTitulo}>Filtrar por</Text>
               <Text style={styles.modalSubtitulo}>Escolha como quer organizar sua partida</Text>
-              {[
-                { tipo: 'banca',    icone: '🏛️', label: 'Banca',    desc: 'CESPE, FCC, FGV…' },
-                { tipo: 'materia',  icone: '📚', label: 'Matéria',  desc: 'Direito, Português, Lógica…' },
-                { tipo: 'concurso', icone: '🎯', label: 'Concurso', desc: 'TJ, PF, INSS, Receita…' },
-              ].map((item) => (
+              {TIPOS_FILTRO.map((item) => (
                 <TouchableOpacity
                   key={item.tipo}
                   style={styles.filtroTipoItem}
                   onPress={() => escolherTipo(item.tipo)}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 26 }}>{item.icone}</Text>
+                  <Image source={item.icone} style={styles.filtroTipoIcone} resizeMode="contain" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.filtroTipoLabel}>{item.label}</Text>
                     <Text style={styles.filtroTipoDesc}>{item.desc}</Text>
@@ -283,6 +285,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#252540', borderRadius: 12, padding: 16, marginBottom: 10,
   },
+  filtroTipoIcone: { width: 26, height: 26 },
   filtroTipoLabel: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FFFFFF' },
   filtroTipoDesc:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', marginTop: 2 },
   opcaoFiltroItem: {
