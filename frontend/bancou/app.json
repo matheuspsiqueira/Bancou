@@ -15,7 +15,11 @@
         "foregroundImage": "./src/assets/kou-animado1.png",
         "backgroundImage": "./src/assets/kou-animado1.png",
         "backgroundColor": "#1a1a2e"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./src/assets/kou-animado1.png"
@@ -23,6 +27,12 @@
     "plugins": [
       "expo-font",
       "expo-audio"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a83c132f-ef5a-4836-b9d8-83d8837c2e4f"
+      }
+    },
+    "owner": "matheus_siqueira"
   }
 }
