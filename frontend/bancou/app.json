@@ -26,13 +26,20 @@
     },
     "plugins": [
       "expo-font",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
         "projectId": "a83c132f-ef5a-4836-b9d8-83d8837c2e4f"
       }
     },
-    "owner": "matheus_siqueira"
+    "owner": "matheus_siqueira",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a83c132f-ef5a-4836-b9d8-83d8837c2e4f"
+    }
   }
 }
