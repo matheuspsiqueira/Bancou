@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
   Nunito_700Bold,
@@ -33,17 +34,21 @@ export default function App() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <PontsAlertProvider>
-        <Navigation />
-      </PontsAlertProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PontsAlertProvider>
+          <Navigation />
+        </PontsAlertProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
