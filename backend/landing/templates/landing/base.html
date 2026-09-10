@@ -3,10 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>{% block title %}Bancou — Estude. Acumule pontos. Conquiste seu futuro.{% endblock %}</title>
+
 <meta name="description" content="{% block description %}Bancou é o app gamificado de questões de concurso público. Responda questões reais, acumule XP e mantenha seu streak de estudos todos os dias.{% endblock %}">
+
+<meta property="og:title" content="{% block og_title %}Bancou — Estude. Acumule pontos. Conquiste seu futuro.{% endblock %}">
+<meta property="og:description" content="{% block og_description %}Bancou é o app gamificado de questões de concurso público. Responda questões reais, acumule XP e mantenha seu streak de estudos todos os dias.{% endblock %}">
+<meta property="og:image" content="https://bancou.app.br/static/landing/img/kou-share.png">
+<meta property="og:url" content="https://bancou.app.br/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bancou">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bancou — Estude. Acumule pontos. Conquiste seu futuro.">
+<meta name="twitter:description" content="Bancou é o app gamificado de questões de concurso público. Responda questões reais, acumule XP e mantenha seu streak de estudos todos os dias.">
+<meta name="twitter:image" content="https://bancou.app.br/static/landing/img/kou-share.png">
+
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="{% static 'landing/css/style.css' %}">
+
 <link rel="icon" href="../../static/landing/img/kou-animado.png">
 </head>
 <body>

@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://princess-revenues-promoted-things.trycloudflare.com';
+const DEV_URL = 'https://influence-custody-stylish-lawsuit.trycloudflare.com';
 const PROD_URL = 'https://bancou.onrender.com'; 
 
 export const API_URL = PROD_URL;
