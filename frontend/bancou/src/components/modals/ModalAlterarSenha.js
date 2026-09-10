@@ -1,5 +1,7 @@
 // src/components/modals/ModalAlterarSenha.js
-// Extraído de HomeScreen.js — lógica idêntica à original, sem alterações.
+// Lógica idêntica à original. Diferença: os 3 campos de senha agora
+// usam o mesmo componente CampoSenha (antes o "Senha atual" duplicava
+// o JSX/estilo por causa do link "Esqueci minha senha").
 import React, { useState } from 'react';
 import {
   View,
@@ -8,23 +10,22 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
-  TextInput,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { usePontsAlert } from '../../context/PontsAlertContext';
 import CampoSenha from './CampoSenha';
+import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalAlterarSenha({ visible, onClose }) {
   const { authFetch } = useAuth();
   const { alertar } = usePontsAlert();
-  const [senhaAtual,     setSenhaAtual]     = useState('');
-  const [novaSenha,      setNovaSenha]      = useState('');
-  const [confirmacao,    setConfirmacao]    = useState('');
-  const [carregando,     setCarregando]     = useState(false);
-  const [verAtual,       setVerAtual]       = useState(false);
-  const [verNova,        setVerNova]        = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [carregando, setCarregando] = useState(false);
+  const [verAtual, setVerAtual] = useState(false);
+  const [verNova, setVerNova] = useState(false);
   const [verConfirmacao, setVerConfirmacao] = useState(false);
 
   const fechar = () => {
@@ -70,7 +71,7 @@ export default function ModalAlterarSenha({ visible, onClose }) {
         method: 'POST',
         body: JSON.stringify({
           senha_atual: senhaAtual,
-          nova_senha:  novaSenha,
+          nova_senha: novaSenha,
           nova_senha2: confirmacao,
         }),
       });
@@ -84,10 +85,10 @@ export default function ModalAlterarSenha({ visible, onClose }) {
         );
       } else {
         const msg =
-          data.senha_atual?.[0]      ||
-          data.nova_senha?.[0]       ||
+          data.senha_atual?.[0] ||
+          data.nova_senha?.[0] ||
           data.non_field_errors?.[0] ||
-          data.detail                ||
+          data.detail ||
           'Erro ao alterar senha.';
         alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
       }
@@ -108,37 +109,19 @@ export default function ModalAlterarSenha({ visible, onClose }) {
             Escolha uma senha forte com pelo menos 8 caracteres.
           </Text>
 
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>Senha atual</Text>
-            <TouchableOpacity onPress={esqueceuSenha} activeOpacity={0.7}>
-              <Text style={styles.linkEsqueceuSenha}>Esqueci minha senha</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.inputSenhaWrapper}>
-            <TextInput
-              style={styles.inputSenha}
-              placeholder="Digite sua senha atual"
-              placeholderTextColor="#9090B0"
-              secureTextEntry={!verAtual}
-              value={senhaAtual}
-              onChangeText={setSenhaAtual}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity
-              style={styles.inputSenhaOlho}
-              onPress={() => setVerAtual((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={verAtual
-                  ? require('../../assets/icons/olho-aberto.png')
-                  : require('../../assets/icons/olho-fechado.png')}
-                style={styles.inputSenhaOlhoIcone}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
+          <CampoSenha
+            label="Senha atual"
+            placeholder="Digite sua senha atual"
+            value={senhaAtual}
+            onChangeText={setSenhaAtual}
+            ver={verAtual}
+            setVer={setVerAtual}
+            labelExtra={
+              <TouchableOpacity onPress={esqueceuSenha} activeOpacity={0.7}>
+                <Text style={styles.linkEsqueceuSenha}>Esqueci minha senha</Text>
+              </TouchableOpacity>
+            }
+          />
 
           <CampoSenha
             label="Nova senha"
@@ -159,12 +142,10 @@ export default function ModalAlterarSenha({ visible, onClose }) {
           />
 
           {confirmacao.length > 0 && (
-            <Text style={{
-              fontSize: 12,
-              fontFamily: 'Inter_400Regular',
-              marginBottom: 16,
-              color: novaSenha === confirmacao ? '#00C896' : '#FF4069',
-            }}>
+            <Text style={[
+              styles.matchLabel,
+              { color: novaSenha === confirmacao ? colors.correct : colors.lives },
+            ]}>
               {novaSenha === confirmacao ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
             </Text>
           )}
@@ -176,7 +157,7 @@ export default function ModalAlterarSenha({ visible, onClose }) {
             activeOpacity={0.85}
           >
             {carregando
-              ? <ActivityIndicator color="#FFF" />
+              ? <ActivityIndicator color={colors.text} />
               : <Text style={styles.btnPrincipalText}>Salvar senha</Text>
             }
           </TouchableOpacity>
@@ -189,36 +170,20 @@ export default function ModalAlterarSenha({ visible, onClose }) {
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: spacing.xl, paddingBottom: 40,
   },
   modalHandle: {
-    width: 40, height: 4, backgroundColor: '#252540', borderRadius: 999,
-    alignSelf: 'center', marginBottom: 20,
+    width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,
+    alignSelf: 'center', marginBottom: spacing.xl,
   },
-  modalTitulo:    { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 4 },
-  modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', marginBottom: 20, lineHeight: 18 },
-  inputLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 6, marginTop: 4 },
-  inputLabelRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, marginTop: 4,
-  },
-  linkEsqueceuSenha: { fontSize: 12, fontFamily: 'Inter_400Regular', color: '#6C63FF' },
-  inputSenhaWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#252540', borderRadius: 12,
-    borderWidth: 1, borderColor: '#35355a',
-    marginBottom: 12, paddingRight: 12,
-  },
-  inputSenha: {
-    flex: 1, color: '#FFFFFF',
-    fontFamily: 'Inter_400Regular', fontSize: 15,
-    paddingHorizontal: 16, paddingVertical: 14,
-  },
-  inputSenhaOlho:       { padding: 4 },
-  inputSenhaOlhoIcone:  { width: 18, height: 18 },
+  modalTitulo: { fontFamily: typography.extraBold, fontSize: fontSize.h2, color: colors.text, marginBottom: 4 },
+  modalSubtitulo: { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 18 },
+  linkEsqueceuSenha: { fontSize: fontSize.caption, fontFamily: typography.regular, color: colors.primary },
+  matchLabel: { fontSize: fontSize.caption, fontFamily: typography.regular, marginBottom: spacing.md },
   btnPrincipal: {
-    backgroundColor: '#6C63FF', borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+    backgroundColor: colors.primary, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg, alignItems: 'center', marginBottom: spacing.md,
   },
-  btnPrincipalText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+  btnPrincipalText: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.text },
 });

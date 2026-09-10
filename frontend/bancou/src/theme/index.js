@@ -1,3 +1,4 @@
+// src/theme/index.js
 export const colors = {
   // Backgrounds
   background: '#1a1a2e',

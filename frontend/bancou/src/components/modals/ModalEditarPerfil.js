@@ -1,6 +1,11 @@
 // src/components/modals/ModalEditarPerfil.js
-// Extraído de HomeScreen.js — lógica idêntica à original, sem alterações
-// (inclui a exclusão de conta via fetch cru, fora do authFetch, de propósito).
+// Ajuste 09/2026: campo de e-mail adicionado pra espelhar o cadastro
+// (AuthScreen). E-mail vem travado (read-only) porque o backend ainda
+// não tem o fluxo de reenvio de confirmação pra troca de e-mail — ver
+// briefing seção 2. Quando esse endpoint existir, troca `editavel={false}`
+// por `true` no campo abaixo e ajusta o `salvar()` pra incluir o e-mail
+// no payload (provavelmente um endpoint separado, tipo
+// /api/usuarios/solicitar-troca-email/, não o PATCH de perfil direto).
 import React, { useState } from 'react';
 import {
   View,
@@ -19,20 +24,21 @@ import { usePontsAlert } from '../../context/PontsAlertContext';
 import { API_URL } from '../../config';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalEditarPerfil({ visible, onClose }) {
   const { authFetch, usuario, atualizarUsuario, signOut } = useAuth();
   const { alertar } = usePontsAlert();
-  const [username,   setUsername]   = useState('');
-  const [nome,       setNome]       = useState('');
+  const [username, setUsername] = useState('');
+  const [nome, setNome] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [fotoArquivo, setFotoArquivo] = useState(null);
 
   React.useEffect(() => {
     if (visible) {
-      setUsername(usuario?.username    || '');
-      setNome(usuario?.nome_completo   || '');
+      setUsername(usuario?.username || '');
+      setNome(usuario?.nome_completo || '');
       setFotoPreview(null);
       setFotoArquivo(null);
     }
@@ -72,6 +78,15 @@ export default function ModalEditarPerfil({ visible, onClose }) {
     });
   };
 
+  const solicitarTrocaEmail = () => {
+    alertar(
+      'Em breve',
+      'A troca de e-mail vai passar por uma confirmação por segurança. Essa opção ainda está sendo construída.',
+      [{ text: 'Entendi' }],
+      { pose: 'pensando' }
+    );
+  };
+
   const salvar = async () => {
     if (!username.trim()) {
       alertar('Atenção', 'O username não pode ficar em branco.', [{ text: 'OK' }]);
@@ -100,7 +115,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
         resp = await authFetch('/api/usuarios/perfil/', {
           method: 'PATCH',
           body: JSON.stringify({
-            username:      username.trim(),
+            username: username.trim(),
             nome_completo: nome.trim(),
           }),
         });
@@ -121,10 +136,10 @@ export default function ModalEditarPerfil({ visible, onClose }) {
         );
       } else {
         const msg =
-          data.username?.[0]      ||
+          data.username?.[0] ||
           data.nome_completo?.[0] ||
-          data.avatar?.[0]        ||
-          data.detail             ||
+          data.avatar?.[0] ||
+          data.detail ||
           'Erro ao atualizar perfil.';
         alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
       }
@@ -143,7 +158,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Excluir minha conta', style: 'destructive', onPress: excluirConta },
       ],
-      { pose: 'ops' } // trocar por 'triste' — pendente, já anotado no seu roadmap
+      { pose: 'triste' }
     );
   };
 
@@ -184,7 +199,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitulo}>Editar perfil</Text>
           <Text style={styles.modalSubtitulo}>
-            Altere seu username ou nome de exibição.
+            Altere seus dados de cadastro.
           </Text>
 
           <View style={styles.avatarEditRow}>
@@ -200,25 +215,38 @@ export default function ModalEditarPerfil({ visible, onClose }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.inputLabel}>Username</Text>
+          <Text style={styles.inputLabel}>Nome completo</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Seu nome"
+            placeholderTextColor={colors.textSecondary}
+            value={nome}
+            onChangeText={setNome}
+            autoCapitalize="words"
+          />
+
+          <Text style={styles.inputLabel}>Nome de usuário</Text>
           <TextInput
             style={styles.input}
             placeholder="@seu_username"
-            placeholderTextColor="#9090B0"
+            placeholderTextColor={colors.textSecondary}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
             autoCorrect={false}
           />
 
-          <Text style={styles.inputLabel}>Nome completo</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Seu nome"
-            placeholderTextColor="#9090B0"
-            value={nome}
-            onChangeText={setNome}
-          />
+          <Text style={styles.inputLabel}>E-mail</Text>
+          <TouchableOpacity onPress={solicitarTrocaEmail} activeOpacity={0.7} disabled={carregando}>
+            <View pointerEvents="none">
+              <TextInput
+                style={[styles.input, styles.inputTravado]}
+                value={usuario?.email || ''}
+                editable={false}
+              />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.avisoEmail}>Toque para saber como funciona a troca de e-mail.</Text>
 
           <TouchableOpacity
             style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
@@ -227,7 +255,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
             activeOpacity={0.85}
           >
             {carregando
-              ? <ActivityIndicator color="#FFF" />
+              ? <ActivityIndicator color={colors.text} />
               : <Text style={styles.btnPrincipalText}>Salvar alterações</Text>
             }
           </TouchableOpacity>
@@ -249,43 +277,47 @@ export default function ModalEditarPerfil({ visible, onClose }) {
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: spacing.xl, paddingBottom: 40,
   },
   modalHandle: {
-    width: 40, height: 4, backgroundColor: '#252540', borderRadius: 999,
-    alignSelf: 'center', marginBottom: 20,
+    width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,
+    alignSelf: 'center', marginBottom: spacing.xl,
   },
-  modalTitulo:    { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 4 },
-  modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', marginBottom: 20, lineHeight: 18 },
-  inputLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 6, marginTop: 4 },
+  modalTitulo: { fontFamily: typography.extraBold, fontSize: fontSize.h2, color: colors.text, marginBottom: 4 },
+  modalSubtitulo: { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 18 },
+  inputLabel: { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: 4 },
   input: {
-    backgroundColor: '#252540', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    fontFamily: 'Inter_400Regular', fontSize: 15, color: '#FFFFFF',
-    marginBottom: 12, borderWidth: 1, borderColor: '#35355a',
+    backgroundColor: colors.card, borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    fontFamily: typography.regular, fontSize: fontSize.body, color: colors.text,
+    marginBottom: spacing.md, borderWidth: 1, borderColor: '#35355a',
   },
-  avatarEditRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  inputTravado: { opacity: 0.55, marginBottom: spacing.xs },
+  avisoEmail: {
+    fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  avatarEditRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.xl },
   avatarEdit: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#252540', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: '#6C63FF', overflow: 'hidden',
+    backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: colors.primary, overflow: 'hidden',
   },
   avatarEditImg: { width: '100%', height: '100%' },
   btnTrocarFoto: {
-    backgroundColor: '#6C63FF', borderRadius: 999,
-    paddingHorizontal: 16, paddingVertical: 9,
-    borderWidth: 0,
+    backgroundColor: colors.primary, borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 1,
   },
-  btnTrocarFotoText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#FFFFFF' },
+  btnTrocarFotoText: { fontFamily: typography.semibold, fontSize: fontSize.label, color: colors.text },
   btnPrincipal: {
-    backgroundColor: '#6C63FF', borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+    backgroundColor: colors.primary, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg, alignItems: 'center', marginBottom: spacing.md,
   },
-  btnPrincipalText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+  btnPrincipalText: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.text },
   btnExcluirConta: {
-    marginTop: 4, borderWidth: 1, borderColor: '#FF406944',
-    borderRadius: 14, padding: 14, alignItems: 'center',
+    marginTop: 4, borderWidth: 1, borderColor: `${colors.lives}44`,
+    borderRadius: borderRadius.lg, padding: spacing.md, alignItems: 'center',
   },
-  btnExcluirContaText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#FF4069' },
+  btnExcluirContaText: { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.lives },
 });
