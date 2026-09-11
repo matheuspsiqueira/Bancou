@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_URL } from '../config';
 import { useKouAlert } from '../context/KouAlertContext';
+import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 
 
 function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
@@ -22,7 +23,7 @@ function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
         <TextInput
           style={styles.inputSenha}
           placeholder={placeholder}
-          placeholderTextColor="#9090B0"
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry={!ver}
           value={value}
           onChangeText={onChangeText}
@@ -59,7 +60,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
     try {
       await fetch(`${API_URL}/api/usuarios/recuperar-senha/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
       // Resposta é sempre genérica — avançamos pra próxima etapa independente do resultado
@@ -89,7 +90,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
     try {
       const resp = await fetch(`${API_URL}/api/usuarios/recuperar-senha/confirmar/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
           codigo: codigo.trim(),
@@ -119,7 +120,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl, paddingHorizontal: spacing.xl }}
     >
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.voltarBtn}>
         <Text style={styles.voltarText}>‹  Voltar</Text>
@@ -136,7 +137,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="seu@email.com"
-            placeholderTextColor="#9090B0"
+            placeholderTextColor={colors.textSecondary}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -145,12 +146,12 @@ export default function RecuperarSenhaScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            style={[styles.botao, carregando && { opacity: 0.6 }]}
+            style={[styles.botao, carregando && styles.botaoDisabled]}
             onPress={solicitarCodigo}
             disabled={carregando}
             activeOpacity={0.85}
           >
-            {carregando ? <ActivityIndicator color="#FFF" /> : <Text style={styles.botaoTexto}>Enviar código</Text>}
+            {carregando ? <ActivityIndicator color={colors.text} /> : <Text style={styles.botaoTexto}>Enviar código</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -166,7 +167,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="000000"
-            placeholderTextColor="#9090B0"
+            placeholderTextColor={colors.textSecondary}
             value={codigo}
             onChangeText={setCodigo}
             keyboardType="number-pad"
@@ -191,15 +192,15 @@ export default function RecuperarSenhaScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            style={[styles.botao, carregando && { opacity: 0.6 }]}
+            style={[styles.botao, carregando && styles.botaoDisabled]}
             onPress={confirmarNovaSenha}
             disabled={carregando}
             activeOpacity={0.85}
           >
-            {carregando ? <ActivityIndicator color="#FFF" /> : <Text style={styles.botaoTexto}>Redefinir senha</Text>}
+            {carregando ? <ActivityIndicator color={colors.text} /> : <Text style={styles.botaoTexto}>Redefinir senha</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={solicitarCodigo} style={{ marginTop: 4, alignItems: 'center' }}>
+          <TouchableOpacity onPress={solicitarCodigo} style={styles.reenviarBtn}>
             <Text style={styles.reenviarText}>Reenviar código</Text>
           </TouchableOpacity>
         </>
@@ -209,35 +210,37 @@ export default function RecuperarSenhaScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#1a1a2e' },
+  root: { flex: 1, backgroundColor: colors.background },
   voltarBtn: { marginBottom: 20 },
-  voltarText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#6C63FF' },
-  titulo: { fontFamily: 'Nunito_900Black', fontSize: 26, color: '#FFFFFF', marginBottom: 8 },
-  subtitulo: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#9090B0', lineHeight: 21, marginBottom: 28 },
-  inputLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 6, marginTop: 4 },
+  voltarText: { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.primary },
+  titulo: { fontFamily: typography.black, fontSize: fontSize.h1, color: colors.text, marginBottom: spacing.sm },
+  subtitulo: { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary, lineHeight: 21, marginBottom: 28 },
+  inputLabel: { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.textSecondary, marginBottom: 6, marginTop: spacing.xs },
   input: {
-    backgroundColor: '#252540', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    fontFamily: 'Inter_400Regular', fontSize: 15, color: '#FFFFFF',
-    marginBottom: 20, borderWidth: 1, borderColor: '#35355a',
+    backgroundColor: colors.card, borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg, paddingVertical: 14,
+    fontFamily: typography.regular, fontSize: fontSize.body, color: colors.text,
+    marginBottom: spacing.lg, borderWidth: 1, borderColor: '#35355a',
   },
   inputSenhaWrapper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#252540', borderRadius: 12,
+    backgroundColor: colors.card, borderRadius: borderRadius.md,
     borderWidth: 1, borderColor: '#35355a',
-    marginBottom: 16, paddingRight: 12,
+    marginBottom: spacing.lg, paddingRight: spacing.md,
   },
   inputSenha: {
-    flex: 1, color: '#FFFFFF',
-    fontFamily: 'Inter_400Regular', fontSize: 15,
-    paddingHorizontal: 16, paddingVertical: 14,
+    flex: 1, color: colors.text,
+    fontFamily: typography.regular, fontSize: fontSize.body,
+    paddingHorizontal: spacing.lg, paddingVertical: 14,
   },
-  inputSenhaOlho: { padding: 4 },
+  inputSenhaOlho: { padding: spacing.xs },
   inputSenhaOlhoIcon: { fontSize: 18 },
   botao: {
-    backgroundColor: '#6C63FF', borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginTop: 8,
+    backgroundColor: colors.primary, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg, alignItems: 'center', marginTop: spacing.sm,
   },
-  botaoTexto: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
-  reenviarText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#6C63FF' },
+  botaoDisabled: { opacity: 0.6 },
+  botaoTexto: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.text },
+  reenviarBtn: { marginTop: spacing.xs, alignItems: 'center' },
+  reenviarText: { fontFamily: typography.medium, fontSize: fontSize.caption, color: colors.primary },
 });

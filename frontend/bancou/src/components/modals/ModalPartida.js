@@ -1,6 +1,9 @@
 // src/components/modals/ModalPartida.js
 // Extraído de HomeScreen.js — lógica idêntica à original, sem alterações.
-import React, { useState, useCallback } from 'react';
+// Redesign visual (09/2026): recompensas agrupadas em um card único,
+// CTA principal com texto mais curto + legenda, toggle Sem tempo/Com tempo
+// com peso visual balanceado entre as duas opções.
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +16,7 @@ import {
   Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalPartida({ visible, onClose, onIniciar }) {
   const { authFetch } = useAuth();
@@ -25,7 +29,7 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro]           = useState(null);
 
-  const cacheRef = React.useRef({});
+  const cacheRef = useRef({});
 
   const ENDPOINTS = {
     banca:    '/api/questoes/bancas/',
@@ -102,20 +106,35 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
             <>
               <Text style={styles.modalTitulo}>Iniciar partida</Text>
 
-              <Text style={styles.modalSubtitulo}>10 questões</Text>
+              {/* Faixa de recompensas — antes eram 3 linhas de texto solto,
+                  agora agrupadas visualmente como uma única unidade de info */}
+              <View style={styles.infoCard}>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoValor}>10</Text>
+                  <Text style={styles.infoLabel}>questões</Text>
+                </View>
 
-              <View style={styles.modalSubtituloRow}>
-                <Text style={styles.modalSubtitulo}>+10 </Text>
-                <Image source={require('../../assets/icons/xp.png')} style={styles.subtituloIcone} resizeMode="contain" />
-                <Text style={styles.modalSubtitulo}> +2 </Text>
-                <Image source={require('../../assets/icons/moeda.png')} style={styles.subtituloIcone} resizeMode="contain" />
-                <Text style={styles.modalSubtitulo}> por acerto</Text>
-              </View>
+                <View style={styles.infoDivisor} />
 
-              <View style={styles.modalSubtituloRow}>
-                <Text style={styles.modalSubtitulo}>-1 </Text>
-                <Image source={require('../../assets/icons/vida.png')} style={styles.subtituloIcone} resizeMode="contain" />
-                <Text style={styles.modalSubtitulo}> por partida</Text>
+                <View style={styles.infoItem}>
+                  <View style={styles.infoIconeRow}>
+                    <Image source={require('../../assets/icons/xp.png')} style={styles.infoIcone} resizeMode="contain" />
+                    <Text style={[styles.infoValor, { color: colors.coins }]}>+10</Text>
+                    <Image source={require('../../assets/icons/moeda.png')} style={[styles.infoIcone, { marginLeft: spacing.xs }]} resizeMode="contain" />
+                    <Text style={[styles.infoValor, { color: colors.coins }]}>+2</Text>
+                  </View>
+                  <Text style={styles.infoLabel}>por acerto</Text>
+                </View>
+
+                <View style={styles.infoDivisor} />
+
+                <View style={styles.infoItem}>
+                  <View style={styles.infoIconeRow}>
+                    <Image source={require('../../assets/icons/vida.png')} style={styles.infoIcone} resizeMode="contain" />
+                    <Text style={[styles.infoValor, { color: colors.lives }]}>-1</Text>
+                  </View>
+                  <Text style={styles.infoLabel}>por partida</Text>
+                </View>
               </View>
 
               <View style={styles.toggleTempoRow}>
@@ -125,7 +144,11 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.toggleTempoConteudo}>
-                    <Image source={require('../../assets/icons/sem-tempo.png')} style={styles.toggleTempoIcone} resizeMode="contain" />
+                    <Image
+                      source={require('../../assets/icons/sem-tempo.png')}
+                      style={[styles.toggleTempoIcone, { tintColor: !comTempo ? colors.primary : colors.textSecondary }]}
+                      resizeMode="contain"
+                    />
                     <Text style={[styles.toggleTempoText, !comTempo && styles.toggleTempoTextAtivo]}>
                       Sem tempo
                     </Text>
@@ -137,7 +160,11 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.toggleTempoConteudo}>
-                    <Image source={require('../../assets/icons/com-tempo.png')} style={styles.toggleTempoIcone} resizeMode="contain" />
+                    <Image
+                      source={require('../../assets/icons/com-tempo.png')}
+                      style={[styles.toggleTempoIcone, { tintColor: comTempo ? colors.primary : colors.textSecondary }]}
+                      resizeMode="contain"
+                    />
                     <Text style={[styles.toggleTempoText, comTempo && styles.toggleTempoTextAtivo]}>
                       Com tempo (60s)
                     </Text>
@@ -148,9 +175,11 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
               <TouchableOpacity style={styles.btnPrincipal} onPress={() => iniciarComFiltro(null)} activeOpacity={0.85}>
                 <View style={styles.btnPrincipalConteudo}>
                   <Image source={require('../../assets/icons/raio.png')} style={styles.raioIcone} resizeMode="contain" />
-                  <Text style={styles.btnPrincipalText}>Iniciar agora — questões aleatórias</Text>
+                  <Text style={styles.btnPrincipalText}>Iniciar agora</Text>
                 </View>
               </TouchableOpacity>
+              <Text style={styles.btnPrincipalCaption}>questões aleatórias</Text>
+
               <TouchableOpacity style={styles.btnFiltrar} onPress={() => setEtapa('escolha')} activeOpacity={0.7}>
                 <View style={styles.btnFiltrarConteudo}>
                   <Image source={require('../../assets/icons/filtro.png')} style={styles.filtroIcone} resizeMode="contain" />
@@ -179,7 +208,7 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                     <Text style={styles.filtroTipoLabel}>{item.label}</Text>
                     <Text style={styles.filtroTipoDesc}>{item.desc}</Text>
                   </View>
-                  <Text style={{ color: '#6C63FF', fontSize: 20 }}>›</Text>
+                  <Text style={styles.chevron}>›</Text>
                 </TouchableOpacity>
               ))}
             </>
@@ -194,8 +223,8 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
               <Text style={styles.modalSubtitulo}>A partida terá 10 questões deste filtro</Text>
 
               {carregando && (
-                <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                  <ActivityIndicator color="#6C63FF" />
+                <View style={styles.carregandoBox}>
+                  <ActivityIndicator color={colors.primary} />
                 </View>
               )}
 
@@ -217,7 +246,7 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
               )}
 
               {!carregando && !erro && opcoes.length > 0 && (
-                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.opcoesScroll}>
                   {opcoes.map((op) => (
                     <TouchableOpacity
                       key={op.id}
@@ -226,7 +255,7 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
                       activeOpacity={0.7}
                     >
                       <Text style={styles.opcaoFiltroLabel}>{labelDe(tipoFiltro, op)}</Text>
-                      <Text style={{ color: '#6C63FF', fontSize: 18 }}>›</Text>
+                      <Text style={styles.chevronPequeno}>›</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -239,69 +268,96 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
   );
 }
 
+// Obs: '#00000099' (overlay escurecido) e '#35355a' (borda neutra) não têm
+// token nomeado no brand guide — ficam literais, igual em outros arquivos
+// do projeto (AuthScreen, RecuperarSenhaScreen).
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: spacing.xl, paddingBottom: 40,
   },
   modalHandle: {
-    width: 40, height: 4, backgroundColor: '#252540', borderRadius: 999,
-    alignSelf: 'center', marginBottom: 20,
+    width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,
+    alignSelf: 'center', marginBottom: spacing.lg,
   },
-  modalTitulo:    { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 4 },
-  modalSubtitulo: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0', lineHeight: 18, marginBottom: 2 },
-  modalSubtituloRow: {
-    flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 2,
+  modalTitulo: { fontFamily: typography.extraBold, fontSize: fontSize.h2, color: colors.text, marginBottom: spacing.md },
+  modalSubtitulo: { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary, lineHeight: 18, marginBottom: 2 },
+
+  // Faixa de recompensas agrupada
+  infoCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.card, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.sm,
+    marginBottom: 20,
   },
-  subtituloIcone: { width: 13, height: 13 },
-  toggleTempoRow: { flexDirection: 'row', gap: 8, marginBottom: 20, marginTop: 20 },
+  infoItem: { flex: 1, alignItems: 'center', gap: 2 },
+  infoDivisor: { width: 1, height: 28, backgroundColor: colors.background },
+  infoIconeRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  infoIcone: { width: 13, height: 13 },
+  infoValor: { fontFamily: typography.bold, fontSize: fontSize.label, color: colors.text },
+  infoLabel: { fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 },
+
+  // Toggle Sem tempo / Com tempo — peso visual balanceado entre as duas opções
+  toggleTempoRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: 20 },
   toggleTempoBtn: {
-    flex: 1, backgroundColor: '#252540', borderRadius: 12,
-    paddingVertical: 12, alignItems: 'center',
+    flex: 1, backgroundColor: colors.card, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md, alignItems: 'center',
     borderWidth: 1.5, borderColor: '#35355a',
   },
-  toggleTempoBtnAtivo:  { backgroundColor: '#6C63FF22', borderColor: '#6C63FF' },
-  toggleTempoConteudo:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  toggleTempoIcone: { width: 26, height: 26 },
-  toggleTempoText:      { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0' },
-  toggleTempoTextAtivo: { fontFamily: 'Nunito_700Bold', color: '#6C63FF' },
+  toggleTempoBtnAtivo:   { backgroundColor: `${colors.primary}22`, borderColor: colors.primary },
+  toggleTempoConteudo:   { flexDirection: 'column', alignItems: 'center', gap: 5 },
+  toggleTempoIcone:      { width: 22, height: 22 },
+  toggleTempoText:       { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.textSecondary },
+  toggleTempoTextAtivo:  { fontFamily: typography.bold, color: colors.primary },
+
   btnPrincipal: {
-    backgroundColor: '#6C63FF', borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+    backgroundColor: colors.primary, borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg, alignItems: 'center', marginBottom: spacing.xs,
   },
-  btnPrincipalConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnPrincipalConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   raioIcone: { width: 18, height: 18 },
-  btnPrincipalText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
-  btnFiltrar: {
-    backgroundColor: '#252540', borderRadius: 14, paddingVertical: 14, alignItems: 'center',
+  btnPrincipalText: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.text },
+  btnPrincipalCaption: {
+    fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary,
+    textAlign: 'center', marginBottom: spacing.md,
   },
-  btnFiltrarConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+
+  btnFiltrar: {
+    backgroundColor: colors.card, borderRadius: borderRadius.lg, paddingVertical: 14, alignItems: 'center',
+  },
+  btnFiltrarConteudo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   filtroIcone: { width: 18, height: 18 },
-  btnFiltrarText: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#9090B0' },
-  voltarBtn:      { marginBottom: 12 },
-  voltarText:     { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#6C63FF' },
+  btnFiltrarText: { fontFamily: typography.bold, fontSize: fontSize.label, color: colors.textSecondary },
+
+  voltarBtn:  { marginBottom: spacing.md },
+  voltarText: { fontFamily: typography.medium, fontSize: fontSize.label, color: colors.primary },
+
   filtroTipoItem: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#252540', borderRadius: 12, padding: 16, marginBottom: 10,
+    backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.sm,
   },
   filtroTipoIcone: { width: 26, height: 26 },
-  filtroTipoLabel: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FFFFFF' },
-  filtroTipoDesc:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9090B0', marginTop: 2 },
+  filtroTipoLabel: { fontFamily: typography.bold, fontSize: fontSize.body, color: colors.text },
+  filtroTipoDesc:  { fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 },
+  chevron:         { color: colors.primary, fontSize: 20 },
+  chevronPequeno:  { color: colors.primary, fontSize: 18 },
+  carregandoBox:   { paddingVertical: spacing.xl, alignItems: 'center' },
+  opcoesScroll:    { maxHeight: 340 },
   opcaoFiltroItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#252540',
+    paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.card,
   },
-  opcaoFiltroLabel: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#FFFFFF', flex: 1, marginRight: 8 },
-  filtroErroBox:  { paddingVertical: 24, alignItems: 'center', gap: 12 },
+  opcaoFiltroLabel: { fontFamily: typography.medium, fontSize: fontSize.body, color: colors.text, flex: 1, marginRight: spacing.sm },
+  filtroErroBox:  { paddingVertical: spacing.xl, alignItems: 'center', gap: spacing.md },
   filtroErroText: {
-    fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0',
+    fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary,
     textAlign: 'center', lineHeight: 19,
   },
   filtroErroBtn: {
-    backgroundColor: '#252540', borderRadius: 999,
-    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: colors.card, borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
     borderWidth: 1, borderColor: '#35355a',
   },
-  filtroErroBtnText: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#6C63FF' },
+  filtroErroBtnText: { fontFamily: typography.medium, fontSize: fontSize.caption, color: colors.primary },
 });

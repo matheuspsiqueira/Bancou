@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import { tocar } from '../services/somService';
-import { colors, typography, fontSize } from '../theme';
+import { colors, typography, fontSize, spacing } from '../theme';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
@@ -85,6 +85,12 @@ export default function PartidaScreen({ navigation, route }) {
   const [acertouAtual, setAcertouAtual] = useState(false);
   const [gabarito,     setGabarito]     = useState(null);
   const [corrigindo,   setCorrigindo]   = useState(false);
+
+  // Resultado (acerto/erro) de cada questão já respondida, indexado pela
+  // posição na partida — alimenta a barra de progresso segmentada.
+  // Não interfere em nenhum cálculo de XP/moedas/vidas, que continuam
+  // vindo só do backend (finalizar-partida) como já era.
+  const [respostasStatus, setRespostasStatus] = useState([]);
 
   // useRef pra contadores síncronos — igual ao DemoScreen
   const acertosRef    = useRef(0);
@@ -178,6 +184,16 @@ export default function PartidaScreen({ navigation, route }) {
     }
   };
 
+  // Grava o resultado da questão no índice atual pra colorir o segmento
+  // correspondente na barra de progresso.
+  const marcarResultado = (i, status) => {
+    setRespostasStatus((prev) => {
+      const next = [...prev];
+      next[i] = status;
+      return next;
+    });
+  };
+
   // ── Timer: inicia/reinicia a cada nova questão ──────────────────────────
   useEffect(() => {
     if (!comTempo || carregando || questoes.length === 0) return;
@@ -214,6 +230,7 @@ export default function PartidaScreen({ navigation, route }) {
     setConfirmada(true);
     setAcertouAtual(false);
     errosRef.current += 1;
+    marcarResultado(indice, 'erro');
     tocar('erroQuestao');
 
     try {
@@ -260,6 +277,7 @@ export default function PartidaScreen({ navigation, route }) {
       setGabarito(data.gabarito);
       setAcertouAtual(correta);
       setConfirmada(true);
+      marcarResultado(indice, correta ? 'acerto' : 'erro');
       tocar(correta ? 'sucessoQuestao' : 'erroQuestao');
 
       if (correta) {
@@ -301,6 +319,7 @@ export default function PartidaScreen({ navigation, route }) {
       setAcertouAtual(true);
       setConfirmada(true);
       acertosRef.current += 1;
+      marcarResultado(indice, 'acerto');
       tocar('sucessoQuestao');
       setInventario((inv) => ({ ...inv, pula_questao: data.inventario_restante }));
 
@@ -484,15 +503,23 @@ export default function PartidaScreen({ navigation, route }) {
           <Text style={styles.btnSairTexto}>✕</Text>
         </TouchableOpacity>
 
-        {/* Barra de progresso */}
+        {/* Barra de progresso — 10 segmentos, pinta verde/vermelho por resposta */}
         <View style={styles.progressoContainer}>
-          <View style={styles.progressoTrack}>
-            <View
-              style={[
-                styles.progressoFill,
-                { width: `${((indice + (confirmada ? 1 : 0)) / questoes.length) * 100}%` },
-              ]}
-            />
+          <View style={styles.progressoSegmentosRow}>
+            {questoes.map((_, i) => {
+              const status = respostasStatus[i];
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.segmento,
+                    status === 'acerto' && styles.segmentoAcerto,
+                    status === 'erro' && styles.segmentoErro,
+                    i === indice && !status && styles.segmentoAtual,
+                  ]}
+                />
+              );
+            })}
           </View>
           <Text style={styles.progressoTexto}>{indice + 1}/{questoes.length}</Text>
         </View>
@@ -565,7 +592,10 @@ export default function PartidaScreen({ navigation, route }) {
                 {usandoBuff === 'pula_questao' ? (
                   <ActivityIndicator color={colors.primary} size="small" />
                 ) : (
-                  <Text style={styles.buffBtnTexto}>⏭️ Pular ({inventario.pula_questao})</Text>
+                  <View style={styles.buffBtnConteudo}>
+                    <Image source={require('../assets/icons/pula_questao.png')} style={styles.buffIcone} resizeMode="contain" />
+                    <Text style={styles.buffBtnTexto}>Pular ({inventario.pula_questao})</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             )}
@@ -579,7 +609,10 @@ export default function PartidaScreen({ navigation, route }) {
                 {usandoBuff === 'elimina_alternativas' ? (
                   <ActivityIndicator color={colors.primary} size="small" />
                 ) : (
-                  <Text style={styles.buffBtnTexto}>✂️ Eliminar 2 ({inventario.elimina_alternativas})</Text>
+                  <View style={styles.buffBtnConteudo}>
+                    <Image source={require('../assets/icons/bomba.png')} style={styles.buffIcone} resizeMode="contain" />
+                    <Text style={styles.buffBtnTexto}>Eliminar 2 ({inventario.elimina_alternativas})</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             )}
@@ -729,10 +762,15 @@ const styles = StyleSheet.create({
   btnSairTexto: { fontFamily: typography.bold, fontSize: 14, color: colors.textSecondary },
 
   progressoContainer: { flex: 1, gap: 4 },
-  progressoTrack: {
-    height: 6, backgroundColor: colors.card, borderRadius: 999, overflow: 'hidden',
+  // Barra segmentada — um segmento por questão, cor muda conforme resposta
+  progressoSegmentosRow: { flexDirection: 'row', gap: 3 },
+  segmento: {
+    flex: 1, height: 6, borderRadius: 999,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: BORDA,
   },
-  progressoFill: { height: 6, backgroundColor: colors.primary, borderRadius: 999 },
+  segmentoAcerto: { backgroundColor: colors.correct, borderColor: colors.correct },
+  segmentoErro:   { backgroundColor: colors.lives, borderColor: colors.lives },
+  segmentoAtual:  { borderColor: colors.primary },
   progressoTexto: {
     fontFamily: typography.regular, fontSize: 11, color: colors.textSecondary, textAlign: 'right',
   },
@@ -805,6 +843,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.primary,
     paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
+  buffBtnConteudo: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  buffIcone: { width: 16, height: 16 },
   buffBtnTexto: { fontFamily: typography.bold, fontSize: 13, color: colors.primary },
 
   alternativas: { gap: 10 },
