@@ -12,8 +12,7 @@
     "android": {
       "package": "br.com.bancou.app",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/kou-animado1.png",
-        "backgroundImage": "./src/assets/kou-animado1.png",
+        "foregroundImage": "./src/assets/adaptative-icon.png",
         "backgroundColor": "#1a1a2e"
       },
       "permissions": [

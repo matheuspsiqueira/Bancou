@@ -7,30 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { usePontsAlert } from '../context/PontsAlertContext';
+import { useKouAlert } from '../context/KouAlertContext';
 import { tocar } from '../services/somService';
+import { colors, typography, fontSize } from '../theme';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
-
-// ─── Cores ────────────────────────────────────────────────────────────────
-const C = {
-  bg:        '#1a1a2e',
-  card:      '#252540',
-  primary:   '#6C63FF',
-  streak:    '#FF6B35',
-  lives:     '#FF4069',
-  correct:   '#00C896',
-  gold:      '#FFD700',
-  text:      '#FFFFFF',
-  text2:     '#9090B0',
-  border:    '#333355',
-};
 
 // ─── Componente de vidas ──────────────────────────────────────────────────
 function Vidas({ atual }) {
@@ -62,7 +48,7 @@ function ImagemQuestao({ uri }) {
       {carregando && (
         <ActivityIndicator
           size="small"
-          color={C.primary}
+          color={colors.primary}
           style={styles.imagemLoading}
         />
       )}
@@ -84,7 +70,7 @@ function ImagemQuestao({ uri }) {
 export default function PartidaScreen({ navigation, route }) {
   const { filtro } = route.params ?? {};
   const { authFetch, usuario, atualizarUsuario } = useAuth();
-  const { alertar } = usePontsAlert();
+  const { alertar } = useKouAlert();
   const insets = useSafeAreaInsets();
 
   // ── Estado de carregamento ──────────────────────────────────────────────
@@ -283,7 +269,7 @@ export default function PartidaScreen({ navigation, route }) {
         // Sem desconto de vida por erro — a vida já foi paga na entrada.
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível verificar a resposta. Tente novamente.');
+      alertar('Erro', 'Não foi possível verificar a resposta. Tente novamente.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setCorrigindo(false);
     }
@@ -322,7 +308,7 @@ export default function PartidaScreen({ navigation, route }) {
         avancarQuestao();
       }, PAUSA_FEEDBACK_MS);
     } catch (e) {
-      Alert.alert('Erro', e.message || 'Não foi possível usar o buff.');
+      alertar('Erro', e.message || 'Não foi possível usar o buff.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setUsandoBuff(null);
     }
@@ -350,7 +336,7 @@ export default function PartidaScreen({ navigation, route }) {
       setAlternativasEliminadas(data.alternativas_eliminadas);
       setInventario((inv) => ({ ...inv, elimina_alternativas: data.inventario_restante }));
     } catch (e) {
-      Alert.alert('Erro', e.message || 'Não foi possível usar o buff.');
+      alertar('Erro', e.message || 'Não foi possível usar o buff.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
       setUsandoBuff(null);
     }
@@ -422,27 +408,27 @@ export default function PartidaScreen({ navigation, route }) {
 
   // ── Cor das alternativas ─────────────────────────────────────────────────
   const corFundo = (letra) => {
-    if (!confirmada) return selecionada === letra ? C.primary : C.card;
+    if (!confirmada) return selecionada === letra ? colors.primary : colors.card;
     if (letra === gabarito)                    return '#0d2b1f'; // verde escuro
     if (letra === selecionada && letra !== gabarito) return '#2b0d1a'; // vermelho escuro
-    return C.card;
+    return colors.card;
   };
 
   const corBorda = (letra) => {
-    if (!confirmada) return selecionada === letra ? C.primary : C.border;
-    if (letra === gabarito)                    return C.correct;
-    if (letra === selecionada && letra !== gabarito) return C.lives;
-    return C.border;
+    if (!confirmada) return selecionada === letra ? colors.primary : BORDA;
+    if (letra === gabarito)                    return colors.correct;
+    if (letra === selecionada && letra !== gabarito) return colors.lives;
+    return BORDA;
   };
 
   // ── Cor do timer ─────────────────────────────────────────────────────────
-  const corTempo = tempo > 20 ? C.correct : tempo > 10 ? C.gold : C.lives;
+  const corTempo = tempo > 20 ? colors.correct : tempo > 10 ? colors.coins : colors.lives;
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (carregando) {
     return (
       <View style={[styles.centrado, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={C.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingTexto}>Preparando sua partida…</Text>
       </View>
     );
@@ -577,7 +563,7 @@ export default function PartidaScreen({ navigation, route }) {
                 activeOpacity={0.8}
               >
                 {usandoBuff === 'pula_questao' ? (
-                  <ActivityIndicator color={C.primary} size="small" />
+                  <ActivityIndicator color={colors.primary} size="small" />
                 ) : (
                   <Text style={styles.buffBtnTexto}>⏭️ Pular ({inventario.pula_questao})</Text>
                 )}
@@ -591,7 +577,7 @@ export default function PartidaScreen({ navigation, route }) {
                 activeOpacity={0.8}
               >
                 {usandoBuff === 'elimina_alternativas' ? (
-                  <ActivityIndicator color={C.primary} size="small" />
+                  <ActivityIndicator color={colors.primary} size="small" />
                 ) : (
                   <Text style={styles.buffBtnTexto}>✂️ Eliminar 2 ({inventario.elimina_alternativas})</Text>
                 )}
@@ -622,8 +608,8 @@ export default function PartidaScreen({ navigation, route }) {
                 <View style={[styles.letraContainer, { borderColor: corBorda(alt.letra) }]}>
                   <Text style={[
                     styles.letra,
-                    confirmada && alt.letra === gabarito && { color: C.correct },
-                    confirmada && alt.letra === selecionada && alt.letra !== gabarito && { color: C.lives },
+                    confirmada && alt.letra === gabarito && { color: colors.correct },
+                    confirmada && alt.letra === selecionada && alt.letra !== gabarito && { color: colors.lives },
                   ]}>
                     {alt.letra}
                   </Text>
@@ -642,10 +628,10 @@ export default function PartidaScreen({ navigation, route }) {
             styles.feedback,
             {
               backgroundColor: acertou ? '#0d2b1f' : '#2b0d1a',
-              borderColor:     acertou ? C.correct : C.lives,
+              borderColor:     acertou ? colors.correct : colors.lives,
             },
           ]}>
-            <Text style={[styles.feedbackTitulo, { color: acertou ? C.correct : C.lives }]}>
+            <Text style={[styles.feedbackTitulo, { color: acertou ? colors.correct : colors.lives }]}>
               {acertou
                 ? '✓  Correto!'
                 : tempoEsgotado
@@ -655,7 +641,7 @@ export default function PartidaScreen({ navigation, route }) {
             {(errou || tempoEsgotado) && gabarito && (
               <Text style={styles.feedbackSub}>
                 A resposta correta é a alternativa{' '}
-                <Text style={{ color: C.correct, fontFamily: 'Nunito_700Bold' }}>{gabarito}</Text>
+                <Text style={{ color: colors.correct, fontFamily: typography.bold }}>{gabarito}</Text>
               </Text>
             )}
           </View>
@@ -672,7 +658,7 @@ export default function PartidaScreen({ navigation, route }) {
             activeOpacity={0.85}
           >
             {corrigindo
-              ? <ActivityIndicator color="#FFF" />
+              ? <ActivityIndicator color={colors.text} />
               : <Text style={styles.botaoTexto}>Confirmar</Text>
             }
           </TouchableOpacity>
@@ -703,62 +689,67 @@ export default function PartidaScreen({ navigation, route }) {
 }
 
 // ─── Estilos ───────────────────────────────────────────────────────────────
+// Obs: '#333355' é a cor de borda neutra usada em todo o app (AuthScreen,
+// PerfilScreen, etc.) — não existe token nomeado pra ela em theme/index.js,
+// então fica literal aqui igual nos outros arquivos.
+const BORDA = '#333355';
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: colors.background },
 
   centrado: {
-    flex: 1, backgroundColor: C.bg,
+    flex: 1, backgroundColor: colors.background,
     justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: 32, gap: 16,
   },
   loadingTexto: {
-    fontFamily: 'Inter_400Regular', fontSize: 14, color: C.text2, marginTop: 12,
+    fontFamily: typography.regular, fontSize: 14, color: colors.textSecondary, marginTop: 12,
   },
   erroEmoji:       { fontSize: 40 },
-  erroTexto:       { fontFamily: 'Inter_400Regular', fontSize: 15, color: C.text2, textAlign: 'center', lineHeight: 22 },
+  erroTexto:       { fontFamily: typography.regular, fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   erroBtn: {
-    backgroundColor: C.primary, borderRadius: 14,
+    backgroundColor: colors.primary, borderRadius: 14,
     paddingVertical: 14, paddingHorizontal: 32,
   },
-  erroBtnTexto:    { fontFamily: 'Nunito_700Bold', fontSize: 15, color: C.text },
+  erroBtnTexto:    { fontFamily: typography.bold, fontSize: 15, color: colors.text },
   erroBtnVoltar:   { paddingVertical: 12 },
-  erroBtnVoltarTexto: { fontFamily: 'Inter_500Medium', fontSize: 14, color: C.text2 },
+  erroBtnVoltarTexto: { fontFamily: typography.medium, fontSize: 14, color: colors.textSecondary },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: C.card,
+    borderBottomWidth: 1, borderBottomColor: colors.card,
     gap: 12,
   },
   btnSair: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center',
   },
-  btnSairTexto: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: C.text2 },
+  btnSairTexto: { fontFamily: typography.bold, fontSize: 14, color: colors.textSecondary },
 
   progressoContainer: { flex: 1, gap: 4 },
   progressoTrack: {
-    height: 6, backgroundColor: C.card, borderRadius: 999, overflow: 'hidden',
+    height: 6, backgroundColor: colors.card, borderRadius: 999, overflow: 'hidden',
   },
-  progressoFill: { height: 6, backgroundColor: C.primary, borderRadius: 999 },
+  progressoFill: { height: 6, backgroundColor: colors.primary, borderRadius: 999 },
   progressoTexto: {
-    fontFamily: 'Inter_400Regular', fontSize: 11, color: C.text2, textAlign: 'right',
+    fontFamily: typography.regular, fontSize: 11, color: colors.textSecondary, textAlign: 'right',
   },
 
   vidasRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   vidaIcone: { fontSize: 16 },
-  vidaNumero: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FF4069' },
+  vidaNumero: { fontFamily: typography.bold, fontSize: 15, color: colors.lives },
 
   // Timer
   timerContainer: {
     paddingHorizontal: 16, paddingVertical: 10,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderBottomWidth: 1, borderBottomColor: C.card,
+    borderBottomWidth: 1, borderBottomColor: colors.card,
   },
-  timerNumero: { fontFamily: 'Nunito_900Black', fontSize: 22, width: 36, textAlign: 'center' },
+  timerNumero: { fontFamily: typography.black, fontSize: 22, width: 36, textAlign: 'center' },
   timerTrack: {
-    flex: 1, height: 6, backgroundColor: C.card, borderRadius: 999, overflow: 'hidden',
+    flex: 1, height: 6, backgroundColor: colors.card, borderRadius: 999, overflow: 'hidden',
   },
   timerFill: { height: 6, borderRadius: 999 },
 
@@ -767,27 +758,27 @@ const styles = StyleSheet.create({
 
   metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   metaChip: {
-    backgroundColor: C.card, borderRadius: 4,
+    backgroundColor: colors.card, borderRadius: 4,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  metaTexto: { fontFamily: 'Inter_500Medium', fontSize: 11, color: C.primary },
+  metaTexto: { fontFamily: typography.medium, fontSize: 11, color: colors.primary },
 
   contextoBox: {
-    backgroundColor: C.card, borderRadius: 8,
-    padding: 14, borderLeftWidth: 3, borderLeftColor: C.primary,
+    backgroundColor: colors.card, borderRadius: 8,
+    padding: 14, borderLeftWidth: 3, borderLeftColor: colors.primary,
   },
   contextoTexto: {
-    fontFamily: 'Inter_400Regular', fontSize: 13, color: C.text2, lineHeight: 20,
+    fontFamily: typography.regular, fontSize: 13, color: colors.textSecondary, lineHeight: 20,
   },
 
   enunciado: {
-    fontFamily: 'Inter_400Regular', fontSize: 16, color: C.text, lineHeight: 26,
+    fontFamily: typography.regular, fontSize: 16, color: colors.text, lineHeight: 26,
   },
 
   // Imagem da questão
   imagemContainer: {
-    backgroundColor: C.card, borderRadius: 14,
-    borderWidth: 1, borderColor: C.border,
+    backgroundColor: colors.card, borderRadius: 14,
+    borderWidth: 1, borderColor: BORDA,
     padding: 8, alignItems: 'center', justifyContent: 'center',
     minHeight: 200,
   },
@@ -799,22 +790,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   imagemErroBox: {
-    backgroundColor: C.card, borderRadius: 14,
-    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    backgroundColor: colors.card, borderRadius: 14,
+    borderWidth: 1, borderColor: BORDA, borderStyle: 'dashed',
     padding: 20, alignItems: 'center', justifyContent: 'center',
   },
   imagemErroTexto: {
-    fontFamily: 'Inter_400Regular', fontSize: 13, color: C.text2, textAlign: 'center',
+    fontFamily: typography.regular, fontSize: 13, color: colors.textSecondary, textAlign: 'center',
   },
 
   // Botões de buff
   buffsRow: { flexDirection: 'row', gap: 10 },
   buffBtn: {
-    flex: 1, backgroundColor: C.card, borderRadius: 12,
-    borderWidth: 1.5, borderColor: C.primary,
+    flex: 1, backgroundColor: colors.card, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.primary,
     paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
-  buffBtnTexto: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: C.primary },
+  buffBtnTexto: { fontFamily: typography.bold, fontSize: 13, color: colors.primary },
 
   alternativas: { gap: 10 },
   alternativa: {
@@ -824,12 +815,12 @@ const styles = StyleSheet.create({
   alternativaEliminada: { opacity: 0.35 },
   letraContainer: {
     width: 28, height: 28, borderRadius: 8,
-    borderWidth: 1.5, borderColor: C.border,
+    borderWidth: 1.5, borderColor: BORDA,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
-  letra: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: C.text },
+  letra: { fontFamily: typography.bold, fontSize: 13, color: colors.text },
   altTexto: {
-    fontFamily: 'Inter_400Regular', fontSize: 15, color: C.text,
+    fontFamily: typography.regular, fontSize: 15, color: colors.text,
     flex: 1, lineHeight: 22,
   },
   altTextoEliminado: { textDecorationLine: 'line-through' },
@@ -837,20 +828,20 @@ const styles = StyleSheet.create({
   feedback: {
     borderRadius: 14, borderWidth: 1.5, padding: 16, gap: 6,
   },
-  feedbackTitulo: { fontFamily: 'Nunito_700Bold', fontSize: 15 },
+  feedbackTitulo: { fontFamily: typography.bold, fontSize: 15 },
   feedbackSub: {
-    fontFamily: 'Inter_400Regular', fontSize: 13, color: C.text2, lineHeight: 20,
+    fontFamily: typography.regular, fontSize: 13, color: colors.textSecondary, lineHeight: 20,
   },
 
   // Footer
   footer: {
     paddingHorizontal: 16, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: C.card,
+    borderTopWidth: 1, borderTopColor: colors.card,
   },
   botao: {
-    backgroundColor: C.primary, paddingVertical: 16,
+    backgroundColor: colors.primary, paddingVertical: 16,
     borderRadius: 14, alignItems: 'center',
   },
   botaoDisabled: { opacity: 0.35 },
-  botaoTexto: { fontFamily: 'Nunito_700Bold', fontSize: 17, color: C.text },
+  botaoTexto: { fontFamily: typography.bold, fontSize: 17, color: colors.text },
 });

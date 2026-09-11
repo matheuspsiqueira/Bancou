@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_URL } from '../config';
-import { usePontsAlert } from '../context/PontsAlertContext';
+import { useKouAlert } from '../context/KouAlertContext';
 
 
 function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
@@ -39,8 +39,8 @@ function CampoSenha({ label, value, onChangeText, ver, setVer, placeholder }) {
 
 export default function RecuperarSenhaScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { alertar } = usePontsAlert();
-
+  const { alertar } = useKouAlert();
+  
   const [etapa, setEtapa]           = useState('email'); // 'email' | 'codigo'
   const [email, setEmail]           = useState('');
   const [codigo, setCodigo]         = useState('');

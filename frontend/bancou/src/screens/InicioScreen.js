@@ -54,7 +54,7 @@ export default function InicioScreen({ navigation }) {
             </Text>
             <Text style={styles.boasVindasDesc}>pronto para pontuar?</Text>
           </View>
-          <Image source={require('../assets/kou-foco.png')} style={styles.pontsImg} resizeMode="contain" />
+          <Image source={require('../assets/kou-foco.png')} style={styles.kouImg} resizeMode="contain" />
         </View>
 
         <TouchableOpacity style={styles.btnEstudar} onPress={abrirModalPartida} activeOpacity={0.85}>
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   maoIcone:        { width: 25, height: 25 },
   boasVindasNivel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#9090B0', marginBottom: 2 },
   boasVindasDesc:  { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#9090B0' },
-  pontsImg:        { width: 80, height: 90, marginLeft: 12 },
+  kouImg:        { width: 80, height: 90, marginLeft: 12 },
   btnEstudar: {
     backgroundColor: '#6C63FF', borderRadius: 14,
     paddingVertical: 16, alignItems: 'center', marginBottom: 24,

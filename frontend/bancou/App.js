@@ -14,7 +14,7 @@ import {
 import Navigation from './src/navigation';
 import { colors } from './src/theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PontsAlertProvider } from './src/context/PontsAlertContext';
+import { KouAlertProvider } from './src/context/KouAlertContext';
 import { iniciarSom } from './src/services/somService';
 
 export default function App() {
@@ -41,9 +41,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <PontsAlertProvider>
+      <KouAlertProvider>
         <Navigation />
-      </PontsAlertProvider>
+      </KouAlertProvider>
     </SafeAreaProvider>
   );
 }

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { usePontsAlert } from '../context/PontsAlertContext';
+import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
 import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
@@ -21,7 +21,7 @@ const URL_PRIVACIDADE = `${SITE_URL}/privacidade/`;
 
 export default function PerfilScreen() {
   const { usuario, signOut } = useAuth();
-  const { alertar } = usePontsAlert();
+  const { alertar } = useKouAlert();
   const [modalSenha, setModalSenha] = useState(false);
   const [modalPerfil, setModalPerfil] = useState(false);
   const [somHabilitado, alternarSom] = useSomHabilitado();

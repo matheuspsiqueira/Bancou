@@ -1,10 +1,10 @@
-// src/context/PontsAlertContext.js
+// src/context/KouAlertContext.js
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import PontsAlert from '../components/PontsAlert';
+import KouAlert from '../components/KouAlert';
 
-const PontsAlertContext = createContext();
+const KouAlertContext = createContext();
 
-export function PontsAlertProvider({ children }) {
+export function KouAlertProvider({ children }) {
   const [config, setConfig] = useState(null);
 
   // Mesma "forma" do Alert.alert do RN, pra facilitar a migração:
@@ -21,9 +21,9 @@ export function PontsAlertProvider({ children }) {
   const fechar = useCallback(() => setConfig(null), []);
 
   return (
-    <PontsAlertContext.Provider value={{ alertar }}>
+    <KouAlertContext.Provider value={{ alertar }}>
       {children}
-      <PontsAlert
+      <KouAlert
         visivel={!!config}
         titulo={config?.titulo}
         mensagem={config?.mensagem}
@@ -31,14 +31,14 @@ export function PontsAlertProvider({ children }) {
         pose={config?.pose}
         onFechar={fechar}
       />
-    </PontsAlertContext.Provider>
+    </KouAlertContext.Provider>
   );
 }
 
-export function usePontsAlert() {
-  const ctx = useContext(PontsAlertContext);
+export function useKouAlert() {
+  const ctx = useContext(KouAlertContext);
   if (!ctx) {
-    throw new Error('usePontsAlert precisa estar dentro de <PontsAlertProvider>');
+    throw new Error('useKouAlert precisa estar dentro de <KouAlertProvider>');
   }
   return ctx;
 }

@@ -118,8 +118,8 @@ export default function ScoreScreen({ navigation, route }) {
       showsVerticalScrollIndicator={false}
     >
       {/* Kou */}
-      <Animated.View style={[styles.pontsWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <Image source={faixa.pose} style={styles.ponts} resizeMode="contain" />
+      <Animated.View style={[styles.kouWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+        <Image source={faixa.pose} style={styles.kou} resizeMode="contain" />
       </Animated.View>
 
       {/* Título */}
@@ -219,8 +219,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: 24, gap: 0,
   },
 
-  pontsWrapper: { marginBottom: 16 },
-  ponts:        { width: 160, height: 160 },
+  kouWrapper: { marginBottom: 16 },
+  kou:        { width: 160, height: 160 },
 
   titulo: {
     fontFamily: 'Nunito_900Black', fontSize: 28,

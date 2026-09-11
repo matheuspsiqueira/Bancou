@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import TelaComHeader from '../components/TelaComHeader';
+import { colors, typography, fontSize, spacing } from '../theme';
 
 export default function DuelosScreen() {
   return (
@@ -23,8 +24,8 @@ export default function DuelosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl2 },
   kou:    { width: 120, height: 120, marginBottom: 20 },
-  titulo: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#FFFFFF', marginBottom: 8 },
-  desc:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#9090B0', textAlign: 'center', lineHeight: 20 },
+  titulo: { fontFamily: typography.extraBold, fontSize: fontSize.h2, color: colors.text, marginBottom: spacing.sm },
+  desc:   { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
 });

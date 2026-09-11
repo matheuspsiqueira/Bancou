@@ -1,11 +1,11 @@
 // src/components/TabBarCustomizada.js
 // Substitui a tabBar nativa do React Navigation. Recebe { state, navigation }
 // automaticamente pelo prop `tabBar` do Tab.Navigator (ver navigation/TabNavigator.js).
-// Rotas em ROTAS_EM_BREVE nunca navegam: mostram um PontsAlert e ficam paradas.
+// Rotas em ROTAS_EM_BREVE nunca navegam: mostram um kouAlert e ficam paradas.
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePontsAlert } from '../context/PontsAlertContext';
+import { useKouAlert } from '../context/KouAlertContext';
 
 const IMAGENS = {
   Inicio:  require('../assets/icons/home.png'),
@@ -27,7 +27,7 @@ const LABELS = {
 const ROTAS_EM_BREVE = ['Duelos'];
 
 export default function TabBarCustomizada({ state, navigation }) {
-  const { alertar } = usePontsAlert();
+  const { alertar } = useKouAlert();
   const insets = useSafeAreaInsets();
 
   const handlePress = (routeName, isFocused) => {

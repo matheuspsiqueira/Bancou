@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
-import { usePontsAlert } from '../../context/PontsAlertContext';
+import { useKouAlert } from '../../context/KouAlertContext';
 import { API_URL } from '../../config';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -28,7 +28,7 @@ import { colors, typography, fontSize, spacing, borderRadius } from '../../theme
 
 export default function ModalEditarPerfil({ visible, onClose }) {
   const { authFetch, usuario, atualizarUsuario, signOut } = useAuth();
-  const { alertar } = usePontsAlert();
+  const { alertar } = useKouAlert();
   const [username, setUsername] = useState('');
   const [nome, setNome] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -156,9 +156,9 @@ export default function ModalEditarPerfil({ visible, onClose }) {
       'Tem certeza? Esta ação é permanente e todos os seus dados serão apagados.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir minha conta', style: 'destructive', onPress: excluirConta },
+        { text: 'Excluir', style: 'destructive', onPress: excluirConta },
       ],
-      { pose: 'triste' }
+      { pose: 'chorando' }
     );
   };
 

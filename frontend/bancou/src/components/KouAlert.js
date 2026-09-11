@@ -1,4 +1,4 @@
-// src/components/PontsAlert.js
+// src/components/KouAlert.js
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
@@ -15,11 +15,12 @@ const POSES = {
   pensando:   require('../assets/kou-pensando.png'),
   torcendo:   require('../assets/kou-torcendo.png'),
   triste:   require('../assets/kou-triste.png'),
+  chorando: require('../assets/kou-chorando.png'),
   dinheiro: require('../assets/kou-dinheiro.png'),
   obra:     require('../assets/kou-obra.png'),
 };
 
-export default function PontsAlert({ visivel, titulo, mensagem, botoes = [], pose, onFechar }) {
+export default function KouAlert({ visivel, titulo, mensagem, botoes = [], pose, onFechar }) {
   const executar = (botao) => {
     onFechar();
     // Pequeno delay pra deixar o modal fechar antes de disparar ações
@@ -34,7 +35,7 @@ export default function PontsAlert({ visivel, titulo, mensagem, botoes = [], pos
       <View style={styles.overlay}>
         <View style={styles.card}>
           {pose && POSES[pose] && (
-            <Image source={POSES[pose]} style={styles.ponts} resizeMode="contain" />
+            <Image source={POSES[pose]} style={styles.kou} resizeMode="contain" />
           )}
 
           {titulo ? <Text style={styles.titulo}>{titulo}</Text> : null}
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     alignItems: 'center',
   },
-  ponts: {
+  kou: {
     width: 88,
     height: 88,
     marginBottom: spacing.md,

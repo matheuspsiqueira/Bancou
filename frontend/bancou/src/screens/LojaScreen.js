@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { usePontsAlert } from '../context/PontsAlertContext';
+import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
 import { tocar } from '../services/somService';
 
@@ -29,8 +29,8 @@ const IMAGEM_ITEM = {
 
 export default function LojaScreen() {
   const { usuario, authFetch, atualizarUsuario } = useAuth();
-  const { alertar } = usePontsAlert();
-
+  const { alertar } = useKouAlert();
+  
   const [itens, setItens]         = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [comprando, setComprando]   = useState(null);
@@ -124,7 +124,12 @@ export default function LojaScreen() {
                   ) : (
                     <Text style={styles.cardIcone}>🎁</Text>
                   )}
-                  <Text style={styles.cardNome}>{item.nome}</Text>
+                  {/* numberOfLines + minHeight fixo: nome longo quebra em até 2
+                      linhas mas nunca empurra o botão pra alturas diferentes
+                      entre cards do grid. */}
+                  <Text style={styles.cardNome} numberOfLines={2} ellipsizeMode="tail">
+                    {item.nome}
+                  </Text>
                   <Text style={styles.cardDescricao}>{item.descricao}</Text>
                   <TouchableOpacity
                     style={styles.botaoComprar}
@@ -183,7 +188,15 @@ const styles = StyleSheet.create({
   },
   cardIcone:       { fontSize: 32, marginBottom: 8 },
   cardIconeImagem: { width: 40, height: 40, marginBottom: 8 },
-  cardNome:        { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 15, textAlign: 'center', marginBottom: 4 },
+  cardNome: {
+    color: '#FFFFFF',
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 4,
+    lineHeight: 19,
+    minHeight: 38, // 2 linhas fixas — mesma altura em todo card, tenha o nome 1 ou 2 linhas
+  },
   cardDescricao:   { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
   botaoComprar: {
     backgroundColor: '#6C63FF',

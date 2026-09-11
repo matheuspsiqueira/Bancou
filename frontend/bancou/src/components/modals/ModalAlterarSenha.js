@@ -13,13 +13,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { usePontsAlert } from '../../context/PontsAlertContext';
+import { useKouAlert } from '../../context/KouAlertContext';
 import CampoSenha from './CampoSenha';
 import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalAlterarSenha({ visible, onClose }) {
   const { authFetch } = useAuth();
-  const { alertar } = usePontsAlert();
+  const { alertar } = useKouAlert();
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmacao, setConfirmacao] = useState('');

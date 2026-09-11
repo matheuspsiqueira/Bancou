@@ -1,7 +1,6 @@
 // src/components/StatsHeader.js
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { IconStreak, IconVidas, IconMoedas } from './icons';
 
 export default function StatsHeader({ streak, vidas, moedas }) {
   return (
