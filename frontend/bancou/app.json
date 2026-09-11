@@ -4,7 +4,7 @@
     "slug": "bancou",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/kou-animado1.png",
+    "icon": "./src/assets/adaptative-icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false
