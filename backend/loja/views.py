@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import ItemLojaVirtual, InventarioBuff
-from .serializers import ItemLojaVirtualSerializer
+from .models import ItemLoja, InventarioItem
+from .serializers import ItemLojaSerializer
 from .services import comprar_item_virtual, SaldoInsuficienteError
 
 
@@ -16,9 +16,9 @@ class ItensLojaView(ListAPIView):
     o frontend nunca deve hardcodar essa lista (mesmo padrão dos filtros
     de partida em questoes/views.py).
     """
-    serializer_class = ItemLojaVirtualSerializer
+    serializer_class = ItemLojaSerializer
     permission_classes = [IsAuthenticated]
-    queryset = ItemLojaVirtual.objects.filter(ativo=True).order_by('preco_moedas')
+    queryset = ItemLoja.objects.filter(ativo=True).order_by('preco_moedas')
 
 
 class ComprarItemView(APIView):
@@ -41,7 +41,7 @@ class ComprarItemView(APIView):
 
         try:
             resultado = comprar_item_virtual(request.user, codigo_item)
-        except ItemLojaVirtual.DoesNotExist:
+        except ItemLoja.DoesNotExist:
             return Response(
                 {'detail': 'Item não encontrado ou indisponível.'},
                 status=status.HTTP_404_NOT_FOUND,
@@ -78,7 +78,7 @@ class InventarioLojaView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        inventario = InventarioBuff.objects.filter(
+        inventario = InventarioItem.objects.filter(
             usuario=request.user, quantidade__gt=0
         ).select_related('item')
         return Response({inv.item.codigo: inv.quantidade for inv in inventario})

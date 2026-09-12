@@ -107,7 +107,6 @@ export default function ModalEditarPerfil({ visible, onClose }) {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${access}`,
-            'ngrok-skip-browser-warning': 'true',
           },
           body: form,
         });
@@ -171,7 +170,6 @@ export default function ModalEditarPerfil({ visible, onClose }) {
         headers: {
           Authorization: `Bearer ${access}`,
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
         },
       });
       if (resp.ok || resp.status === 204) {

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import StatsHeader from './StatsHeader';
 import { MOCK } from '../utils/mockData';
+import { colors, typography, fontSize } from '../theme';
 
 export default function TelaComHeader({ children }) {
   const insets = useSafeAreaInsets();
@@ -22,7 +23,7 @@ export default function TelaComHeader({ children }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.logo}>
-          Bancou<Text style={{ color: '#FF6B35' }}>.</Text>
+          Bancou<Text style={styles.ponto}>.</Text>
         </Text>
         <StatsHeader streak={streak} vidas={vidas} moedas={moedas} />
       </View>
@@ -33,11 +34,12 @@ export default function TelaComHeader({ children }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#1a1a2e' },
+  root: { flex: 1, backgroundColor: colors.background },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#252540',
+    borderBottomWidth: 1, borderBottomColor: colors.card,
   },
-  logo: { fontFamily: 'Nunito_900Black', fontSize: 22, color: '#FFFFFF' },
+  logo: { fontFamily: typography.black, fontSize: fontSize.h2, color: colors.text },
+  ponto: { color: colors.streak },
 });

@@ -13,7 +13,7 @@ from usuarios.views import checar_regeneracao_vidas
 from usuarios.services import creditar_resultado_partida, checar_decaimento_streak
 from usuarios.serializers import UsuarioSerializer
 
-from loja.models import ItemLojaVirtual, InventarioBuff, UsoBuffPartida
+from loja.models import ItemLoja, InventarioItem, UsoItemPartida
 
 from .models import Banca, Concurso, Materia, Questao, Partida
 from .serializers import (
@@ -306,12 +306,12 @@ class UsarBuffView(APIView):
             return Response({'detail': 'Questão não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            item = ItemLojaVirtual.objects.get(codigo=codigo_buff, ativo=True)
-        except ItemLojaVirtual.DoesNotExist:
+            item = ItemLoja.objects.get(codigo=codigo_buff, ativo=True)
+        except ItemLoja.DoesNotExist:
             return Response({'detail': 'Item de loja não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         with transaction.atomic():
-            inventario = InventarioBuff.objects.select_for_update().filter(
+            inventario = InventarioItem.objects.select_for_update().filter(
                 usuario=request.user, item=item, quantidade__gt=0
             ).first()
 
@@ -321,9 +321,9 @@ class UsarBuffView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # unique_together em UsoBuffPartida impede usar o mesmo buff
+            # unique_together em UsoItemPartida impede usar o mesmo item
             # 2x na mesma questão (proteção extra contra retry/duplo toque)
-            if UsoBuffPartida.objects.filter(partida=partida, questao=questao, item=item).exists():
+            if UsoItemPartida.objects.filter(partida=partida, questao=questao, item=item).exists():
                 return Response(
                     {'detail': 'Esse buff já foi usado nesta questão.'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -332,7 +332,7 @@ class UsarBuffView(APIView):
             inventario.quantidade -= 1
             inventario.save(update_fields=['quantidade'])
 
-            UsoBuffPartida.objects.create(
+            UsoItemPartida.objects.create(
                 partida=partida, questao=questao, item=item, usuario=request.user,
             )
 

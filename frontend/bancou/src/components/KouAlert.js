@@ -74,7 +74,7 @@ export default function KouAlert({ visivel, titulo, mensagem, botoes = [], pose,
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: '#00000099',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,

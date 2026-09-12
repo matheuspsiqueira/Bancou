@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
 import { tocar } from '../services/somService';
+import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 
 // Itens com imagem PNG própria (src/assets/icons/)
 const IMAGEM_ITEM = {
@@ -112,7 +113,7 @@ export default function LojaScreen() {
         </View>
 
         {carregando ? (
-          <ActivityIndicator color="#6C63FF" size="large" style={{ marginTop: 32 }} />
+          <ActivityIndicator color={colors.primary} size="large" style={{ marginTop: spacing.xl }} />
         ) : (
           <View style={styles.grid}>
             {itens.map((item) => {
@@ -138,7 +139,7 @@ export default function LojaScreen() {
                     activeOpacity={0.85}
                   >
                     {comprando === item.codigo
-                      ? <ActivityIndicator color="#FFFFFF" size="small" />
+                      ? <ActivityIndicator color={colors.text} size="small" />
                       : (
                         <View style={styles.botaoComprarConteudo}>
                           <Image
@@ -165,46 +166,49 @@ const styles = StyleSheet.create({
   abaContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   avisoConstrucao: {
     flexDirection: 'row',
-    backgroundColor: '#252540',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 24,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: colors.streak,
   },
   kouConstrucao: { width: 48, height: 48 },
-  avisoTitulo:   { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 16, marginBottom: 4 },
-  avisoTexto:    { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  avisoTitulo:   { color: colors.text, fontFamily: typography.bold, fontSize: fontSize.body, marginBottom: spacing.xs },
+  avisoTexto:    { color: colors.textSecondary, fontFamily: typography.regular, fontSize: fontSize.label, lineHeight: 18 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
   card: {
     width: '47%',
-    backgroundColor: '#252540',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  cardIcone:       { fontSize: 32, marginBottom: 8 },
-  cardIconeImagem: { width: 40, height: 40, marginBottom: 8 },
+  cardIcone:       { fontSize: 32, marginBottom: spacing.sm },
+  cardIconeImagem: { width: 40, height: 40, marginBottom: spacing.sm },
   cardNome: {
-    color: '#FFFFFF',
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 15,
+    color: colors.text,
+    fontFamily: typography.bold,
+    fontSize: fontSize.body,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     lineHeight: 19,
     minHeight: 38, // 2 linhas fixas — mesma altura em todo card, tenha o nome 1 ou 2 linhas
   },
-  cardDescricao:   { color: '#9090B0', fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'center', marginBottom: 12, minHeight: 32 },
+  cardDescricao: {
+    color: colors.textSecondary, fontFamily: typography.regular, fontSize: fontSize.caption,
+    textAlign: 'center', marginBottom: spacing.md, minHeight: 32,
+  },
   botaoComprar: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 999,
-    paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 20,
   },
   botaoComprarConteudo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   moedaIcone: { width: 16, height: 16 },
-  botaoComprarTexto: { color: '#FFFFFF', fontFamily: 'Nunito_700Bold', fontSize: 14 },
+  botaoComprarTexto: { color: colors.text, fontFamily: typography.bold, fontSize: fontSize.label },
 });

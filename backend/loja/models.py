@@ -3,17 +3,18 @@ from django.db import models
 from django.conf import settings
 
 
-# ─── Compras com dinheiro real (IAP) ────────────────────────────────────────
-# Fase 2 — ainda NÃO usado pelos endpoints ativos. Deixado pronto pra quando
-# a hospedagem/domínio de produção estiverem de pé e o backend puder validar
-# tokens contra a Play Developer API / App Store.
+# ─── FASE 2 — dinheiro real via IAP (Play Billing / App Store) ─────────────
+# Ainda não plugado em nenhuma view ativa. Escopo atual: só pacote de moedas,
+# suficiente pra testar o fluxo de Play Billing ponta a ponta. Passe de Duelo
+# e vida avulsa com dinheiro real ficam pra quando entrarem em pauta (ver
+# briefing §4 — Fase 2).
 
-class ProdutoLoja(models.Model):
+class ProdutoIAP(models.Model):
     """Catálogo de produtos comprados com dinheiro real (via IAP)."""
 
     TIPO_CHOICES = [
         ('moedas', 'Pacote de Moedas'),
-        ('vida_avulsa', 'Vida Avulsa'),
+        # Futuro: ('passe_duelo', 'Passe de Duelo')
     ]
 
     sku = models.CharField(
@@ -23,7 +24,7 @@ class ProdutoLoja(models.Model):
     nome = models.CharField(max_length=100)
     descricao = models.TextField(blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    quantidade = models.PositiveIntegerField(help_text="Quantas moedas ou vidas esse SKU entrega")
+    quantidade = models.PositiveIntegerField(help_text="Quantas moedas esse SKU entrega")
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -31,7 +32,7 @@ class ProdutoLoja(models.Model):
         return f"{self.nome} ({self.sku})"
 
 
-class CompraLoja(models.Model):
+class CompraIAP(models.Model):
     """Registro de cada compra com dinheiro real, validada contra a Play Developer API."""
 
     STATUS_CHOICES = [
@@ -42,7 +43,7 @@ class CompraLoja(models.Model):
     ]
 
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='compras')
-    produto = models.ForeignKey(ProdutoLoja, on_delete=models.PROTECT, related_name='compras')
+    produto = models.ForeignKey(ProdutoIAP, on_delete=models.PROTECT, related_name='compras')
     purchase_token = models.CharField(
         max_length=500, unique=True,
         help_text="Token do Google/Apple — impede crédito duplicado da mesma compra",
@@ -55,10 +56,13 @@ class CompraLoja(models.Model):
         return f"{self.usuario} — {self.produto} ({self.status})"
 
 
-# ─── Itens comprados com moedas do jogo ─────────────────────────────────────
-# Fase 1 — em uso agora pela LojaScreen: os 4 buffs + vida extra.
+# ─── FASE 1 — itens comprados com moedas do jogo (em uso agora) ────────────
+# codigo = "tipo" fixo que aciona lógica específica em services.py (mesmo
+# padrão tipo/instância definido pra Conquistas e Desafios no briefing).
+# nome, descricao, preco_moedas e ativo são "dado" — editáveis livremente
+# no Django admin, sem precisar tocar em código.
 
-class ItemLojaVirtual(models.Model):
+class ItemLoja(models.Model):
     """Catálogo de itens comprados com moedas do jogo (nunca dinheiro real)."""
 
     CODIGO_CHOICES = [
@@ -94,14 +98,14 @@ class ItemLojaVirtual(models.Model):
         return self.nome
 
 
-class InventarioBuff(models.Model):
+class InventarioItem(models.Model):
     """Estoque de itens consumíveis comprados e ainda não usados.
-    Aplica-se a: pula_questao, elimina_alternativas, congela_streak, vida_extra
-    (via crédito direto vida_extra na verdade nem passa por aqui — ver services.py).
+    Aplica-se a: pula_questao, elimina_alternativas, congela_streak
+    (vida_extra é crédito direto, nem passa por aqui — ver services.py).
     """
 
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='inventario_buffs')
-    item = models.ForeignKey(ItemLojaVirtual, on_delete=models.PROTECT)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='inventario_itens')
+    item = models.ForeignKey(ItemLoja, on_delete=models.PROTECT)
     quantidade = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -115,7 +119,7 @@ class BuffAtivo(models.Model):
     """Itens com janela de tempo em vigor (hoje só xp_dobro)."""
 
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='buffs_ativos')
-    item = models.ForeignKey(ItemLojaVirtual, on_delete=models.PROTECT)
+    item = models.ForeignKey(ItemLoja, on_delete=models.PROTECT)
     ativado_em = models.DateTimeField(auto_now_add=True)
     expira_em = models.DateTimeField()
 
@@ -123,14 +127,14 @@ class BuffAtivo(models.Model):
         return f"{self.usuario} — {self.item} até {self.expira_em}"
 
 
-class UsoBuffPartida(models.Model):
-    """Auditoria: qual buff foi usado em qual questão de qual partida.
-    unique_together evita reuso indevido do mesmo buff na mesma questão.
+class UsoItemPartida(models.Model):
+    """Auditoria: qual item foi usado em qual questão de qual partida.
+    unique_together evita reuso indevido do mesmo item na mesma questão.
     """
 
-    partida = models.ForeignKey('questoes.Partida', on_delete=models.CASCADE, related_name='usos_buff')
+    partida = models.ForeignKey('questoes.Partida', on_delete=models.CASCADE, related_name='usos_item')
     questao = models.ForeignKey('questoes.Questao', on_delete=models.CASCADE)
-    item = models.ForeignKey(ItemLojaVirtual, on_delete=models.PROTECT)
+    item = models.ForeignKey(ItemLoja, on_delete=models.PROTECT)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     usado_em = models.DateTimeField(auto_now_add=True)
 

@@ -40,7 +40,6 @@ export function AuthProvider({ children }) {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${tok}`,
-          'ngrok-skip-browser-warning': 'true',
           ...(options.headers || {}),
         },
       });
@@ -56,7 +55,6 @@ export function AuthProvider({ children }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({ refresh }),
       });
