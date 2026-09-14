@@ -4,6 +4,7 @@
 // conforme decidido — ver anotações do roadmap.
 // Consome GET /api/loja/itens/ e POST /api/loja/comprar-item/ (backend a implementar).
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -16,7 +17,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
-import { tocar } from '../services/somService';
+import { tocar, tocarMusicaFundo, pararMusicaFundo } from '../services/somService';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 
 // Itens com imagem PNG própria (src/assets/icons/)
@@ -35,6 +36,17 @@ export default function LojaScreen() {
   const [itens, setItens]         = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [comprando, setComprando]   = useState(null);
+
+// Música de fundo: toca em loop enquanto a Loja está EM FOCO.
+// Precisa ser useFocusEffect (não useEffect simples) porque o
+// TabNavigator não desmonta a tela ao trocar de aba — só tira o foco.
+// Um useEffect comum nunca rodaria o cleanup nesse cenário.
+  useFocusEffect(
+    useCallback(() => {
+      tocarMusicaFundo('loja');
+      return () => pararMusicaFundo();
+    }, [])
+  );
 
   const carregarItens = useCallback(async () => {
     setCarregando(true);

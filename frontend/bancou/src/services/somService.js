@@ -35,9 +35,17 @@ const FONTES = {
   // abertura: require('../assets/sounds/abertura.mp3'), // reservado pro som de abertura do app
 };
 
+// Músicas de fundo (looping), separadas dos efeitos curtos acima —
+// não entram no pool pré-carregado porque só uma toca por vez e a
+// tela dona do player controla o ciclo de vida (play no mount, stop
+// no unmount).
+const MUSICAS = {
+  loja: require('../assets/sounds/background-loja.mp3'),
+};
+
 let players = null;
 let mutado = false;
-let ouvintes = []; // callbacks avisados quando `mutado` muda (usado pelo hook)
+let ouvintes = []; // callbacks avisados quando `mutado` muda (usado pelo hook e pela música de fundo)
 
 function garantirPlayers() {
   if (players) return players;
@@ -75,15 +83,25 @@ export async function iniciarSom() {
 export function tocar(nome) {
   if (mutado) return;
 
-  const p = garantirPlayers()[nome];
-  if (!p) {
+  const fonte = FONTES[nome];
+  if (!fonte) {
     console.warn(`[som] efeito "${nome}" não existe`);
     return;
   }
 
   try {
-    p.seekTo(0);
-    p.play();
+    // Recria o player a cada toque em vez de reaproveitar + seekTo(0).
+    // Bug conhecido do expo-audio no Android (upstream ExoPlayer,
+    // github.com/expo/expo/issues/39232): seekTo(0) num player que já
+    // tocou antes alterna isLoaded false→true internamente — esse
+    // ciclo de descarregar/recarregar é o que causa o atraso a partir
+    // da 2ª vez que o mesmo efeito toca. Recriar evita precisar de
+    // seekTo, já que todo player novo nasce na posição 0.
+    const antigo = players[nome];
+    const novo = createAudioPlayer(fonte);
+    players[nome] = novo;
+    novo.play();
+    if (antigo) antigo.release();
   } catch (e) {
     console.warn(`[som] falha ao tocar "${nome}"`, e);
   }
@@ -136,4 +154,58 @@ export function liberarSom() {
   if (!players) return;
   Object.values(players).forEach((p) => p.release());
   players = null;
+}
+
+// ── Música de fundo (looping) ──────────────────────────────────────────────
+// Diferente de tocar(): fica em loop até a tela chamar pararMusicaFundo()
+// explicitamente (normalmente no cleanup do useEffect da tela). Respeita
+// o mesmo mute dos efeitos — se o usuário mutar com a música tocando, ela
+// pausa; se desmutar, retoma sozinha (sem precisar reabrir a tela).
+
+let playerMusica = null;
+let musicaAtual = null;
+
+function ouvinteMutadoMusica(novoMutado) {
+  if (!playerMusica) return;
+  if (novoMutado) {
+    playerMusica.pause();
+  } else if (musicaAtual) {
+    playerMusica.play();
+  }
+}
+ouvintes.push(ouvinteMutadoMusica);
+
+export function tocarMusicaFundo(nome) {
+  const fonte = MUSICAS[nome];
+  if (!fonte) {
+    console.warn(`[som] música de fundo "${nome}" não existe`);
+    return;
+  }
+
+  // Troca de música (ou re-chamada da mesma tela) sempre reinicia limpo.
+  pararMusicaFundo();
+
+  try {
+    playerMusica = createAudioPlayer(fonte);
+    playerMusica.loop = true;
+    musicaAtual = nome;
+
+    if (!mutado) {
+      playerMusica.play();
+    }
+  } catch (e) {
+    console.warn(`[som] falha ao iniciar música "${nome}"`, e);
+  }
+}
+
+export function pararMusicaFundo() {
+  if (!playerMusica) return;
+  try {
+    playerMusica.pause();
+    playerMusica.release();
+  } catch {
+    // player já pode ter sido liberado — ignora
+  }
+  playerMusica = null;
+  musicaAtual = null;
 }
