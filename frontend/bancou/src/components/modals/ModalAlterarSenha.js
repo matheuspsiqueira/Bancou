@@ -2,6 +2,10 @@
 // Lógica idêntica à original. Diferença: os 3 campos de senha agora
 // usam o mesmo componente CampoSenha (antes o "Senha atual" duplicava
 // o JSX/estilo por causa do link "Esqueci minha senha").
+// Ajuste 09/2026: KeyboardAvoidingView + ScrollView internos (o Modal do
+// RN não herda o adjustResize do Android sozinho, então o teclado cobria
+// os campos) e paddingBottom baseado em safe-area pra não cortar na barra
+// de navegação do Android.
 import React, { useState } from 'react';
 import {
   View,
@@ -11,13 +15,18 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useKouAlert } from '../../context/KouAlertContext';
 import CampoSenha from './CampoSenha';
 import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalAlterarSenha({ visible, onClose }) {
+  const insets = useSafeAreaInsets();
   const { authFetch } = useAuth();
   const { alertar } = useKouAlert();
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -101,77 +110,85 @@ export default function ModalAlterarSenha({ visible, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={fechar}>
-      <Pressable style={styles.modalOverlay} onPress={fechar}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitulo}>Alterar senha</Text>
-          <Text style={styles.modalSubtitulo}>
-            Escolha uma senha forte com pelo menos 8 caracteres.
-          </Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.modalOverlay} onPress={fechar}>
+          <Pressable style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitulo}>Alterar senha</Text>
+              <Text style={styles.modalSubtitulo}>
+                Escolha uma senha forte com pelo menos 8 caracteres.
+              </Text>
 
-          <CampoSenha
-            label="Senha atual"
-            placeholder="Digite sua senha atual"
-            value={senhaAtual}
-            onChangeText={setSenhaAtual}
-            ver={verAtual}
-            setVer={setVerAtual}
-            labelExtra={
-              <TouchableOpacity onPress={esqueceuSenha} activeOpacity={0.7}>
-                <Text style={styles.linkEsqueceuSenha}>Esqueci minha senha</Text>
+              <CampoSenha
+                label="Senha atual"
+                placeholder="Digite sua senha atual"
+                value={senhaAtual}
+                onChangeText={setSenhaAtual}
+                ver={verAtual}
+                setVer={setVerAtual}
+                labelExtra={
+                  <TouchableOpacity onPress={esqueceuSenha} activeOpacity={0.7}>
+                    <Text style={styles.linkEsqueceuSenha}>Esqueci minha senha</Text>
+                  </TouchableOpacity>
+                }
+              />
+
+              <CampoSenha
+                label="Nova senha"
+                placeholder="Digite a nova senha"
+                value={novaSenha}
+                onChangeText={setNovaSenha}
+                ver={verNova}
+                setVer={setVerNova}
+              />
+
+              <CampoSenha
+                label="Confirmar nova senha"
+                placeholder="Repita a nova senha"
+                value={confirmacao}
+                onChangeText={setConfirmacao}
+                ver={verConfirmacao}
+                setVer={setVerConfirmacao}
+              />
+
+              {confirmacao.length > 0 && (
+                <Text style={[
+                  styles.matchLabel,
+                  { color: novaSenha === confirmacao ? colors.correct : colors.lives },
+                ]}>
+                  {novaSenha === confirmacao ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
+                </Text>
+              )}
+
+              <TouchableOpacity
+                style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
+                onPress={salvar}
+                disabled={carregando}
+                activeOpacity={0.85}
+              >
+                {carregando
+                  ? <ActivityIndicator color={colors.text} />
+                  : <Text style={styles.btnPrincipalText}>Salvar senha</Text>
+                }
               </TouchableOpacity>
-            }
-          />
-
-          <CampoSenha
-            label="Nova senha"
-            placeholder="Digite a nova senha"
-            value={novaSenha}
-            onChangeText={setNovaSenha}
-            ver={verNova}
-            setVer={setVerNova}
-          />
-
-          <CampoSenha
-            label="Confirmar nova senha"
-            placeholder="Repita a nova senha"
-            value={confirmacao}
-            onChangeText={setConfirmacao}
-            ver={verConfirmacao}
-            setVer={setVerConfirmacao}
-          />
-
-          {confirmacao.length > 0 && (
-            <Text style={[
-              styles.matchLabel,
-              { color: novaSenha === confirmacao ? colors.correct : colors.lives },
-            ]}>
-              {novaSenha === confirmacao ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
-            </Text>
-          )}
-
-          <TouchableOpacity
-            style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
-            onPress={salvar}
-            disabled={carregando}
-            activeOpacity={0.85}
-          >
-            {carregando
-              ? <ActivityIndicator color={colors.text} />
-              : <Text style={styles.btnPrincipalText}>Salvar senha</Text>
-            }
-          </TouchableOpacity>
+            </ScrollView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: spacing.xl, paddingBottom: 40,
+    padding: spacing.xl, maxHeight: '85%',
   },
   modalHandle: {
     width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,

@@ -6,6 +6,10 @@
 // por `true` no campo abaixo e ajusta o `salvar()` pra incluir o e-mail
 // no payload (provavelmente um endpoint separado, tipo
 // /api/usuarios/solicitar-troca-email/, não o PATCH de perfil direto).
+// Ajuste 09/2026 (2): KeyboardAvoidingView + ScrollView internos (o Modal
+// do RN não herda o adjustResize do Android sozinho, então o teclado
+// cobria "Nome de usuário" e o botão salvar) e paddingBottom baseado em
+// safe-area pra não cortar na barra de navegação do Android.
 import React, { useState } from 'react';
 import {
   View,
@@ -17,7 +21,11 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { useKouAlert } from '../../context/KouAlertContext';
@@ -27,6 +35,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalEditarPerfil({ visible, onClose }) {
+  const insets = useSafeAreaInsets();
   const { authFetch, usuario, atualizarUsuario, signOut } = useAuth();
   const { alertar } = useKouAlert();
   const [username, setUsername] = useState('');
@@ -192,91 +201,99 @@ export default function ModalEditarPerfil({ visible, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={fechar}>
-      <Pressable style={styles.modalOverlay} onPress={fechar}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitulo}>Editar perfil</Text>
-          <Text style={styles.modalSubtitulo}>
-            Altere seus dados de cadastro.
-          </Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.modalOverlay} onPress={fechar}>
+          <Pressable style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitulo}>Editar perfil</Text>
+              <Text style={styles.modalSubtitulo}>
+                Altere seus dados de cadastro.
+              </Text>
 
-          <View style={styles.avatarEditRow}>
-            <View style={styles.avatarEdit}>
-              <Image
-                source={fonteAvatar}
-                style={styles.avatarEditImg}
-                resizeMode={fotoPreview || usuario?.avatar_url ? 'cover' : 'contain'}
-              />
-            </View>
-            <TouchableOpacity style={styles.btnTrocarFoto} onPress={escolherFoto} disabled={carregando}>
-              <Text style={styles.btnTrocarFotoText}>Trocar foto</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.avatarEditRow}>
+                <View style={styles.avatarEdit}>
+                  <Image
+                    source={fonteAvatar}
+                    style={styles.avatarEditImg}
+                    resizeMode={fotoPreview || usuario?.avatar_url ? 'cover' : 'contain'}
+                  />
+                </View>
+                <TouchableOpacity style={styles.btnTrocarFoto} onPress={escolherFoto} disabled={carregando}>
+                  <Text style={styles.btnTrocarFotoText}>Trocar foto</Text>
+                </TouchableOpacity>
+              </View>
 
-          <Text style={styles.inputLabel}>Nome completo</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Seu nome"
-            placeholderTextColor={colors.textSecondary}
-            value={nome}
-            onChangeText={setNome}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.inputLabel}>Nome de usuário</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="@seu_username"
-            placeholderTextColor={colors.textSecondary}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <Text style={styles.inputLabel}>E-mail</Text>
-          <TouchableOpacity onPress={solicitarTrocaEmail} activeOpacity={0.7} disabled={carregando}>
-            <View pointerEvents="none">
+              <Text style={styles.inputLabel}>Nome completo</Text>
               <TextInput
-                style={[styles.input, styles.inputTravado]}
-                value={usuario?.email || ''}
-                editable={false}
+                style={styles.input}
+                placeholder="Seu nome"
+                placeholderTextColor={colors.textSecondary}
+                value={nome}
+                onChangeText={setNome}
+                autoCapitalize="words"
               />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.avisoEmail}>Toque para saber como funciona a troca de e-mail.</Text>
 
-          <TouchableOpacity
-            style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
-            onPress={salvar}
-            disabled={carregando}
-            activeOpacity={0.85}
-          >
-            {carregando
-              ? <ActivityIndicator color={colors.text} />
-              : <Text style={styles.btnPrincipalText}>Salvar alterações</Text>
-            }
-          </TouchableOpacity>
+              <Text style={styles.inputLabel}>Nome de usuário</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="@seu_username"
+                placeholderTextColor={colors.textSecondary}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
-          <TouchableOpacity
-            style={styles.btnExcluirConta}
-            onPress={confirmarExclusao}
-            disabled={carregando}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.btnExcluirContaText}>Excluir minha conta</Text>
-          </TouchableOpacity>
+              <Text style={styles.inputLabel}>E-mail</Text>
+              <TouchableOpacity onPress={solicitarTrocaEmail} activeOpacity={0.7} disabled={carregando}>
+                <View pointerEvents="none">
+                  <TextInput
+                    style={[styles.input, styles.inputTravado]}
+                    value={usuario?.email || ''}
+                    editable={false}
+                  />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avisoEmail}>Toque para saber como funciona a troca de e-mail.</Text>
+
+              <TouchableOpacity
+                style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
+                onPress={salvar}
+                disabled={carregando}
+                activeOpacity={0.85}
+              >
+                {carregando
+                  ? <ActivityIndicator color={colors.text} />
+                  : <Text style={styles.btnPrincipalText}>Salvar alterações</Text>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.btnExcluirConta}
+                onPress={confirmarExclusao}
+                disabled={carregando}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.btnExcluirContaText}>Excluir minha conta</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: spacing.xl, paddingBottom: 40,
+    padding: spacing.xl, maxHeight: '85%',
   },
   modalHandle: {
     width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,

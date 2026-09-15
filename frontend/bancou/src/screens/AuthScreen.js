@@ -1,10 +1,15 @@
 // src/screens/AuthScreen.js
+// Ajuste 09/2026: behavior do KeyboardAvoidingView no Android estava
+// undefined (não fazia nada) — trocado por 'height'. paddingBottom do
+// ScrollView agora soma insets.bottom pra não cortar atrás da barra de
+// navegação do Android.
 
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   KeyboardAvoidingView, Platform, ScrollView, StatusBar, Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { API_URL, SITE_URL } from '../config';
@@ -66,6 +71,7 @@ function ModalDocumento({ visivel, titulo, conteudo, onFechar }) {
 
 // ─── Tela principal ───────────────────────────────────────────────────────────
 export default function AuthScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const abaPadrao = route?.params?.tela === 'login' ? 1 : 0;
   const [abaAtiva, setAbaAtiva] = useState(abaPadrao);
   const { signIn } = useAuth();
@@ -163,14 +169,16 @@ export default function AuthScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
       
-      
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.xl3, paddingBottom: insets.bottom + spacing.xl2 }]}
+        keyboardShouldPersistTaps="handled"
+      >
 
         {/* Logo */}
         <Text style={styles.logo}>Bancou<Text style={styles.ponto}>.</Text></Text>
@@ -343,8 +351,6 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl3,
-    paddingBottom: spacing.xl2,
   },
 
   logo: {

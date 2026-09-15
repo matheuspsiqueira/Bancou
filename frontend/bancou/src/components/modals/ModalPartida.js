@@ -3,6 +3,10 @@
 // Redesign visual (09/2026): recompensas agrupadas em um card único,
 // CTA principal com texto mais curto + legenda, toggle Sem tempo/Com tempo
 // com peso visual balanceado entre as duas opções.
+// Ajuste 09/2026 (2): sem TextInput aqui, então não precisa de
+// KeyboardAvoidingView — o problema deste modal era só o paddingBottom
+// fixo (40) cortando o conteúdo atrás da barra de navegação do Android;
+// trocado por insets.bottom.
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
@@ -15,10 +19,12 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, fontSize, spacing, borderRadius } from '../../theme';
 
 export default function ModalPartida({ visible, onClose, onIniciar }) {
+  const insets = useSafeAreaInsets();
   const { authFetch } = useAuth();
 
   const [etapa, setEtapa]         = useState('inicio');
@@ -99,7 +105,7 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={fechar}>
       <Pressable style={styles.modalOverlay} onPress={fechar}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
+        <Pressable style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.xl }]} onPress={() => {}}>
           <View style={styles.modalHandle} />
 
           {etapa === 'inicio' && (
@@ -275,7 +281,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: '#00000099', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: spacing.xl, paddingBottom: 40,
+    padding: spacing.xl,
   },
   modalHandle: {
     width: 40, height: 4, backgroundColor: colors.card, borderRadius: borderRadius.full,
