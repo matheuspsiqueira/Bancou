@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://strand-valid-shoppers-store.trycloudflare.com';
+const DEV_URL = 'https://discovery-primary-default-sheet.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
 export const API_URL = PROD_URL;

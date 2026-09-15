@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from .models import Usuario
@@ -38,7 +39,7 @@ class PerfilView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
-        checar_regeneracao_vidas(request.user)  # ← adiciona essa linha
+        checar_regeneracao_vidas(request.user)
         checar_decaimento_streak(request.user)
         serializer = UsuarioSerializer(request.user, context={'request': request})
         return Response(serializer.data)
@@ -116,9 +117,9 @@ class RecuperarVidaView(APIView):
         usuario.vidas += 1
         usuario.save(update_fields=['vidas'])
         return Response(UsuarioSerializer(usuario, context={'request': request}).data)
-    
 
-    # ─── Helper: regeneração diária de vidas ─────────────────────────────────
+
+# ─── Helper: regeneração diária de vidas ─────────────────────────────────
 def checar_regeneracao_vidas(usuario):
     """
     Reseta as vidas para o máximo se a última atualização foi antes de hoje.
@@ -137,8 +138,14 @@ def checar_regeneracao_vidas(usuario):
 
 
 class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):
+    """
+    Limitado por IP: no máximo 5 pedidos de código por hora.
+    Evita flood de e-mails (custa cota do Brevo) e spam pro usuário real.
+    """
     serializer_class = SolicitarRecuperacaoSenhaSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'recuperar-senha-solicitar'
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -151,8 +158,14 @@ class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):
 
 
 class ConfirmarRecuperacaoSenhaView(generics.GenericAPIView):
+    """
+    Limitado por IP: no máximo 10 tentativas por hora.
+    Dificulta força bruta contra o código de 6 dígitos.
+    """
     serializer_class = ConfirmarRecuperacaoSenhaSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'recuperar-senha-confirmar'
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)

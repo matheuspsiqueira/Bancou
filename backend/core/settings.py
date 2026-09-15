@@ -135,6 +135,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'recuperar-senha-solicitar': '5/hour',
+        'recuperar-senha-confirmar': '10/hour',
+    },
 }
 
 SIMPLE_JWT = {
