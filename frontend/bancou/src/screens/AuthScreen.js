@@ -1,12 +1,15 @@
 // src/screens/AuthScreen.js
-// Ajuste 09/2026: behavior do KeyboardAvoidingView no Android estava
-// undefined (não fazia nada) — trocado por 'height'. paddingBottom do
-// ScrollView agora soma insets.bottom pra não cortar atrás da barra de
-// navegação do Android.
+// Ajuste 09/2026: ícone de olho trocado de emoji pros ícones reais do
+// app (olho-aberto/olho-fechado). behavior do KeyboardAvoidingView no
+// Android voltou pra undefined — o Android já resolve o teclado sozinho
+// via adjustResize nativo (padrão do Expo); usar 'height' por cima disso
+// causava a barra branca residual ao fechar o teclado. paddingBottom do
+// ScrollView continua somando insets.bottom (isso é pra barra de
+// navegação do Android, não tem relação com o teclado).
 
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Image,
   KeyboardAvoidingView, Platform, ScrollView, StatusBar, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +39,13 @@ function Input({ label, secureTextEntry, ...props }) {
             onPress={() => setVisivel(v => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.olhoIcon}>{visivel ? '🙈' : '👁️'}</Text>
+            <Image
+              source={visivel
+                ? require('../assets/icons/olho-aberto.png')
+                : require('../assets/icons/olho-fechado.png')}
+              style={styles.olhoIcon}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -169,7 +178,7 @@ export default function AuthScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
@@ -417,7 +426,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 14,
   },
-  olhoIcon: { fontSize: 16 },
+  olhoIcon: { width: 18, height: 18 },
 
   termosRow: {
     flexDirection: 'row',

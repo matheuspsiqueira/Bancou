@@ -1,7 +1,8 @@
 // src/screens/RecuperarSenhaScreen.js
-// Ajuste 09/2026: agora usa o componente CampoSenha compartilhado
-// (antes duplicava o JSX com ícones de olho em emoji) e ganhou
-// KeyboardAvoidingView pra não ficar coberta pelo teclado.
+// Ajuste 09/2026 (2): behavior do KeyboardAvoidingView no Android voltou
+// pra undefined — o Android já resolve o teclado sozinho via adjustResize
+// nativo (padrão do Expo); usar 'height' por cima disso causava a barra
+// branca residual ao fechar o teclado.
 import React, { useState } from 'react';
 import {
   View,
@@ -102,7 +103,7 @@ export default function RecuperarSenhaScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl, paddingHorizontal: spacing.xl }}
