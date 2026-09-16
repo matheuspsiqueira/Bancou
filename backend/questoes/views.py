@@ -15,7 +15,9 @@ from usuarios.serializers import UsuarioSerializer
 
 from loja.models import ItemLoja, InventarioItem, UsoItemPartida
 
-from .models import Banca, Concurso, Materia, Questao, Partida
+from conquistas.services import avaliar_conquistas
+
+from .models import Banca, Concurso, Materia, Questao, Partida, RespostaUsuario
 from .serializers import (
     BancaSerializer, MateriaSerializer, ConcursoSerializer,
     QuestaoPartidaSerializer,
@@ -179,6 +181,11 @@ class CorrigirRespostaView(APIView):
     nela, acumula acerto/erro NO BANCO, e só então informa se a resposta
     está correta + o gabarito. Não mexe em vidas — a vida já foi paga
     integralmente na entrada da partida.
+
+    Também grava um RespostaUsuario (log individual) — usado pelo sistema
+    de Conquistas pra avaliar tipos que dependem de banca/matéria
+    específica (ex: "acertos_por_banca"), que o contador agregado
+    Partida.acertos sozinho não sustenta.
     """
     permission_classes = [IsAuthenticated]
 
@@ -234,6 +241,10 @@ class CorrigirRespostaView(APIView):
         else:
             partida.erros += 1
         partida.save(update_fields=['respondidas_ids', 'acertos', 'erros'])
+
+        RespostaUsuario.objects.create(
+            usuario=request.user, partida=partida, questao=questao, correta=correta,
+        )
 
         return Response({
             'correta': correta,
@@ -341,6 +352,10 @@ class UsarBuffView(APIView):
                 partida.acertos += 1
                 partida.save(update_fields=['respondidas_ids', 'acertos'])
 
+                RespostaUsuario.objects.create(
+                    usuario=request.user, partida=partida, questao=questao, correta=True,
+                )
+
                 return Response({
                     'efeito': 'pula_questao',
                     'correta': True,
@@ -376,6 +391,11 @@ class FinalizarPartidaView(APIView):
     partida.vidas_perdidas é sempre 1, refletindo o custo fixo de entrada.
     Idempotente: se chamada de novo pra mesma partida, retorna o
     resultado já salvo em vez de creditar duas vezes.
+
+    Dispara avaliar_conquistas() logo depois de consolidar o resultado —
+    é o ponto onde acertos/erros da partida (e os RespostaUsuario
+    associados a ela) já estão fechados no banco. Não roda de novo se a
+    partida já estava finalizada (branch idempotente acima retorna antes).
     """
     permission_classes = [IsAuthenticated]
 
@@ -414,6 +434,8 @@ class FinalizarPartidaView(APIView):
             'finalizada', 'abandonada', 'xp_ganho', 'moedas_ganhas',
             'vidas_perdidas', 'finalizada_em',
         ])
+
+        avaliar_conquistas(request.user)
 
         return Response({
             'xp_ganho': resultado['xp_ganho'],

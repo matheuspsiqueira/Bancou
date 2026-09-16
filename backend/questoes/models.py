@@ -132,3 +132,35 @@ class Partida(models.Model):
     def __str__(self):
         status = 'finalizada' if self.finalizada else 'em andamento'
         return f'Partida #{self.id} de {self.usuario} ({status})'
+
+
+class RespostaUsuario(models.Model):
+    """
+    Log de cada resposta corrigida (via CorrigirRespostaView ou o efeito
+    pula_questao do UsarBuffView).
+
+    Existe especificamente pra dar suporte a conquistas que dependem de
+    granularidade por banca/matéria (ex: "Rei da FGV" = 500 acertos na
+    banca FGV) — o campo agregado `Partida.acertos` sabe QUANTAS questões
+    foram acertadas, mas não QUAIS, então não dá pra filtrar por banca ou
+    matéria a partir dele sozinho.
+
+    banca e matéria não são duplicadas aqui como colunas — dá pra chegar
+    nelas via `questao.concurso.banca` e `questao.materia` num join, então
+    guardar só o FK de questao é suficiente e evita dado redundante.
+    """
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='respostas')
+    partida = models.ForeignKey(Partida, on_delete=models.CASCADE, related_name='respostas')
+    questao = models.ForeignKey(Questao, on_delete=models.CASCADE, related_name='respostas')
+    correta = models.BooleanField()
+    respondida_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Resposta do Usuário'
+        verbose_name_plural = 'Respostas dos Usuários'
+        unique_together = ('partida', 'questao')  # mesma trava de duplicidade que já existe em respondidas_ids
+        ordering = ['-respondida_em']
+
+    def __str__(self):
+        resultado = '✅' if self.correta else '❌'
+        return f'{self.usuario} — Q{self.questao.numero} {resultado}'

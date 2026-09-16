@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'usuarios',
     'landing',
     'loja',
+    'conquistas',
 ]
 
 MIDDLEWARE = [

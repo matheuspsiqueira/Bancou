@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://returns-harley-oxford-border.trycloudflare.com';
+const DEV_URL = 'https://tray-called-teachers-districts.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
 export const API_URL = PROD_URL;
