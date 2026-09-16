@@ -5,6 +5,7 @@ import json
 import os
 import pdfplumber
 import tempfile
+from django.db import transaction
 from .models import Concurso, Materia, Questao, Alternativa
 
 PROMPT_EXTRACAO = """Você é um especialista em concursos públicos brasileiros.
@@ -194,83 +195,115 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
 
 
 def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
-    concurso, _ = Concurso.objects.get_or_create(
-        nome=concurso_nome,
-        banca=banca,
-        ano=ano,
-        defaults={'cargo': cargo or ''}
-    )
+    """
+    Grava as questões no banco.
 
-    # Mapeia textos base por grupo
-    textos_base = {}
-    for q in questoes:
-        if q.get('texto_base') and q.get('questoes_que_compartilham_texto_base'):
-            grupo = tuple(q['questoes_que_compartilham_texto_base'])
-            if grupo not in textos_base:
-                tb = q['texto_base']
-                partes = []
-                if tb.get('titulo'):
-                    partes.append(tb['titulo'])
-                if tb.get('conteudo'):
-                    partes.append(tb['conteudo'])
-                if tb.get('fonte'):
-                    partes.append(f"Fonte: {tb['fonte']}")
-                textos_base[grupo] = '\n'.join(partes)
+    Reescrito pra evitar timeout do worker (Gunicorn mata a request após
+    30s) em JSONs grandes: a versão anterior fazia 1 INSERT/SELECT por
+    questão (Materia via get_or_create) + 1 INSERT por Alternativa —
+    centenas de round-trips individuais pro Postgres do Neon. Agora:
 
-    total = 0
-    for q in questoes:
-        # Matéria
-        materia = None
-        nome_materia = q.get('materia', '').strip()
-        if nome_materia:
-            materia, _ = Materia.objects.get_or_create(nome=nome_materia)
-
-        # Contexto compartilhado
-        contexto = ''
-        num = q['numero_questao']
-        for grupo, texto in textos_base.items():
-            if num in grupo:
-                contexto = texto
-                break
-
-        # Tipo
-        letras = [a['letra'] for a in q.get('alternativas', [])]
-        if set(letras) <= {'C', 'E'}:
-            tipo = 'certo_errado'
-        elif letras:
-            tipo = 'multipla_escolha'
-        else:
-            tipo = 'discursiva'
-
-        tem_imagem = q.get('tem_imagem', False)
-
-        # Gabarito — usa o do JSON ou cruza com o PDF de gabarito
-        gabarito_letra = gabarito.get(num, q.get('gabarito', ''))
-
-        questao = Questao.objects.create(
-            concurso=concurso,
-            materia=materia,
-            numero=num,
-            tipo=tipo,
-            enunciado=q['enunciado'],
-            contexto=contexto,
-            gabarito=gabarito_letra,
-            tem_imagem=tem_imagem,
-            baixa_confianca=tem_imagem,
-            notas_extracao=['Questão com imagem — faça o upload manualmente'] if tem_imagem else [],
-            status='pendente',
+      1. Tudo roda dentro de transaction.atomic() — se algo falhar no
+         meio, o banco volta pro estado anterior (nada fica "pela metade").
+      2. Todas as Materias distintas são resolvidas de uma vez (poucas
+         queries), não uma por questão.
+      3. Questao e Alternativa são gravadas via bulk_create — 2 INSERTs
+         no total (em lote), em vez de um por linha.
+    """
+    with transaction.atomic():
+        concurso, _ = Concurso.objects.get_or_create(
+            nome=concurso_nome,
+            banca=banca,
+            ano=ano,
+            defaults={'cargo': cargo or ''}
         )
 
-        for alt in q.get('alternativas', []):
-            Alternativa.objects.create(
-                questao=questao,
-                letra=alt['letra'],
-                texto=alt['texto'],
-            )
+        # Resolve todas as matérias distintas de uma vez só
+        nomes_materias = {
+            q.get('materia', '').strip()
+            for q in questoes
+            if q.get('materia', '').strip()
+        }
+        materias_por_nome = {
+            m.nome: m for m in Materia.objects.filter(nome__in=nomes_materias)
+        }
+        novas_materias = [
+            Materia(nome=nome) for nome in nomes_materias if nome not in materias_por_nome
+        ]
+        if novas_materias:
+            Materia.objects.bulk_create(novas_materias)
+            # bulk_create não garante pk populado em todas as versões/backends
+            # antigas — recarrega pra ter certeza de que os ids existem
+            for m in Materia.objects.filter(nome__in=[m.nome for m in novas_materias]):
+                materias_por_nome[m.nome] = m
 
-        total += 1
+        # Mapeia textos base por grupo (igual antes)
+        textos_base = {}
+        for q in questoes:
+            if q.get('texto_base') and q.get('questoes_que_compartilham_texto_base'):
+                grupo = tuple(q['questoes_que_compartilham_texto_base'])
+                if grupo not in textos_base:
+                    tb = q['texto_base']
+                    partes = []
+                    if tb.get('titulo'):
+                        partes.append(tb['titulo'])
+                    if tb.get('conteudo'):
+                        partes.append(tb['conteudo'])
+                    if tb.get('fonte'):
+                        partes.append(f"Fonte: {tb['fonte']}")
+                    textos_base[grupo] = '\n'.join(partes)
 
-    return total
+        questoes_objs = []
+        alternativas_brutas = []  # lista paralela: alternativas de cada questão, na mesma ordem
+
+        for q in questoes:
+            nome_materia = q.get('materia', '').strip()
+            materia = materias_por_nome.get(nome_materia)
+
+            contexto = ''
+            num = q['numero_questao']
+            for grupo, texto in textos_base.items():
+                if num in grupo:
+                    contexto = texto
+                    break
+
+            letras = [a['letra'] for a in q.get('alternativas', [])]
+            if set(letras) <= {'C', 'E'}:
+                tipo = 'certo_errado'
+            elif letras:
+                tipo = 'multipla_escolha'
+            else:
+                tipo = 'discursiva'
+
+            tem_imagem = q.get('tem_imagem', False)
+            gabarito_letra = gabarito.get(num, q.get('gabarito', ''))
+
+            questoes_objs.append(Questao(
+                concurso=concurso,
+                materia=materia,
+                numero=num,
+                tipo=tipo,
+                enunciado=q['enunciado'],
+                contexto=contexto,
+                gabarito=gabarito_letra,
+                tem_imagem=tem_imagem,
+                baixa_confianca=tem_imagem,
+                notas_extracao=['Questão com imagem — faça o upload manualmente'] if tem_imagem else [],
+                status='pendente',
+            ))
+            alternativas_brutas.append(q.get('alternativas', []))
+
+        questoes_criadas = Questao.objects.bulk_create(questoes_objs)
+
+        alternativas_objs = [
+            Alternativa(questao=questao, letra=alt['letra'], texto=alt['texto'])
+            for questao, alts in zip(questoes_criadas, alternativas_brutas)
+            for alt in alts
+        ]
+        if alternativas_objs:
+            Alternativa.objects.bulk_create(alternativas_objs)
+
+        return len(questoes_criadas)
 
 
 def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file):
