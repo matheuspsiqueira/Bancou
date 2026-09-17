@@ -6,10 +6,12 @@ from django.utils import timezone
 # ---------------------------------------------------------------------------
 # Catálogo de tipos de condição — código fixo, escrito uma única vez por tipo.
 #
-# Cada função recebe (usuario, conquista) — o objeto Conquista inteiro, não
-# só um dict — e devolve o VALOR ATUAL do usuário pra aquela métrica (não
-# um booleano de "bateu ou não"); quem compara com conquista.meta é o
-# listener central, avaliar_conquistas(), logo abaixo.
+# Cada função recebe (usuario, conquista) — o objeto Conquista inteiro — e
+# devolve o VALOR ATUAL do usuário pra aquela métrica (não um booleano de
+# "bateu ou não"). Quem decide se bateu a meta é avaliar_conquistas(), mais
+# abaixo, comparando com conquista.meta — e, pra tipos cumulativos, só
+# depois de descontar o "baseline" (valor_inicial) de quando a conquista
+# foi criada. Ver TIPOS_INSTANTANEOS logo abaixo.
 #
 # Pra adicionar um tipo de condição NOVO: escreve a função aqui e registra
 # no dict CATALOGO_CONDICOES (isso também atualiza as choices do campo
@@ -17,7 +19,9 @@ from django.utils import timezone
 # da meta (como banca/materia hoje), registra também em
 # CAMPOS_EXTRAS_POR_TIPO — e replica a mesma entrada no mapa JS em
 # conquistas/static/conquistas/js/admin_conquista.js pra o campo aparecer
-# certo no formulário. Cadastrar uma Conquista nova usando um tipo JÁ
+# certo no formulário. Se o tipo novo for um ESTADO atual (como
+# streak_dias) em vez de um total histórico acumulado, adiciona também em
+# TIPOS_INSTANTANEOS. Cadastrar uma Conquista nova usando um tipo JÁ
 # EXISTENTE não precisa de código nenhum — vira trabalho 100% de admin.
 # ---------------------------------------------------------------------------
 
@@ -72,19 +76,64 @@ CAMPOS_EXTRAS_POR_TIPO = {
     'acertos_por_materia': 'materia',
 }
 
+# Tipos "de estado" — o valor reflete uma condição ATUAL, não um total
+# histórico que se acumula com o tempo. Não usam baseline: se o usuário
+# já está com a condição batida no momento em que a conquista é criada,
+# ele já a tem de verdade — não é "crédito retroativo" de ações passadas,
+# é o estado real agora (ex.: já estar com streak de 7 dias quando a
+# conquista "streak de 7 dias" é criada).
+TIPOS_INSTANTANEOS = {'streak_dias'}
+
+
+def inicializar_baseline_para_todos_usuarios(conquista):
+    """
+    Chamado uma única vez, quando uma Conquista NOVA é criada (ver
+    ConquistaAdmin.save_model). Pra tipos cumulativos, registra o valor
+    atual de cada usuário já existente como ponto de partida
+    (valor_inicial) — assim o progresso da conquista só conta o que
+    acontecer DEPOIS dela existir. Sem isso, criar "jogue 100 partidas"
+    quando alguém já tem 101 partidas jogadas destravaria na hora, o que
+    não faz sentido.
+
+    Usuários que se cadastrarem depois não precisam disso: não têm
+    histórico anterior à conquista, então ConquistaUsuario nasce com
+    valor_inicial=0 (default) na primeira avaliação normal — já é o
+    baseline correto pra eles.
+
+    Tipos em TIPOS_INSTANTANEOS não usam baseline — não faz nada pra eles.
+    """
+    if conquista.tipo_condicao in TIPOS_INSTANTANEOS:
+        return
+
+    avaliador = CATALOGO_CONDICOES.get(conquista.tipo_condicao)
+    if avaliador is None:
+        return
+
+    from usuarios.models import Usuario
+    from .models import ConquistaUsuario
+
+    novos = [
+        ConquistaUsuario(
+            usuario=usuario,
+            conquista=conquista,
+            valor_inicial=avaliador(usuario, conquista),
+        )
+        for usuario in Usuario.objects.all()
+    ]
+    if novos:
+        ConquistaUsuario.objects.bulk_create(novos, ignore_conflicts=True)
+
 
 def avaliar_conquistas(usuario):
     """
     Listener central. Roda todas as Conquistas ativas que o usuário ainda
     não completou, chama a função avaliadora de cada uma, atualiza o
-    progresso salvo e credita XP/moedas na hora em que a meta é batida.
+    progresso salvo (já descontando o baseline pra tipos cumulativos) e
+    credita XP/moedas na hora em que a meta é batida.
 
     Chamado hoje só em FinalizarPartidaView (fim de partida) — ponto onde
     os dados da partida (acertos/erros + os RespostaUsuario associados)
-    já estão consolidados no banco. Se no futuro fizer sentido avaliar
-    conquista no meio da partida (ex.: um popup instantâneo ao acertar a
-    questão que bate a meta), basta chamar essa mesma função também em
-    CorrigirRespostaView — nada aqui precisa mudar pra isso.
+    já estão consolidados no banco.
     """
     from .models import Conquista, ConquistaUsuario
 
@@ -99,18 +148,27 @@ def avaliar_conquistas(usuario):
 
         valor_atual = avaliador(usuario, conquista)
 
-        progresso, criado = ConquistaUsuario.objects.get_or_create(
+        # valor_inicial=0 por default no get_or_create: correto pra quem
+        # se cadastrou depois da conquista existir. Quem já existia antes
+        # já teve essa linha criada (com o baseline certo) por
+        # inicializar_baseline_para_todos_usuarios — aqui só faz "get".
+        progresso_obj, _ = ConquistaUsuario.objects.get_or_create(
             usuario=usuario, conquista=conquista,
-            defaults={'progresso': valor_atual},
         )
-        if not criado and progresso.progresso != valor_atual:
-            progresso.progresso = valor_atual
-            progresso.save(update_fields=['progresso'])
 
-        if valor_atual >= conquista.meta and not progresso.completada:
-            progresso.completada = True
-            progresso.completada_em = timezone.now()
-            progresso.save(update_fields=['completada', 'completada_em'])
+        if conquista.tipo_condicao in TIPOS_INSTANTANEOS:
+            progresso_real = valor_atual
+        else:
+            progresso_real = max(0, valor_atual - progresso_obj.valor_inicial)
+
+        if progresso_obj.progresso != progresso_real:
+            progresso_obj.progresso = progresso_real
+            progresso_obj.save(update_fields=['progresso'])
+
+        if progresso_real >= conquista.meta and not progresso_obj.completada:
+            progresso_obj.completada = True
+            progresso_obj.completada_em = timezone.now()
+            progresso_obj.save(update_fields=['completada', 'completada_em'])
 
             usuario.xp += conquista.recompensa_xp
             usuario.moedas += conquista.recompensa_moedas

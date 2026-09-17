@@ -73,9 +73,19 @@ class ConquistaUsuario(models.Model):
     Progresso de UM usuário em UMA conquista. Criado/atualizado pelo
     listener central (services.avaliar_conquistas) — nunca editado
     manualmente em uso normal.
+
+    valor_inicial: "baseline" — o valor que a métrica do usuário JÁ TINHA
+    no momento em que essa conquista foi criada (registrado por
+    services.inicializar_baseline_para_todos_usuarios, chamado uma vez na
+    criação da Conquista no admin). O progresso exibido é sempre
+    valor_atual - valor_inicial, nunca o valor absoluto — isso evita que
+    alguém "ganhe de graça" uma conquista por já ter passado da meta
+    antes dela existir. Quem se cadastra depois da conquista já existir
+    começa com valor_inicial=0 (default), que já é o baseline correto.
     """
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conquistas')
     conquista = models.ForeignKey(Conquista, on_delete=models.CASCADE, related_name='usuarios')
+    valor_inicial = models.PositiveIntegerField(default=0)
     progresso = models.PositiveIntegerField(default=0)
     completada = models.BooleanField(default=False)
     completada_em = models.DateTimeField(null=True, blank=True)

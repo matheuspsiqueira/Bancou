@@ -1,8 +1,8 @@
 // src/config.js
 
-const DEV_URL = 'https://tray-called-teachers-districts.trycloudflare.com';
+const DEV_URL = 'https://league-road-chambers-badge.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
-export const API_URL = PROD_URL;
+export const API_URL = DEV_URL;
 
 export const SITE_URL = API_URL;

@@ -4,19 +4,23 @@
 // texto corrido com links embutidos, no mesmo padrão do checkbox de
 // termos da AuthScreen — em vez de dois botões separados.
 //
-// Conquistas (novo): grid real na seção 2, buscado em
+// Conquistas: grid real na seção 2, buscado em
 // GET /api/conquistas/usuario/<id>/ — o backend já filtra visibilidade
 // (dono vê tudo, incluindo bloqueadas; visitante só veria as
 // completadas, quando essa tela passar a aceitar um usuário-alvo
 // diferente do logado). Busca em useFocusEffect, mesmo padrão já usado
 // pra música de fundo em telas de tab — reflete conquistas novas ao
-// voltar de uma partida sem precisar sair e entrar no app.
+// voltar de uma partida sem precisar sair e entrar no app. Cada card
+// (ConquistaCard) cuida do anel de progresso e do preto-e-branco;
+// tocar num card abre o ModalConquista com a descrição.
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
+import ConquistaCard from '../components/ConquistaCard';
+import ModalConquista from '../components/modals/ModalConquista';
 import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
@@ -42,6 +46,7 @@ export default function PerfilScreen() {
 
   const [conquistas, setConquistas] = useState([]);
   const [carregandoConquistas, setCarregandoConquistas] = useState(true);
+  const [conquistaSelecionada, setConquistaSelecionada] = useState(null);
 
   const carregarConquistas = useCallback(async () => {
     if (!usuario?.id) return;
@@ -185,31 +190,9 @@ export default function PerfilScreen() {
           </Text>
         ) : (
           <View style={styles.conquistasGrid}>
-            {conquistas.map((c) => {
-              const bloqueada = !c.completada;
-              return (
-                <View key={c.id} style={styles.conquistaCard}>
-                  <View style={[styles.conquistaImagemWrap, bloqueada && styles.conquistaImagemBloqueada]}>
-                    <Image
-                      source={c.imagem_url ? { uri: c.imagem_url } : require('../assets/kou-pensando.png')}
-                      style={styles.conquistaImagem}
-                      resizeMode="contain"
-                    />
-                    {bloqueada && (
-                      <View style={styles.conquistaLockOverlay}>
-                        <Text style={styles.conquistaLockIcone}>🔒</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.conquistaNome} numberOfLines={2}>{c.nome}</Text>
-                  {bloqueada ? (
-                    <Text style={styles.conquistaProgresso}>{c.progresso}/{c.meta}</Text>
-                  ) : (
-                    <Text style={styles.conquistaProgressoCompleta}>Conquistada</Text>
-                  )}
-                </View>
-              );
-            })}
+            {conquistas.map((c) => (
+              <ConquistaCard key={c.id} conquista={c} onPress={() => setConquistaSelecionada(c)} />
+            ))}
           </View>
         )}
 
@@ -268,6 +251,12 @@ export default function PerfilScreen() {
             <ModalEditarPerfil visible={modalPerfil} onClose={() => setModalPerfil(false)} />
           </>
         )}
+
+        <ModalConquista
+          conquista={conquistaSelecionada}
+          visible={!!conquistaSelecionada}
+          onClose={() => setConquistaSelecionada(null)}
+        />
       </ScrollView>
     </TelaComHeader>
   );
@@ -325,28 +314,6 @@ const styles = StyleSheet.create({
   },
   conquistasGrid: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.xl,
-  },
-  conquistaCard: { width: '31%', alignItems: 'center', marginBottom: spacing.lg },
-  conquistaImagemWrap: {
-    width: 64, height: 64, borderRadius: borderRadius.md,
-    backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center',
-    marginBottom: spacing.xs, overflow: 'hidden',
-  },
-  conquistaImagemBloqueada: { opacity: 0.35 },
-  conquistaImagem: { width: '70%', height: '70%' },
-  conquistaLockOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  conquistaLockIcone: { fontSize: 18 },
-  conquistaNome: {
-    fontFamily: typography.medium, fontSize: fontSize.caption, color: colors.text, textAlign: 'center',
-  },
-  conquistaProgresso: {
-    fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2,
-  },
-  conquistaProgressoCompleta: {
-    fontFamily: typography.medium, fontSize: fontSize.caption, color: colors.primary, marginTop: 2,
   },
 
   opcaoItem: {

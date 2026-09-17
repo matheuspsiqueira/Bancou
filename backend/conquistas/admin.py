@@ -31,6 +31,19 @@ class ConquistaAdmin(admin.ModelAdmin):
     class Media:
         js = ('conquistas/js/admin_conquista.js',)
 
+    def save_model(self, request, obj, form, change):
+        """
+        Na criação de uma Conquista NOVA (não em edições), registra o
+        baseline de todos os usuários já existentes — ver
+        services.inicializar_baseline_para_todos_usuarios — pra que o
+        progresso conte só o que acontecer a partir de agora.
+        """
+        eh_nova = obj.pk is None
+        super().save_model(request, obj, form, change)
+        if eh_nova:
+            from .services import inicializar_baseline_para_todos_usuarios
+            inicializar_baseline_para_todos_usuarios(obj)
+
 
 @admin.register(ConquistaUsuario)
 class ConquistaUsuarioAdmin(admin.ModelAdmin):
@@ -42,7 +55,7 @@ class ConquistaUsuarioAdmin(admin.ModelAdmin):
     list_display = ['usuario', 'conquista', 'progresso_display', 'completada', 'completada_em']
     list_filter = ['completada', 'conquista']
     search_fields = ['usuario__username', 'usuario__email', 'conquista__nome']
-    readonly_fields = ['usuario', 'conquista', 'progresso', 'completada', 'completada_em']
+    readonly_fields = ['usuario', 'conquista', 'valor_inicial', 'progresso', 'completada', 'completada_em']
 
     def progresso_display(self, obj):
         return f'{obj.progresso}/{obj.conquista.meta}'
