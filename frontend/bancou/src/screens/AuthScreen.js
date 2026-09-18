@@ -6,6 +6,8 @@
 // causava a barra branca residual ao fechar o teclado. paddingBottom do
 // ScrollView continua somando insets.bottom (isso é pra barra de
 // navegação do Android, não tem relação com o teclado).
+// Ajuste 09/2026 (2): cadastro não loga mais automaticamente — agora
+// exige verificação de e-mail via link antes do primeiro login.
 
 import React, { useState } from 'react';
 import {
@@ -15,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { useKouAlert } from '../context/KouAlertContext';
 import { API_URL, SITE_URL } from '../config';
 import { Linking } from 'react-native';
 
@@ -84,6 +87,7 @@ export default function AuthScreen({ navigation, route }) {
   const abaPadrao = route?.params?.tela === 'login' ? 1 : 0;
   const [abaAtiva, setAbaAtiva] = useState(abaPadrao);
   const { signIn } = useAuth();
+  const { alertar } = useKouAlert();
 
   // Cadastro
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -129,19 +133,31 @@ export default function AuthScreen({ navigation, route }) {
           username: usernameCad,
           email: emailCad,
           password: senhaCad,
-          password2: confirmarSenha,  // ← campo que faltava no body
+          password2: confirmarSenha,
           aceito_termos: true,
         }),
       });
       const data = await res.json();
-      console.log('STATUS:', res.status);
-      console.log('RESPOSTA:', JSON.stringify(data));
       if (!res.ok) {
         const msgs = Object.values(data).flat().join(' ');
         setErroCad(msgs);
         return;
       }
-      await signIn(data.access, data.refresh);
+
+      // Cadastro não loga mais automaticamente — precisa confirmar o e-mail antes.
+      setNomeCompleto('');
+      setUsernameCad('');
+      setEmailCad('');
+      setSenhaCad('');
+      setConfirmarSenha('');
+      setAceitouTermos(false);
+
+      alertar(
+        'Verifique seu e-mail',
+        'Enviamos um link de confirmação para o seu e-mail. Abra a mensagem e clique no link para ativar sua conta antes de fazer login.',
+        [{ text: 'OK', onPress: () => setAbaAtiva(1) }],
+        { pose: 'torcendo' }
+      );
     } catch (e) {
       setErroCad('Erro de conexão. Tente novamente.');
     } finally {

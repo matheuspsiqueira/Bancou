@@ -11,3 +11,7 @@ class TermosView(TemplateView):
 
 class PrivacidadeView(TemplateView):
     template_name = 'landing/privacidade.html'
+
+
+class VerificarEmailView(TemplateView):
+    template_name = 'landing/verificar_email.html'

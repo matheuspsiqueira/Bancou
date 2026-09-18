@@ -294,8 +294,8 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: borderRadius.md,
     borderWidth: 1.5, borderColor: colors.textSecondary, borderStyle: 'dashed',
   },
-  conquistaRecenteImagem: { width: 32, height: 32 },
-  ligaImagem: { width: 36, height: 36 },
+  conquistaRecenteImagem: { width: 45, height: 45 },
+  ligaImagem: { width: 45, height: 45 },
 
   xpBarraContainer: { width: '100%' },
   xpBarraTrack: { height: 8, backgroundColor: colors.background, borderRadius: borderRadius.full, marginBottom: spacing.xs },

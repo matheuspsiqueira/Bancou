@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Usuario
 import random
+import secrets
 from datetime import timedelta
 from django.utils import timezone
 from django.core.mail import send_mail
@@ -40,6 +41,23 @@ class RegistroSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             nome_completo=validated_data['nome_completo'],
             password=validated_data['password'],
+        )
+        # Conta fica inativa até a verificação de e-mail.
+        usuario.is_active = False
+        usuario.token_verificacao_email = secrets.token_urlsafe(32)
+        usuario.save(update_fields=['is_active', 'token_verificacao_email'])
+
+        request = self.context.get('request')
+        link = request.build_absolute_uri(f'/verificar-email/?token={usuario.token_verificacao_email}')
+        send_mail(
+            subject='Bancou — Confirme seu e-mail',
+            message=(
+                'Falta pouco! Clique no link abaixo para confirmar seu e-mail e ativar sua conta:\n\n'
+                f'{link}\n\n'
+                'Se você não criou uma conta no Bancou, ignore este e-mail.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[usuario.email],
         )
         return usuario
 
@@ -143,18 +161,17 @@ class RegistrarResultadoSerializer(serializers.Serializer):
         usuario.moedas += moedas_ganhas
         usuario.vidas = max(0, usuario.vidas - vidas_perdidas)
 
-        # ── Streak ────────────────────────────────────────────────────
         hoje = timezone.localdate()
         ultima = usuario.data_ultima_partida
 
         if ultima is None:
             usuario.streak = 1
         elif ultima == hoje:
-            pass  # múltiplas partidas no mesmo dia — não altera streak
+            pass
         elif ultima == hoje - datetime.timedelta(days=1):
-            usuario.streak += 1  # jogou ontem — mantém sequência
+            usuario.streak += 1
         else:
-            usuario.streak = 1  # pulou dias — reseta
+            usuario.streak = 1
 
         usuario.data_ultima_partida = hoje
         usuario.save(update_fields=['xp', 'moedas', 'vidas', 'streak', 'data_ultima_partida'])
@@ -171,8 +188,6 @@ class SolicitarRecuperacaoSenhaSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        # Não guardamos se existe ou não aqui — resposta pro cliente é sempre genérica,
-        # pra não vazar quais e-mails estão cadastrados na base
         self.usuario = Usuario.objects.filter(email__iexact=value).first()
         return value
 
@@ -224,4 +239,25 @@ class ConfirmarRecuperacaoSenhaSerializer(serializers.Serializer):
         self.usuario.codigo_recuperacao_senha = None
         self.usuario.codigo_recuperacao_expira_em = None
         self.usuario.save(update_fields=['password', 'codigo_recuperacao_senha', 'codigo_recuperacao_expira_em'])
+        return self.usuario
+
+
+class VerificarEmailSerializer(serializers.Serializer):
+    """
+    Usado pela página web de confirmação (app `landing`), não pelo app.
+    Token é de uso único: some do banco assim que consumido.
+    """
+    token = serializers.CharField()
+
+    def validate_token(self, value):
+        usuario = Usuario.objects.filter(token_verificacao_email=value).first()
+        if not usuario:
+            raise serializers.ValidationError('Link inválido ou já utilizado.')
+        self.usuario = usuario
+        return value
+
+    def save(self):
+        self.usuario.is_active = True
+        self.usuario.token_verificacao_email = None
+        self.usuario.save(update_fields=['is_active', 'token_verificacao_email'])
         return self.usuario

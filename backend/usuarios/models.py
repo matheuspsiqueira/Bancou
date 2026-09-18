@@ -19,6 +19,12 @@ class Usuario(AbstractUser):
     codigo_recuperacao_senha = models.CharField(max_length=6, null=True, blank=True)
     codigo_recuperacao_expira_em = models.DateTimeField(null=True, blank=True)
 
+    # ─── Verificação de e-mail no cadastro ───────────────────────────────
+    # is_active (herdado do AbstractUser) começa False no cadastro e só
+    # vira True quando o token abaixo é confirmado. O SimpleJWT já bloqueia
+    # login de conta inativa automaticamente — sem lógica extra necessária.
+    token_verificacao_email = models.CharField(max_length=64, null=True, blank=True)
+
     VIDAS_MAXIMAS = 3
 
     USERNAME_FIELD = 'email'

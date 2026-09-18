@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://league-road-chambers-badge.trycloudflare.com';
+const DEV_URL = 'https://leslie-employment-gmbh-xbox.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
 export const API_URL = PROD_URL;

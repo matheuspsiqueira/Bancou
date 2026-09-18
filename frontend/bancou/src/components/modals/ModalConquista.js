@@ -28,7 +28,7 @@ import {
   borderRadius,
 } from '../../theme';
 
-const TAMANHO_IMAGEM = 96;
+const TAMANHO_IMAGEM = 120;
 
 // Matriz para converter a imagem para escala de cinza.
 // Os valores preservam a luminosidade percebida e removem a saturação.
@@ -163,7 +163,6 @@ const styles = StyleSheet.create({
     width: TAMANHO_IMAGEM,
     height: TAMANHO_IMAGEM,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -176,8 +175,8 @@ const styles = StyleSheet.create({
   },
 
   imagem: {
-    width: '70%',
-    height: '70%',
+    width: '100%',
+    height: '100%',
   },
 
   nome: {

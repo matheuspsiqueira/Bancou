@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from .models import Usuario
 from .serializers import (
@@ -14,24 +13,45 @@ from .serializers import (
     RegistrarResultadoSerializer,
     SolicitarRecuperacaoSenhaSerializer,
     ConfirmarRecuperacaoSenhaSerializer,
+    VerificarEmailSerializer,
 )
 from usuarios.services import checar_decaimento_streak
 
 
 class RegistroView(generics.CreateAPIView):
+    """
+    POST /api/usuarios/registro/
+    Cria o usuário com is_active=False e dispara o e-mail de verificação.
+    Não retorna mais access/refresh — login só é possível após a
+    confirmação do e-mail (ver VerificarEmailView).
+    """
     serializer_class = RegistroSerializer
     permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        usuario = serializer.save()
+        serializer.save()
+        return Response(
+            {'detail': 'Cadastro realizado! Enviamos um e-mail de confirmação — verifique sua caixa de entrada para ativar a conta.'},
+            status=status.HTTP_201_CREATED,
+        )
 
-        refresh = RefreshToken.for_user(usuario)
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-        }, status=status.HTTP_201_CREATED)
+
+class VerificarEmailView(generics.GenericAPIView):
+    """
+    POST /api/usuarios/verificar-email/
+    Body: { "token": "..." }
+    Chamado pela página web de confirmação, não pelo app.
+    """
+    serializer_class = VerificarEmailSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'E-mail verificado com sucesso!'}, status=status.HTTP_200_OK)
 
 
 class PerfilView(APIView):
@@ -72,15 +92,6 @@ class AlterarSenhaView(APIView):
 
 
 class RegistrarResultadoView(APIView):
-    """
-    POST /api/usuarios/registrar-resultado/
-    Body: { "acertos": 7, "erros": 3, "abandonada": false }
-
-    Recebe o resultado bruto de uma partida e aplica a lógica de
-    XP/moedas/vidas no servidor. Retorna os totais atualizados do usuário
-    junto com o que foi ganho/perdido nessa partida especificamente,
-    pra a ScoreScreen poder animar os números.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -98,13 +109,6 @@ class RegistrarResultadoView(APIView):
 
 
 class RecuperarVidaView(APIView):
-    """
-    POST /api/usuarios/recuperar-vida/
-    Usado após o usuário assistir um anúncio recompensado (AdMob).
-    Adiciona 1 vida, respeitando o teto de Usuario.VIDAS_MAXIMAS.
-    A validação real de "o anúncio foi assistido até o fim" é feita
-    no SDK do AdMob no app — este endpoint só aplica o efeito no servidor.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -119,12 +123,7 @@ class RecuperarVidaView(APIView):
         return Response(UsuarioSerializer(usuario, context={'request': request}).data)
 
 
-# ─── Helper: regeneração diária de vidas ─────────────────────────────────
 def checar_regeneracao_vidas(usuario):
-    """
-    Reseta as vidas para o máximo se a última atualização foi antes de hoje.
-    Chamado de forma lazy em endpoints estratégicos (perfil, iniciar partida).
-    """
     from django.utils import timezone
     agora = timezone.now()
     precisa_resetar = (
@@ -138,10 +137,6 @@ def checar_regeneracao_vidas(usuario):
 
 
 class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):
-    """
-    Limitado por IP: no máximo 5 pedidos de código por hora.
-    Evita flood de e-mails (custa cota do Brevo) e spam pro usuário real.
-    """
     serializer_class = SolicitarRecuperacaoSenhaSerializer
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -158,10 +153,6 @@ class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):
 
 
 class ConfirmarRecuperacaoSenhaView(generics.GenericAPIView):
-    """
-    Limitado por IP: no máximo 10 tentativas por hora.
-    Dificulta força bruta contra o código de 6 dígitos.
-    """
     serializer_class = ConfirmarRecuperacaoSenhaSerializer
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificar conta — Bancou</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6C63FF;
+      --orange: #FF6B35;
+      --green: #00C896;
+      --red: #FF4069;
+      --bg: #1a1a2e;
+      --card: #252540;
+      --text: #FFFFFF;
+      --text-secondary: #9090B0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    .logo {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: 32px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .logo .ponto { color: var(--orange); }
+    .icone { font-size: 48px; margin: 16px 0; }
+    h1 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: var(--text);
+      margin: 0 0 12px;
+    }
+    p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    button {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text);
+      background: var(--primary);
+      border: none;
+      border-radius: 14px;
+      padding: 14px 32px;
+      width: 100%;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .sucesso { color: var(--green); }
+    .erro { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Bancou<span class="ponto">.</span></div>
+
+    <div id="estado-inicial">
+      <div class="icone">📧</div>
+      <h1>Confirmar seu e-mail</h1>
+      <p>Clique no botão abaixo para ativar sua conta e começar a estudar no Bancou.</p>
+      <button id="btn-verificar">Verificar conta</button>
+    </div>
+
+    <div id="estado-sucesso" style="display:none;">
+      <div class="icone">✅</div>
+      <h1 class="sucesso">Verificação concluída!</h1>
+      <p>Sua conta foi ativada. Volte para o app e faça login para continuar.</p>
+    </div>
+
+    <div id="estado-erro" style="display:none;">
+      <div class="icone">⚠️</div>
+      <h1 class="erro">Não foi possível verificar</h1>
+      <p id="erro-mensagem">Este link é inválido ou já foi utilizado.</p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const btn = document.getElementById('btn-verificar');
+    const estadoInicial = document.getElementById('estado-inicial');
+    const estadoSucesso = document.getElementById('estado-sucesso');
+    const estadoErro = document.getElementById('estado-erro');
+    const erroMensagem = document.getElementById('erro-mensagem');
+
+    if (!token) {
+      estadoInicial.style.display = 'none';
+      estadoErro.style.display = 'block';
+      erroMensagem.textContent = 'Link incompleto — token não encontrado.';
+    }
+
+    btn?.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+      try {
+        const res = await fetch('/api/usuarios/verificar-email/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        if (res.ok) {
+          estadoInicial.style.display = 'none';
+          estadoSucesso.style.display = 'block';
+        } else {
+          const data = await res.json();
+          estadoInicial.style.display = 'none';
+          estadoErro.style.display = 'block';
+          erroMensagem.textContent = data.token?.[0] || 'Este link é inválido ou já foi utilizado.';
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Verificar conta';
+        erroMensagem.textContent = 'Erro de conexão. Tente novamente.';
+        estadoErro.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
