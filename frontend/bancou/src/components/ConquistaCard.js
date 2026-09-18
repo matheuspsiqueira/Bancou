@@ -3,9 +3,15 @@
 // Bloqueada: imagem em preto-e-branco + anel de progresso.
 // Desbloqueada: imagem colorida, sem anel.
 // Tocar chama onPress.
+//
+// Pré-carrega a imagem remota com Image.prefetch antes de desenhar o
+// SvgImage — sem isso, no Android o SvgImage às vezes não repinta
+// sozinho quando o download termina, deixando um espaço vazio até
+// alguma coisa forçar um novo render (era por isso que sair e voltar
+// da tela "resolvia": remontava o componente por acaso).
 
-import React from 'react';
-import { View, Image, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Image, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -23,16 +29,11 @@ import {
 
 const TAMANHO_IMAGEM = 64;
 const ESPESSURA_ANEL = 3;
-
 const RAIO = TAMANHO_IMAGEM / 2 + ESPESSURA_ANEL;
-
 const TAMANHO_SVG = (RAIO + ESPESSURA_ANEL) * 2;
-
 const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
-
 const CENTRO = TAMANHO_SVG / 2;
 
-// Matriz para converter a imagem para preto-e-branco.
 const MATRIZ_GRAYSCALE = `
   0.299 0.587 0.114 0 0
   0.299 0.587 0.114 0 0
@@ -54,6 +55,23 @@ export default function ConquistaCard({ conquista, onPress }) {
     ? { uri: conquista.imagem_url }
     : require('../assets/kou-pensando.png');
 
+  // Só precisa pré-carregar imagem remota — o require local já está
+  // embutido no bundle, sempre "pronto".
+  const [imagemPronta, setImagemPronta] = useState(!conquista.imagem_url);
+
+  useEffect(() => {
+    if (!conquista.imagem_url) {
+      setImagemPronta(true);
+      return;
+    }
+    let cancelado = false;
+    setImagemPronta(false);
+    Image.prefetch(conquista.imagem_url)
+      .then(() => { if (!cancelado) setImagemPronta(true); })
+      .catch(() => { if (!cancelado) setImagemPronta(true); }); // mesmo se falhar, libera o render
+    return () => { cancelado = true; };
+  }, [conquista.imagem_url]);
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -62,157 +80,66 @@ export default function ConquistaCard({ conquista, onPress }) {
     >
       <View style={styles.imagemWrap}>
 
-        {/* ================================
-            IMAGEM
-            ================================ */}
-
-        {bloqueada ? (
-          <Svg
-            width={TAMANHO_IMAGEM}
-            height={TAMANHO_IMAGEM}
-            style={styles.imagemSvg}
-          >
+        {!imagemPronta ? (
+          <ActivityIndicator size="small" color={colors.textSecondary} />
+        ) : bloqueada ? (
+          <Svg width={TAMANHO_IMAGEM} height={TAMANHO_IMAGEM} style={styles.imagemSvg}>
             <Defs>
               <Filter id="grayscale">
-                <FeColorMatrix
-                  type="matrix"
-                  values={MATRIZ_GRAYSCALE}
-                />
+                <FeColorMatrix type="matrix" values={MATRIZ_GRAYSCALE} />
               </Filter>
             </Defs>
-
             <SvgImage
-              x="0"
-              y="0"
-              width={TAMANHO_IMAGEM}
-              height={TAMANHO_IMAGEM}
+              x="0" y="0"
+              width={TAMANHO_IMAGEM} height={TAMANHO_IMAGEM}
               href={imagemSource}
               preserveAspectRatio="xMidYMid meet"
               filter="url(#grayscale)"
             />
           </Svg>
         ) : (
-          <Image
-            source={imagemSource}
-            style={styles.imagem}
-            resizeMode="contain"
-          />
+          <Image source={imagemSource} style={styles.imagem} resizeMode="contain" />
         )}
 
-        {/* ================================
-            ANEL DE PROGRESSO
-            ================================ */}
-
-        {bloqueada && (
-          <Svg
-            width={TAMANHO_SVG}
-            height={TAMANHO_SVG}
-            style={styles.anelSvg}
-            pointerEvents="none"
-          >
-            {/* Anel de fundo */}
+        {imagemPronta && bloqueada && (
+          <Svg width={TAMANHO_SVG} height={TAMANHO_SVG} style={styles.anelSvg} pointerEvents="none">
             <Circle
-              cx={CENTRO}
-              cy={CENTRO}
-              r={RAIO}
-              stroke={colors.background}
-              strokeWidth={ESPESSURA_ANEL}
-              fill="none"
+              cx={CENTRO} cy={CENTRO} r={RAIO}
+              stroke={colors.background} strokeWidth={ESPESSURA_ANEL} fill="none"
             />
-
-            {/* Progresso */}
             {pct > 0 && (
               <Circle
-                cx={CENTRO}
-                cy={CENTRO}
-                r={RAIO}
-                stroke={colors.primary}
-                strokeWidth={ESPESSURA_ANEL}
-                fill="none"
-                strokeDasharray={CIRCUNFERENCIA}
-                strokeDashoffset={offsetAnel}
-                strokeLinecap="round"
-                rotation="-90"
-                origin={`${CENTRO}, ${CENTRO}`}
+                cx={CENTRO} cy={CENTRO} r={RAIO}
+                stroke={colors.primary} strokeWidth={ESPESSURA_ANEL} fill="none"
+                strokeDasharray={CIRCUNFERENCIA} strokeDashoffset={offsetAnel}
+                strokeLinecap="round" rotation="-90" origin={`${CENTRO}, ${CENTRO}`}
               />
             )}
           </Svg>
         )}
       </View>
 
-      {/* Nome */}
-      <Text
-        style={[
-          styles.nome,
-          !bloqueada && styles.nomeCompleta,
-        ]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.nome, !bloqueada && styles.nomeCompleta]} numberOfLines={2}>
         {conquista.nome}
       </Text>
 
-      {/* Progresso */}
       {bloqueada && (
-        <Text style={styles.progresso}>
-          {conquista.progresso}/{conquista.meta}
-        </Text>
+        <Text style={styles.progresso}>{conquista.progresso}/{conquista.meta}</Text>
       )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: '31%',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-
-  /*
-   * Área da imagem.
-   *
-   * IMPORTANTE:
-   * Não possui backgroundColor.
-   * A imagem fica diretamente sobre o fundo da tela.
-   */
+  card: { width: '31%', alignItems: 'center', marginBottom: spacing.lg },
   imagemWrap: {
-    width: TAMANHO_SVG,
-    height: TAMANHO_SVG,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    width: TAMANHO_SVG, height: TAMANHO_SVG,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.xs,
   },
-
-  imagemSvg: {
-    position: 'absolute',
-    width: TAMANHO_IMAGEM,
-    height: TAMANHO_IMAGEM,
-  },
-
-  imagem: {
-    width: TAMANHO_IMAGEM,
-    height: TAMANHO_IMAGEM,
-  },
-
-  anelSvg: {
-    position: 'absolute',
-  },
-
-  nome: {
-    fontFamily: typography.medium,
-    fontSize: fontSize.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  nomeCompleta: {
-    color: colors.primary,
-  },
-
-  progresso: {
-    fontFamily: typography.regular,
-    fontSize: fontSize.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
+  imagemSvg: { position: 'absolute', width: TAMANHO_IMAGEM, height: TAMANHO_IMAGEM },
+  imagem: { width: TAMANHO_IMAGEM, height: TAMANHO_IMAGEM },
+  anelSvg: { position: 'absolute' },
+  nome: { fontFamily: typography.medium, fontSize: fontSize.caption, color: colors.textSecondary, textAlign: 'center' },
+  nomeCompleta: { color: colors.primary },
+  progresso: { fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 },
 });

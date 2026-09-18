@@ -2,8 +2,12 @@
 // Modal de detalhe de uma conquista — mostra nome, imagem (P&B se
 // bloqueada), descrição (explica como alcançar) e progresso/status.
 // Overlay no padrão único do app (#00000099).
+//
+// Mesmo fix de pré-carregamento do ConquistaCard: pré-carrega a imagem
+// remota com Image.prefetch antes de desenhar o SvgImage, evitando o
+// espaço vazio por bug de repaint do react-native-svg no Android.
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +15,7 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 
 import Svg, {
@@ -28,10 +33,8 @@ import {
   borderRadius,
 } from '../../theme';
 
-const TAMANHO_IMAGEM = 120;
+const TAMANHO_IMAGEM = 125;
 
-// Matriz para converter a imagem para escala de cinza.
-// Os valores preservam a luminosidade percebida e removem a saturação.
 const MATRIZ_GRAYSCALE = `
   0.299 0.587 0.114 0 0
   0.299 0.587 0.114 0 0
@@ -44,6 +47,22 @@ export default function ModalConquista({
   visible,
   onClose,
 }) {
+  const [imagemPronta, setImagemPronta] = useState(true);
+
+  useEffect(() => {
+    const url = conquista?.imagem_url;
+    if (!url) {
+      setImagemPronta(true);
+      return;
+    }
+    let cancelado = false;
+    setImagemPronta(false);
+    Image.prefetch(url)
+      .then(() => { if (!cancelado) setImagemPronta(true); })
+      .catch(() => { if (!cancelado) setImagemPronta(true); });
+    return () => { cancelado = true; };
+  }, [conquista?.imagem_url]);
+
   if (!conquista) return null;
 
   const bloqueada = !conquista.completada;
@@ -71,7 +90,9 @@ export default function ModalConquista({
         >
           <View style={styles.imagemWrap}>
 
-            {bloqueada ? (
+            {!imagemPronta ? (
+              <ActivityIndicator color={colors.textSecondary} />
+            ) : bloqueada ? (
               <Svg
                 width={TAMANHO_IMAGEM}
                 height={TAMANHO_IMAGEM}

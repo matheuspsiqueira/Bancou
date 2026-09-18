@@ -13,6 +13,13 @@
 // voltar de uma partida sem precisar sair e entrar no app. Cada card
 // (ConquistaCard) cuida do anel de progresso e do preto-e-branco;
 // tocar num card abre o ModalConquista com a descrição.
+//
+// statValorBox: as 3 colunas do statsRow têm conteúdo de altura
+// diferente (texto "Nível" vs imagem 45x45 de conquista/liga) — sem
+// isso, alignItems:'center' na linha deixa elas desalinhadas entre si.
+// O box de altura fixa (mesmo tamanho da imagem) resolve isso: todas as
+// colunas passam a ter a mesma altura de referência, então os rótulos
+// embaixo alinham certinho.
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -31,6 +38,8 @@ import { SITE_URL } from '../config';
 
 const URL_TERMOS = `${SITE_URL}/termos/`;
 const URL_PRIVACIDADE = `${SITE_URL}/privacidade/`;
+
+const ALTURA_VALOR_STAT = 45; // mesmo tamanho das imagens de conquista/liga
 
 export default function PerfilScreen() {
   const { usuario, signOut, authFetch } = useAuth();
@@ -131,26 +140,30 @@ export default function PerfilScreen() {
 
           <View style={styles.statsRow}>
             <View style={styles.statCol}>
-              <Text style={styles.statValorTexto}>{titulo}</Text>
+              <View style={styles.statValorBox}>
+                <Text style={styles.statValorTexto}>{titulo}</Text>
+              </View>
               <Text style={styles.statLabel}>Nível</Text>
             </View>
 
             <View style={styles.statDivider} />
 
             <View style={styles.statCol}>
-              {conquistaRecente ? (
-                <Image
-                  source={
-                    conquistaRecente.imagem_url
-                      ? { uri: conquistaRecente.imagem_url }
-                      : require('../assets/kou-pensando.png')
-                  }
-                  style={styles.conquistaRecenteImagem}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.conquistaPlaceholder} />
-              )}
+              <View style={styles.statValorBox}>
+                {conquistaRecente ? (
+                  <Image
+                    source={
+                      conquistaRecente.imagem_url
+                        ? { uri: conquistaRecente.imagem_url }
+                        : require('../assets/kou-pensando.png')
+                    }
+                    style={styles.conquistaRecenteImagem}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.conquistaPlaceholder} />
+                )}
+              </View>
               <Text style={styles.statLabel} numberOfLines={1}>
                 {conquistaRecente ? conquistaRecente.nome : 'Nenhuma conquista ainda'}
               </Text>
@@ -159,7 +172,9 @@ export default function PerfilScreen() {
             <View style={styles.statDivider} />
 
             <View style={styles.statCol}>
-              <Image source={ligaImagem} style={styles.ligaImagem} resizeMode="contain" />
+              <View style={styles.statValorBox}>
+                <Image source={ligaImagem} style={styles.ligaImagem} resizeMode="contain" />
+              </View>
               <Text style={styles.statLabel}>{ligaLabel}</Text>
             </View>
           </View>
@@ -284,6 +299,7 @@ const styles = StyleSheet.create({
     width: '100%', marginBottom: spacing.lg,
   },
   statCol: { flex: 1, alignItems: 'center' },
+  statValorBox: { height: ALTURA_VALOR_STAT, justifyContent: 'center', alignItems: 'center' },
   statDivider: { width: 1, height: 44, backgroundColor: colors.background },
   statValorTexto: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.text },
   statLabel: {
