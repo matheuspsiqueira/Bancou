@@ -1,13 +1,11 @@
 // src/components/modals/ModalConquista.js
-// Modal de detalhe de uma conquista — mostra nome, imagem (P&B se
-// bloqueada), descrição (explica como alcançar) e progresso/status.
-// Overlay no padrão único do app (#00000099).
+// Modal de detalhe de uma conquista — nome, imagem (imagem_pb_url se
+// bloqueada, já preto-e-branco vinda do backend), descrição e
+// progresso/status. Overlay no padrão único do app (#00000099).
 //
-// Mesmo fix de pré-carregamento do ConquistaCard: pré-carrega a imagem
-// remota com Image.prefetch antes de desenhar o SvgImage, evitando o
-// espaço vazio por bug de repaint do react-native-svg no Android.
+// Sem SvgImage/filtro — mesmo motivo do ConquistaCard.
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Modal,
   View,
@@ -15,15 +13,7 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
-
-import Svg, {
-  Defs,
-  Filter,
-  FeColorMatrix,
-  Image as SvgImage,
-} from 'react-native-svg';
 
 import {
   colors,
@@ -35,41 +25,18 @@ import {
 
 const TAMANHO_IMAGEM = 125;
 
-const MATRIZ_GRAYSCALE = `
-  0.299 0.587 0.114 0 0
-  0.299 0.587 0.114 0 0
-  0.299 0.587 0.114 0 0
-  0     0     0     1 0
-`;
-
 export default function ModalConquista({
   conquista,
   visible,
   onClose,
 }) {
-  const [imagemPronta, setImagemPronta] = useState(true);
-
-  useEffect(() => {
-    const url = conquista?.imagem_url;
-    if (!url) {
-      setImagemPronta(true);
-      return;
-    }
-    let cancelado = false;
-    setImagemPronta(false);
-    Image.prefetch(url)
-      .then(() => { if (!cancelado) setImagemPronta(true); })
-      .catch(() => { if (!cancelado) setImagemPronta(true); });
-    return () => { cancelado = true; };
-  }, [conquista?.imagem_url]);
-
   if (!conquista) return null;
 
   const bloqueada = !conquista.completada;
 
-  const imagemSource = conquista.imagem_url
-    ? { uri: conquista.imagem_url }
-    : require('../../assets/kou-pensando.png');
+  const imagemSource = bloqueada
+    ? (conquista.imagem_pb_url ? { uri: conquista.imagem_pb_url } : require('../../assets/kou-pensando.png'))
+    : (conquista.imagem_url ? { uri: conquista.imagem_url } : require('../../assets/kou-pensando.png'));
 
   return (
     <Modal
@@ -89,42 +56,11 @@ export default function ModalConquista({
           onPress={() => {}}
         >
           <View style={styles.imagemWrap}>
-
-            {!imagemPronta ? (
-              <ActivityIndicator color={colors.textSecondary} />
-            ) : bloqueada ? (
-              <Svg
-                width={TAMANHO_IMAGEM}
-                height={TAMANHO_IMAGEM}
-                style={styles.imagemSvg}
-              >
-                <Defs>
-                  <Filter id="grayscaleModal">
-                    <FeColorMatrix
-                      type="matrix"
-                      values={MATRIZ_GRAYSCALE}
-                    />
-                  </Filter>
-                </Defs>
-
-                <SvgImage
-                  x="0"
-                  y="0"
-                  width={TAMANHO_IMAGEM}
-                  height={TAMANHO_IMAGEM}
-                  href={imagemSource}
-                  preserveAspectRatio="xMidYMid meet"
-                  filter="url(#grayscaleModal)"
-                />
-              </Svg>
-            ) : (
-              <Image
-                source={imagemSource}
-                style={styles.imagem}
-                resizeMode="contain"
-              />
-            )}
-
+            <Image
+              source={imagemSource}
+              style={styles.imagem}
+              resizeMode="contain"
+            />
           </View>
 
           <Text style={styles.nome}>
@@ -183,16 +119,9 @@ const styles = StyleSheet.create({
   imagemWrap: {
     width: TAMANHO_IMAGEM,
     height: TAMANHO_IMAGEM,
-    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
     marginBottom: spacing.md,
-  },
-
-  imagemSvg: {
-    width: TAMANHO_IMAGEM,
-    height: TAMANHO_IMAGEM,
   },
 
   imagem: {

@@ -48,7 +48,17 @@ class Conquista(models.Model):
         upload_to='conquistas/',
         null=True,
         blank=True,
-        help_text='Imagem própria da conquista (estilo Steam) — colorida quando desbloqueada.',
+        help_text='Imagem própria da conquista (estilo Steam) — colorida, mostrada quando desbloqueada.',
+    )
+    imagem_pb = models.ImageField(
+        upload_to='conquistas/pb/',
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=(
+            'Gerada automaticamente a partir de "imagem" (ver conquistas/signals.py) — '
+            'versão preto-e-branco usada quando a conquista está bloqueada. Não editar na mão.'
+        ),
     )
     ativa = models.BooleanField(default=True)
 
@@ -78,10 +88,7 @@ class ConquistaUsuario(models.Model):
     no momento em que essa conquista foi criada (registrado por
     services.inicializar_baseline_para_todos_usuarios, chamado uma vez na
     criação da Conquista no admin). O progresso exibido é sempre
-    valor_atual - valor_inicial, nunca o valor absoluto — isso evita que
-    alguém "ganhe de graça" uma conquista por já ter passado da meta
-    antes dela existir. Quem se cadastra depois da conquista já existir
-    começa com valor_inicial=0 (default), que já é o baseline correto.
+    valor_atual - valor_inicial, nunca o valor absoluto.
     """
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conquistas')
     conquista = models.ForeignKey(Conquista, on_delete=models.CASCADE, related_name='usuarios')

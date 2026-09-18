@@ -11,18 +11,28 @@ class ConquistaPerfilSerializer(serializers.ModelSerializer):
     pela view — evita 1 query por conquista.
     """
     imagem_url = serializers.SerializerMethodField()
+    imagem_pb_url = serializers.SerializerMethodField()
     progresso = serializers.SerializerMethodField()
     completada = serializers.SerializerMethodField()
     completada_em = serializers.SerializerMethodField()
 
     class Meta:
         model = Conquista
-        fields = ['id', 'nome', 'descricao', 'imagem_url', 'meta', 'progresso', 'completada', 'completada_em']
+        fields = [
+            'id', 'nome', 'descricao', 'imagem_url', 'imagem_pb_url',
+            'meta', 'progresso', 'completada', 'completada_em',
+        ]
 
     def get_imagem_url(self, obj):
         request = self.context.get('request')
         if obj.imagem and request:
             return request.build_absolute_uri(obj.imagem.url)
+        return None
+
+    def get_imagem_pb_url(self, obj):
+        request = self.context.get('request')
+        if obj.imagem_pb and request:
+            return request.build_absolute_uri(obj.imagem_pb.url)
         return None
 
     def _progresso_usuario(self, obj):
