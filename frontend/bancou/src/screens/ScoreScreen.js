@@ -1,5 +1,5 @@
 // src/screens/ScoreScreen.js
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tocar } from '../services/somService';
+import ModalConquistaDesbloqueada from '../components/modals/ModalConquistaDesbloqueada';
 
 // ─── Lógica de faixa de resultado ────────────────────────────────────────
 function getFaixa(acertos, total, abandonada) {
@@ -64,6 +65,7 @@ export default function ScoreScreen({ navigation, route }) {
     abandonada   = false,
     streakAnterior = 0,
     streakNovo     = 0,
+    conquistasDesbloqueadas = [],
   } = route.params ?? {};
 
   const streakAumentou = streakNovo > streakAnterior;
@@ -77,6 +79,33 @@ export default function ScoreScreen({ navigation, route }) {
   const xpAnim    = useRef(new Animated.Value(0)).current;
   const streakAnim  = useRef(new Animated.Value(0)).current;
   const streakScale = useRef(new Animated.Value(0.5)).current;
+
+  // ── Celebração de conquista destravada ─────────────────────────────────
+  // Fila simples: mostra uma de cada vez, avança ao fechar. O modal só
+  // aparece depois da animação de entrada terminar (~1.4s) pra não
+  // competir visualmente nem sonoramente com o som de sucessoFim/erroFim
+  // que já toca assim que a tela monta.
+  const [indiceConquista, setIndiceConquista] = useState(0);
+  const [modalConquistaVisivel, setModalConquistaVisivel] = useState(false);
+
+  useEffect(() => {
+    if (conquistasDesbloqueadas.length === 0) return;
+    const timer = setTimeout(() => {
+      tocar('conquista');
+      setModalConquistaVisivel(true);
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const avancarConquista = () => {
+    const proximoIndice = indiceConquista + 1;
+    if (proximoIndice < conquistasDesbloqueadas.length) {
+      setIndiceConquista(proximoIndice);
+      tocar('conquista');
+    } else {
+      setModalConquistaVisivel(false);
+    }
+  };
 
   // ── Som de fim de partida ────────────────────────────────────────────
   // Toca uma única vez ao montar a tela: sucesso se aproveitamento > 50%,
@@ -209,6 +238,12 @@ export default function ScoreScreen({ navigation, route }) {
           <Text style={styles.botaoSecundarioTexto}>Voltar ao início</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      <ModalConquistaDesbloqueada
+        conquista={conquistasDesbloqueadas[indiceConquista]}
+        visible={modalConquistaVisivel}
+        onFechar={avancarConquista}
+      />
     </ScrollView>
   );
 }

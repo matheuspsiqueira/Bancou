@@ -25,14 +25,15 @@ const CHAVE_MUTADO = '@bancou:som_mutado';
 
 // Importante: o Metro só reconhece extensão de asset em minúsculo (mp3).
 const FONTES = {
-  sucessoQuestao: require('../assets/sounds/sucesso-questao.mp3'),
-  erroQuestao: require('../assets/sounds/erro-questao.mp3'),
+  sucessoQuestao: require('../assets/sounds/acertos.mp3'),
+  erroQuestao: require('../assets/sounds/erros.mp3'),
   sucessoFim: require('../assets/sounds/sucesso-fim.mp3'),
-  erroFim: require('../assets/sounds/erro-fim.mp3'),
+  erroFim: require('../assets/sounds/fail.mp3'),
   levelUp: require('../assets/sounds/level-up.mp3'),
   pop: require('../assets/sounds/pop.mp3'),
   compra: require('../assets/sounds/compra.mp3'),
-  // abertura: require('../assets/sounds/abertura.mp3'), // reservado pro som de abertura do app
+  conquista: require('../assets/sounds/conquista.mp3'),
+  abertura: require('../assets/sounds/intro.mp3'), // reservado pro som de abertura do app
 };
 
 // Músicas de fundo (looping), separadas dos efeitos curtos acima —

@@ -16,6 +16,7 @@ from usuarios.serializers import UsuarioSerializer
 from loja.models import ItemLoja, InventarioItem, UsoItemPartida
 
 from conquistas.services import avaliar_conquistas
+from conquistas.serializers import ConquistaDesbloqueadaSerializer
 
 from .models import Banca, Concurso, Materia, Questao, Partida, RespostaUsuario
 from .serializers import (
@@ -395,7 +396,13 @@ class FinalizarPartidaView(APIView):
     Dispara avaliar_conquistas() logo depois de consolidar o resultado —
     é o ponto onde acertos/erros da partida (e os RespostaUsuario
     associados a ela) já estão fechados no banco. Não roda de novo se a
-    partida já estava finalizada (branch idempotente acima retorna antes).
+    partida já estava finalizada (branch idempotente acima retorna antes)
+    — ou seja, a celebração de conquista só aparece na primeira vez que
+    o fim da partida é processado, nunca em retries.
+
+    "conquistas_desbloqueadas" na resposta: lista (pode ser vazia) das
+    conquistas destravadas NESSA chamada — o frontend usa isso pra
+    mostrar a celebração (som + modal) na ScoreScreen.
     """
     permission_classes = [IsAuthenticated]
 
@@ -414,6 +421,7 @@ class FinalizarPartidaView(APIView):
                 'moedas_ganhas': partida.moedas_ganhas,
                 'vidas_perdidas': partida.vidas_perdidas,
                 'usuario': UsuarioSerializer(request.user, context={'request': request}).data,
+                'conquistas_desbloqueadas': [],
             })
 
         abandonada = bool(request.data.get('abandonada', False))
@@ -435,11 +443,14 @@ class FinalizarPartidaView(APIView):
             'vidas_perdidas', 'finalizada_em',
         ])
 
-        avaliar_conquistas(request.user)
+        conquistas_desbloqueadas = avaliar_conquistas(request.user)
 
         return Response({
             'xp_ganho': resultado['xp_ganho'],
             'moedas_ganhas': resultado['moedas_ganhas'],
             'vidas_perdidas': partida.vidas_perdidas,
             'usuario': UsuarioSerializer(request.user, context={'request': request}).data,
+            'conquistas_desbloqueadas': ConquistaDesbloqueadaSerializer(
+                conquistas_desbloqueadas, many=True, context={'request': request}
+            ).data,
         })

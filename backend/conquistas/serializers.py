@@ -50,3 +50,23 @@ class ConquistaPerfilSerializer(serializers.ModelSerializer):
     def get_completada_em(self, obj):
         cu = self._progresso_usuario(obj)
         return cu.completada_em if cu else None
+
+
+class ConquistaDesbloqueadaSerializer(serializers.ModelSerializer):
+    """
+    Usado só no momento da celebração (resposta de FinalizarPartidaView,
+    campo "conquistas_desbloqueadas"). Mais enxuto que o de perfil —
+    aqui já sabemos que acabou de ser completada, não precisa de
+    progresso/completada vindo de um mapa.
+    """
+    imagem_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Conquista
+        fields = ['id', 'nome', 'descricao', 'imagem_url', 'recompensa_xp', 'recompensa_moedas']
+
+    def get_imagem_url(self, obj):
+        request = self.context.get('request')
+        if obj.imagem and request:
+            return request.build_absolute_uri(obj.imagem.url)
+        return None

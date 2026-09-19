@@ -91,9 +91,7 @@ def inicializar_baseline_para_todos_usuarios(conquista):
     ConquistaAdmin.save_model). Pra tipos cumulativos, registra o valor
     atual de cada usuário já existente como ponto de partida
     (valor_inicial) — assim o progresso da conquista só conta o que
-    acontecer DEPOIS dela existir. Sem isso, criar "jogue 100 partidas"
-    quando alguém já tem 101 partidas jogadas destravaria na hora, o que
-    não faz sentido.
+    acontecer DEPOIS dela existir.
 
     Usuários que se cadastrarem depois não precisam disso: não têm
     histórico anterior à conquista, então ConquistaUsuario nasce com
@@ -134,12 +132,20 @@ def avaliar_conquistas(usuario):
     Chamado hoje só em FinalizarPartidaView (fim de partida) — ponto onde
     os dados da partida (acertos/erros + os RespostaUsuario associados)
     já estão consolidados no banco.
+
+    Retorna a lista de objetos Conquista que foram completados NESSA
+    chamada (não as que já estavam completadas antes) — usado pela view
+    pra devolver ao frontend quais conquistas acabaram de ser
+    desbloqueadas, pra mostrar a celebração (som + modal de parabéns).
+    Lista vazia quando nada foi destravado agora.
     """
     from .models import Conquista, ConquistaUsuario
 
     conquistas_pendentes = Conquista.objects.filter(ativa=True).exclude(
         usuarios__usuario=usuario, usuarios__completada=True
     )
+
+    conquistas_desbloqueadas_agora = []
 
     for conquista in conquistas_pendentes:
         avaliador = CATALOGO_CONDICOES.get(conquista.tipo_condicao)
@@ -148,10 +154,6 @@ def avaliar_conquistas(usuario):
 
         valor_atual = avaliador(usuario, conquista)
 
-        # valor_inicial=0 por default no get_or_create: correto pra quem
-        # se cadastrou depois da conquista existir. Quem já existia antes
-        # já teve essa linha criada (com o baseline certo) por
-        # inicializar_baseline_para_todos_usuarios — aqui só faz "get".
         progresso_obj, _ = ConquistaUsuario.objects.get_or_create(
             usuario=usuario, conquista=conquista,
         )
@@ -173,3 +175,7 @@ def avaliar_conquistas(usuario):
             usuario.xp += conquista.recompensa_xp
             usuario.moedas += conquista.recompensa_moedas
             usuario.save(update_fields=['xp', 'moedas'])
+
+            conquistas_desbloqueadas_agora.append(conquista)
+
+    return conquistas_desbloqueadas_agora

@@ -406,6 +406,7 @@ export default function PartidaScreen({ navigation, route }) {
           abandonada,
           streakAnterior: streakAnteriorRef.current,
           streakNovo:     data.usuario.streak,
+          conquistasDesbloqueadas: data.conquistas_desbloqueadas,
         });
       } else {
         navigation.replace('Score', {
