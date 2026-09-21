@@ -1,0 +1,14 @@
+{% extends 'emails/_base.html' %}
+{% block conteudo %}
+  <div style="font-size:40px; margin-bottom:16px;">🔐</div>
+  <h1 style="font-size:20px; color:#FFFFFF; margin:0 0 12px; font-family: Arial, Helvetica, sans-serif;">Recuperação de senha</h1>
+  <p style="font-size:15px; color:#9090B0; line-height:1.6; margin:0 0 24px; font-family: Arial, Helvetica, sans-serif;">
+    Use o código abaixo pra criar uma nova senha. Ele expira em {{ expira_minutos }} minutos.
+  </p>
+  <div style="font-family: 'Courier New', monospace; font-size:32px; font-weight:700; letter-spacing:8px; color:#FFFFFF; background-color:#1a1a2e; border-radius:14px; padding:16px 8px; margin-bottom:24px;">
+    {{ codigo }}
+  </div>
+  <p style="font-size:12px; color:#9090B0; line-height:1.6; margin:0; font-family: Arial, Helvetica, sans-serif;">
+    Se você não solicitou isso, pode ignorar este e-mail — sua senha continua a mesma.
+  </p>
+{% endblock %}

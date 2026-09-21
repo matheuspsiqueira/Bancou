@@ -1,12 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import Usuario
+from .emails import enviar_email_html
 import random
 import secrets
 from datetime import timedelta
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
 
 
 class RegistroSerializer(serializers.ModelSerializer):
@@ -48,15 +47,17 @@ class RegistroSerializer(serializers.ModelSerializer):
 
         request = self.context.get('request')
         link = request.build_absolute_uri(f'/verificar-email/?token={usuario.token_verificacao_email}')
-        send_mail(
-            subject='Bancou — Confirme seu e-mail',
-            message=(
+        primeiro_nome = usuario.nome_completo.strip().split(' ')[0] if usuario.nome_completo else usuario.username
+        enviar_email_html(
+            destinatario=usuario.email,
+            assunto='Bancou — Confirme seu e-mail',
+            template_name='confirmar_cadastro',
+            contexto={'nome': primeiro_nome, 'link': link},
+            texto_alternativo=(
                 'Falta pouco! Clique no link abaixo para confirmar seu e-mail e ativar sua conta:\n\n'
                 f'{link}\n\n'
                 'Se você não criou uma conta no Bancou, ignore este e-mail.'
             ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[usuario.email],
         )
         return usuario
 
@@ -80,8 +81,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 
 class AtualizarPerfilSerializer(serializers.ModelSerializer):
-    # `email` NÃO fica aqui de propósito — a troca de e-mail passa
-    # exclusivamente pelo fluxo de confirmação em SolicitarTrocaEmailSerializer.
     class Meta:
         model = Usuario
         fields = ('nome_completo', 'username', 'avatar')
@@ -105,11 +104,6 @@ class AtualizarPerfilSerializer(serializers.ModelSerializer):
 
 
 class SolicitarTrocaEmailSerializer(serializers.Serializer):
-    """
-    POST autenticado. Não troca o e-mail na hora — só registra o pedido e
-    manda o link de confirmação pro e-mail NOVO. A troca só é efetivada
-    quando esse link é clicado (ver VerificarEmailSerializer).
-    """
     email = serializers.EmailField()
 
     def validate_email(self, value):
@@ -128,16 +122,17 @@ class SolicitarTrocaEmailSerializer(serializers.Serializer):
 
         request = self.context['request']
         link = request.build_absolute_uri(f'/verificar-email/?token={usuario.token_verificacao_email}')
-        send_mail(
-            subject='Bancou — Confirme seu novo e-mail',
-            message=(
+        enviar_email_html(
+            destinatario=usuario.email_pendente,
+            assunto='Bancou — Confirme seu novo e-mail',
+            template_name='confirmar_troca_email',
+            contexto={'link': link},
+            texto_alternativo=(
                 'Você solicitou a troca do e-mail da sua conta Bancou. '
                 'Clique no link abaixo para confirmar este novo endereço:\n\n'
                 f'{link}\n\n'
                 'Se você não solicitou essa troca, ignore este e-mail — seu e-mail atual continua o mesmo.'
             ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[usuario.email_pendente],
         )
         return usuario
 
@@ -231,14 +226,15 @@ class SolicitarRecuperacaoSenhaSerializer(serializers.Serializer):
             self.usuario.codigo_recuperacao_expira_em = timezone.now() + timedelta(minutes=15)
             self.usuario.save(update_fields=['codigo_recuperacao_senha', 'codigo_recuperacao_expira_em'])
 
-            send_mail(
-                subject='Bancou — Código de recuperação de senha',
-                message=(
+            enviar_email_html(
+                destinatario=self.usuario.email,
+                assunto='Bancou — Código de recuperação de senha',
+                template_name='codigo_recuperacao',
+                contexto={'codigo': codigo, 'expira_minutos': 15},
+                texto_alternativo=(
                     f'Seu código de recuperação de senha é: {codigo}\n\n'
-                    f'Ele expira em 15 minutos. Se você não solicitou isso, ignore este e-mail.'
+                    'Ele expira em 15 minutos. Se você não solicitou isso, ignore este e-mail.'
                 ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[self.usuario.email],
             )
 
 
