@@ -10,6 +10,14 @@
 // do RN não herda o adjustResize do Android sozinho, então o teclado
 // cobria "Nome de usuário" e o botão salvar) e paddingBottom baseado em
 // safe-area pra não cortar na barra de navegação do Android.
+// Ajuste 09/2026 (3): o endpoint de troca de e-mail existe agora
+// (POST /api/usuarios/trocar-email/) — campo de e-mail virou editável.
+// A troca não é imediata: salvar dispara o PATCH normal (username/nome/
+// avatar) e, se o e-mail mudou, uma chamada separada que envia um link
+// de confirmação pro e-mail NOVO. `usuario.email` (contexto/AuthContext)
+// só muda quando esse link é confirmado — até lá o login continua
+// exigindo o e-mail antigo, então não precisamos deslogar nem re-buscar
+// token nenhum aqui.
 import React, { useState } from 'react';
 import {
   View,
@@ -40,6 +48,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
   const { alertar } = useKouAlert();
   const [username, setUsername] = useState('');
   const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [fotoArquivo, setFotoArquivo] = useState(null);
@@ -48,6 +57,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
     if (visible) {
       setUsername(usuario?.username || '');
       setNome(usuario?.nome_completo || '');
+      setEmail(usuario?.email || '');
       setFotoPreview(null);
       setFotoArquivo(null);
     }
@@ -87,20 +97,18 @@ export default function ModalEditarPerfil({ visible, onClose }) {
     });
   };
 
-  const solicitarTrocaEmail = () => {
-    alertar(
-      'Em breve',
-      'A troca de e-mail vai passar por uma confirmação por segurança. Essa opção ainda está sendo construída.',
-      [{ text: 'Entendi' }],
-      { pose: 'pensando' }
-    );
-  };
-
   const salvar = async () => {
     if (!username.trim()) {
       alertar('Atenção', 'O username não pode ficar em branco.', [{ text: 'OK' }]);
       return;
     }
+    if (!email.trim()) {
+      alertar('Atenção', 'O e-mail não pode ficar em branco.', [{ text: 'OK' }]);
+      return;
+    }
+
+    const emailMudou = email.trim().toLowerCase() !== (usuario?.email || '').toLowerCase();
+
     setCarregando(true);
     try {
       let resp;
@@ -130,19 +138,7 @@ export default function ModalEditarPerfil({ visible, onClose }) {
       }
 
       const data = await resp.json();
-      if (resp.ok) {
-        atualizarUsuario({
-          username: data.username,
-          nome_completo: data.nome_completo,
-          avatar_url: data.avatar_url,
-        });
-        alertar(
-          'Perfil atualizado!',
-          'Suas informações foram salvas.',
-          [{ text: 'OK', onPress: fechar }],
-          { pose: 'torcendo' }
-        );
-      } else {
+      if (!resp.ok) {
         const msg =
           data.username?.[0] ||
           data.nome_completo?.[0] ||
@@ -150,7 +146,48 @@ export default function ModalEditarPerfil({ visible, onClose }) {
           data.detail ||
           'Erro ao atualizar perfil.';
         alertar('Erro', msg, [{ text: 'OK' }], { pose: 'ops' });
+        return;
       }
+
+      atualizarUsuario({
+        username: data.username,
+        nome_completo: data.nome_completo,
+        avatar_url: data.avatar_url,
+      });
+
+      if (emailMudou) {
+        const respEmail = await authFetch('/api/usuarios/trocar-email/', {
+          method: 'POST',
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        const dataEmail = await respEmail.json();
+
+        if (!respEmail.ok) {
+          const msgEmail = dataEmail.email?.[0] || dataEmail.detail || 'Não foi possível solicitar a troca de e-mail.';
+          alertar(
+            'Perfil atualizado, mas...',
+            msgEmail,
+            [{ text: 'OK', onPress: fechar }],
+            { pose: 'ops' }
+          );
+          return;
+        }
+
+        alertar(
+          'Confirme seu novo e-mail',
+          `Enviamos um link de confirmação para ${email.trim()}. Até você clicar nele, seu login continua sendo feito com o e-mail antigo.`,
+          [{ text: 'Entendi', onPress: fechar }],
+          { pose: 'pensando' }
+        );
+        return;
+      }
+
+      alertar(
+        'Perfil atualizado!',
+        'Suas informações foram salvas.',
+        [{ text: 'OK', onPress: fechar }],
+        { pose: 'torcendo' }
+      );
     } catch {
       alertar('Erro', 'Não foi possível conectar ao servidor.', [{ text: 'OK' }], { pose: 'ops' });
     } finally {
@@ -249,16 +286,19 @@ export default function ModalEditarPerfil({ visible, onClose }) {
               />
 
               <Text style={styles.inputLabel}>E-mail</Text>
-              <TouchableOpacity onPress={solicitarTrocaEmail} activeOpacity={0.7} disabled={carregando}>
-                <View pointerEvents="none">
-                  <TextInput
-                    style={[styles.input, styles.inputTravado]}
-                    value={usuario?.email || ''}
-                    editable={false}
-                  />
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.avisoEmail}>Toque para saber como funciona a troca de e-mail.</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="seu@email.com"
+                placeholderTextColor={colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+              />
+              <Text style={styles.avisoEmail}>
+                Mudar o e-mail exige confirmação: enviaremos um link para o endereço novo antes de efetivar a troca.
+              </Text>
 
               <TouchableOpacity
                 style={[styles.btnPrincipal, carregando && { opacity: 0.6 }]}
@@ -308,10 +348,9 @@ const styles = StyleSheet.create({
     fontFamily: typography.regular, fontSize: fontSize.body, color: colors.text,
     marginBottom: spacing.md, borderWidth: 1, borderColor: '#35355a',
   },
-  inputTravado: { opacity: 0.55, marginBottom: spacing.xs },
   avisoEmail: {
     fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary,
-    marginBottom: spacing.md,
+    marginBottom: spacing.md, lineHeight: 16,
   },
   avatarEditRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.xl },
   avatarEdit: {

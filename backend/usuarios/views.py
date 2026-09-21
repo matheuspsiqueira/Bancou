@@ -9,6 +9,7 @@ from .serializers import (
     RegistroSerializer,
     UsuarioSerializer,
     AtualizarPerfilSerializer,
+    SolicitarTrocaEmailSerializer,
     AlterarSenhaSerializer,
     RegistrarResultadoSerializer,
     SolicitarRecuperacaoSenhaSerializer,
@@ -19,12 +20,6 @@ from usuarios.services import checar_decaimento_streak
 
 
 class RegistroView(generics.CreateAPIView):
-    """
-    POST /api/usuarios/registro/
-    Cria o usuário com is_active=False e dispara o e-mail de verificação.
-    Não retorna mais access/refresh — login só é possível após a
-    confirmação do e-mail (ver VerificarEmailView).
-    """
     serializer_class = RegistroSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -42,7 +37,8 @@ class VerificarEmailView(generics.GenericAPIView):
     """
     POST /api/usuarios/verificar-email/
     Body: { "token": "..." }
-    Chamado pela página web de confirmação, não pelo app.
+    Chamado pela página web de confirmação — serve tanto pra ativar a
+    conta no cadastro quanto pra efetivar uma troca de e-mail pendente.
     """
     serializer_class = VerificarEmailSerializer
     permission_classes = [AllowAny]
@@ -52,6 +48,27 @@ class VerificarEmailView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'detail': 'E-mail verificado com sucesso!'}, status=status.HTTP_200_OK)
+
+
+class SolicitarTrocaEmailView(generics.GenericAPIView):
+    """
+    POST /api/usuarios/trocar-email/
+    Body: { "email": "novo@email.com" }
+    Autenticado. Envia um link de confirmação para o NOVO e-mail. A troca
+    só é efetivada quando esse link é clicado (VerificarEmailView) — até
+    lá, o login continua exigindo o e-mail atual.
+    """
+    serializer_class = SolicitarTrocaEmailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {'detail': 'Enviamos um link de confirmação para o novo e-mail.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 class PerfilView(APIView):

@@ -19,11 +19,15 @@ class Usuario(AbstractUser):
     codigo_recuperacao_senha = models.CharField(max_length=6, null=True, blank=True)
     codigo_recuperacao_expira_em = models.DateTimeField(null=True, blank=True)
 
-    # ─── Verificação de e-mail no cadastro ───────────────────────────────
+    # ─── Verificação de e-mail (cadastro e troca de e-mail) ──────────────
     # is_active (herdado do AbstractUser) começa False no cadastro e só
-    # vira True quando o token abaixo é confirmado. O SimpleJWT já bloqueia
+    # vira True quando o token é confirmado. O SimpleJWT já bloqueia
     # login de conta inativa automaticamente — sem lógica extra necessária.
     token_verificacao_email = models.CharField(max_length=64, null=True, blank=True)
+    # Preenchido quando o usuário (já ativo) solicita troca de e-mail pelo
+    # perfil. `email` só é sobrescrito por esse valor quando o token acima
+    # é confirmado — até lá, o login continua com o e-mail atual.
+    email_pendente = models.EmailField(null=True, blank=True)
 
     VIDAS_MAXIMAS = 3
 

@@ -42,7 +42,6 @@ class RegistroSerializer(serializers.ModelSerializer):
             nome_completo=validated_data['nome_completo'],
             password=validated_data['password'],
         )
-        # Conta fica inativa até a verificação de e-mail.
         usuario.is_active = False
         usuario.token_verificacao_email = secrets.token_urlsafe(32)
         usuario.save(update_fields=['is_active', 'token_verificacao_email'])
@@ -81,9 +80,11 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 
 class AtualizarPerfilSerializer(serializers.ModelSerializer):
+    # `email` NÃO fica aqui de propósito — a troca de e-mail passa
+    # exclusivamente pelo fluxo de confirmação em SolicitarTrocaEmailSerializer.
     class Meta:
         model = Usuario
-        fields = ('nome_completo', 'username', 'email', 'avatar')
+        fields = ('nome_completo', 'username', 'avatar')
         extra_kwargs = {'avatar': {'required': False}}
 
     def validate_avatar(self, value):
@@ -102,11 +103,43 @@ class AtualizarPerfilSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Este nome de usuário já está em uso.')
         return value
 
+
+class SolicitarTrocaEmailSerializer(serializers.Serializer):
+    """
+    POST autenticado. Não troca o e-mail na hora — só registra o pedido e
+    manda o link de confirmação pro e-mail NOVO. A troca só é efetivada
+    quando esse link é clicado (ver VerificarEmailSerializer).
+    """
+    email = serializers.EmailField()
+
     def validate_email(self, value):
-        usuario_atual = self.instance
-        if Usuario.objects.filter(email__iexact=value).exclude(pk=usuario_atual.pk).exists():
-            raise serializers.ValidationError('Este e-mail já está em uso.')
+        usuario = self.context['request'].user
+        if value.lower() == usuario.email.lower():
+            raise serializers.ValidationError('Esse já é o seu e-mail atual.')
+        if Usuario.objects.filter(email__iexact=value).exclude(pk=usuario.pk).exists():
+            raise serializers.ValidationError('Este e-mail já está em uso por outra conta.')
         return value
+
+    def save(self):
+        usuario = self.context['request'].user
+        usuario.email_pendente = self.validated_data['email']
+        usuario.token_verificacao_email = secrets.token_urlsafe(32)
+        usuario.save(update_fields=['email_pendente', 'token_verificacao_email'])
+
+        request = self.context['request']
+        link = request.build_absolute_uri(f'/verificar-email/?token={usuario.token_verificacao_email}')
+        send_mail(
+            subject='Bancou — Confirme seu novo e-mail',
+            message=(
+                'Você solicitou a troca do e-mail da sua conta Bancou. '
+                'Clique no link abaixo para confirmar este novo endereço:\n\n'
+                f'{link}\n\n'
+                'Se você não solicitou essa troca, ignore este e-mail — seu e-mail atual continua o mesmo.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[usuario.email_pendente],
+        )
+        return usuario
 
 
 class AlterarSenhaSerializer(serializers.Serializer):
@@ -245,6 +278,10 @@ class ConfirmarRecuperacaoSenhaSerializer(serializers.Serializer):
 class VerificarEmailSerializer(serializers.Serializer):
     """
     Usado pela página web de confirmação (app `landing`), não pelo app.
+    Um único token cumpre dois papéis diferentes, dependendo do estado
+    do usuário no momento da confirmação:
+      - conta ainda inativa (is_active=False)  -> ativa a conta (cadastro)
+      - conta ativa com email_pendente setado  -> efetiva a troca de e-mail
     Token é de uso único: some do banco assim que consumido.
     """
     token = serializers.CharField()
@@ -257,7 +294,12 @@ class VerificarEmailSerializer(serializers.Serializer):
         return value
 
     def save(self):
-        self.usuario.is_active = True
-        self.usuario.token_verificacao_email = None
-        self.usuario.save(update_fields=['is_active', 'token_verificacao_email'])
-        return self.usuario
+        usuario = self.usuario
+        if not usuario.is_active:
+            usuario.is_active = True
+        elif usuario.email_pendente:
+            usuario.email = usuario.email_pendente
+            usuario.email_pendente = None
+        usuario.token_verificacao_email = None
+        usuario.save(update_fields=['is_active', 'email', 'email_pendente', 'token_verificacao_email'])
+        return usuario
