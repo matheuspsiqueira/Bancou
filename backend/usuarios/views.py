@@ -39,9 +39,17 @@ class VerificarEmailView(generics.GenericAPIView):
     Body: { "token": "..." }
     Chamado pela página web de confirmação — serve tanto pra ativar a
     conta no cadastro quanto pra efetivar uma troca de e-mail pendente.
+
+    authentication_classes=[] é proposital: esse endpoint é acessado por
+    uma página anônima via fetch simples (sem JWT). Sem isso, se o
+    navegador tiver uma sessão de admin logada, o SessionAuthentication
+    padrão do DRF detecta essa sessão e passa a exigir CSRF token —
+    retornando 403 mesmo com permission_classes=[AllowAny], porque
+    autenticação e permissão são checadas em etapas separadas.
     """
     serializer_class = VerificarEmailSerializer
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
