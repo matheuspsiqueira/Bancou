@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmar exclusão de conta — Bancou</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="../../static/landing/img/kou-animado.png">
+  <style>
+    :root {
+      --primary: #6C63FF;
+      --orange: #FF6B35;
+      --green: #00C896;
+      --red: #FF4069;
+      --bg: #1a1a2e;
+      --card: #252540;
+      --text: #FFFFFF;
+      --text-secondary: #9090B0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    .logo {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: 32px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .logo .ponto { color: var(--orange); }
+    .icone { font-size: 48px; margin: 16px 0; }
+    h1 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: var(--text);
+      margin: 0 0 12px;
+    }
+    p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .lista-avisos {
+      text-align: left;
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.7;
+      margin: 0 0 24px;
+      padding-left: 20px;
+    }
+    button {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text);
+      background: var(--red);
+      border: none;
+      border-radius: 14px;
+      padding: 14px 32px;
+      width: 100%;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .sucesso { color: var(--green); }
+    .erro { color: var(--red); }
+    .cancelar {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Bancou<span class="ponto">.</span></div>
+
+    <div id="estado-inicial">
+      <div class="icone">⚠️</div>
+      <h1>Excluir conta permanentemente?</h1>
+      <p>Esta ação não pode ser desfeita. Ao confirmar:</p>
+      <ul class="lista-avisos">
+        <li>Sua conta e seu login deixam de existir</li>
+        <li>Todo o progresso (XP, moedas, streak, conquistas) é apagado</li>
+        <li>Não é possível recuperar esses dados depois</li>
+      </ul>
+      <button id="btn-confirmar">Sim, excluir minha conta</button>
+      <a href="/" class="cancelar">Cancelar e voltar para o Bancou</a>
+    </div>
+
+    <div id="estado-sucesso" style="display:none;">
+      <div class="icone">✅</div>
+      <h1 class="sucesso">Conta excluída</h1>
+      <p>Sua conta e seus dados foram removidos permanentemente. Sentiremos sua falta — você é sempre bem-vindo de volta.</p>
+    </div>
+
+    <div id="estado-erro" style="display:none;">
+      <div class="icone">⚠️</div>
+      <h1 class="erro">Não foi possível excluir</h1>
+      <p id="erro-mensagem">Este link é inválido ou já expirou.</p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const btn = document.getElementById('btn-confirmar');
+    const estadoInicial = document.getElementById('estado-inicial');
+    const estadoSucesso = document.getElementById('estado-sucesso');
+    const estadoErro = document.getElementById('estado-erro');
+    const erroMensagem = document.getElementById('erro-mensagem');
+
+    if (!token) {
+      estadoInicial.style.display = 'none';
+      estadoErro.style.display = 'block';
+      erroMensagem.textContent = 'Link incompleto — token não encontrado.';
+    }
+
+    btn?.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Excluindo...';
+      try {
+        const res = await fetch('/api/usuarios/excluir-conta/confirmar/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        if (res.ok) {
+          estadoInicial.style.display = 'none';
+          estadoSucesso.style.display = 'block';
+        } else {
+          const data = await res.json().catch(() => ({}));
+          estadoInicial.style.display = 'none';
+          estadoErro.style.display = 'block';
+          erroMensagem.textContent = data.token?.[0] || 'Este link é inválido ou já expirou.';
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Sim, excluir minha conta';
+        erroMensagem.textContent = 'Erro de conexão. Tente novamente.';
+        estadoErro.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

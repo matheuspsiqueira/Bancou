@@ -43,7 +43,8 @@
   <div class="footer-links">
     <a href="{% url 'landing:termos' %}">Termos de Uso</a>
     <a href="{% url 'landing:privacidade' %}">Política de Privacidade</a>
-    <a href="mailto:suporte@bancou.app">suporte@bancou.app</a>
+    <a href="{% url 'landing:excluir_conta' %}">Excluir Conta</a>
+    <a href="mailto:suporte@bancou.app">suporte@bancou.app.br</a>
   </div>
   <p class="footer-copy">© {% now "Y" %} Bancou. Todos os direitos reservados.</p>
 </footer>

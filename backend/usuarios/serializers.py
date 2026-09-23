@@ -299,3 +299,75 @@ class VerificarEmailSerializer(serializers.Serializer):
         usuario.token_verificacao_email = None
         usuario.save(update_fields=['is_active', 'email', 'email_pendente', 'token_verificacao_email'])
         return usuario
+
+
+class SolicitarExclusaoContaSerializer(serializers.Serializer):
+    """
+    Usado pela página pública `/excluir-conta/` (exigência da Play Store:
+    link público de exclusão que não depende de login nem do app
+    instalado). Não revela se o e-mail existe na base — mesma postura da
+    recuperação de senha — pra não vazar quais e-mails estão cadastrados.
+    """
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        self.usuario = Usuario.objects.filter(email__iexact=value).first()
+        return value
+
+    def save(self):
+        if self.usuario:
+            self.usuario.token_exclusao_conta = secrets.token_urlsafe(32)
+            self.usuario.token_exclusao_expira_em = timezone.now() + timedelta(minutes=30)
+            self.usuario.save(update_fields=['token_exclusao_conta', 'token_exclusao_expira_em'])
+
+            request = self.context.get('request')
+            link = request.build_absolute_uri(
+                f'/excluir-conta/confirmar/?token={self.usuario.token_exclusao_conta}'
+            )
+            primeiro_nome = (
+                self.usuario.nome_completo.strip().split(' ')[0]
+                if self.usuario.nome_completo else self.usuario.username
+            )
+            enviar_email_html(
+                destinatario=self.usuario.email,
+                assunto='Bancou — Confirme a exclusão da sua conta',
+                template_name='confirmar_exclusao_conta',
+                contexto={'nome': primeiro_nome, 'link': link, 'expira_minutos': 30},
+                texto_alternativo=(
+                    f'Olá, {primeiro_nome}.\n\n'
+                    'Recebemos uma solicitação para excluir sua conta no Bancou. Essa ação é '
+                    'irreversível: todo o seu progresso (XP, moedas, streak, conquistas) e seus '
+                    'dados pessoais serão apagados permanentemente.\n\n'
+                    'Se foi você quem solicitou, clique no link abaixo para confirmar:\n\n'
+                    f'{link}\n\n'
+                    'Este link expira em 30 minutos. Se você não solicitou essa exclusão, ignore '
+                    'este e-mail — sua conta continua normalmente.'
+                ),
+            )
+
+
+class ConfirmarExclusaoContaSerializer(serializers.Serializer):
+    """
+    Usado pela página web de confirmação final `/excluir-conta/confirmar/`.
+    Token de uso único e com expiração — diferente do token de verificação
+    de e-mail, aqui a ação é destrutiva e irreversível, então o link não
+    pode ficar válido indefinidamente.
+    """
+    token = serializers.CharField()
+
+    def validate_token(self, value):
+        usuario = Usuario.objects.filter(token_exclusao_conta=value).first()
+        token_invalido = (
+            not usuario
+            or usuario.token_exclusao_expira_em is None
+            or timezone.now() > usuario.token_exclusao_expira_em
+        )
+        if token_invalido:
+            raise serializers.ValidationError('Link inválido ou expirado.')
+        self.usuario = usuario
+        return value
+
+    def save(self):
+        usuario = self.usuario
+        usuario.delete()
+        return usuario

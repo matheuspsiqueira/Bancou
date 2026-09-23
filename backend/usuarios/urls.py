@@ -4,6 +4,7 @@ from .views import (
     RegistroView, PerfilView, AlterarSenhaView, RegistrarResultadoView,
     RecuperarVidaView, SolicitarRecuperacaoSenhaView, ConfirmarRecuperacaoSenhaView,
     VerificarEmailView, SolicitarTrocaEmailView,
+    SolicitarExclusaoContaView, ConfirmarExclusaoContaView,
 )
 
 urlpatterns = [
@@ -18,4 +19,6 @@ urlpatterns = [
     path('recuperar-vida/', RecuperarVidaView.as_view(), name='recuperar_vida'),
     path('recuperar-senha/', SolicitarRecuperacaoSenhaView.as_view(), name='recuperar-senha'),
     path('recuperar-senha/confirmar/', ConfirmarRecuperacaoSenhaView.as_view(), name='recuperar-senha-confirmar'),
+    path('excluir-conta/solicitar/', SolicitarExclusaoContaView.as_view(), name='excluir-conta-solicitar'),
+    path('excluir-conta/confirmar/', ConfirmarExclusaoContaView.as_view(), name='excluir-conta-confirmar'),
 ]

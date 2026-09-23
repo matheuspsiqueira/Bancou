@@ -27,3 +27,25 @@ class VerificarEmailView(TemplateView):
         if not request.GET.get('token'):
             return redirect('landing:index')
         return super().get(request, *args, **kwargs)
+
+
+class ExcluirContaView(TemplateView):
+    """
+    Página pública de exclusão de conta (exigência da Play Store — Data
+    Safety form). Usuário informa o e-mail; o backend cuida do envio do
+    link de confirmação.
+    """
+    template_name = 'landing/excluir_conta.html'
+
+
+class ConfirmarExclusaoContaView(TemplateView):
+    """
+    Mesma lógica de segurança do VerificarEmailView: só renderiza a
+    página de confirmação final se vier um token na URL.
+    """
+    template_name = 'landing/excluir_conta_confirmar.html'
+
+    def get(self, request, *args, **kwargs):
+        if not request.GET.get('token'):
+            return redirect('landing:index')
+        return super().get(request, *args, **kwargs)

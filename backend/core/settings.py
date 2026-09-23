@@ -139,6 +139,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'recuperar-senha-solicitar': '5/hour',
         'recuperar-senha-confirmar': '10/hour',
+        'excluir-conta-solicitar' : '5/hour',
+        'excluir-conta-confirmar' : '10/hour',
     },
 }
 

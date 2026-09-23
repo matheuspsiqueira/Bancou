@@ -15,6 +15,8 @@ from .serializers import (
     SolicitarRecuperacaoSenhaSerializer,
     ConfirmarRecuperacaoSenhaSerializer,
     VerificarEmailSerializer,
+    SolicitarExclusaoContaSerializer,
+    ConfirmarExclusaoContaSerializer,
 )
 from usuarios.services import checar_decaimento_streak
 
@@ -188,3 +190,49 @@ class ConfirmarRecuperacaoSenhaView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'detail': 'Senha redefinida com sucesso.'}, status=status.HTTP_200_OK)
+
+
+class SolicitarExclusaoContaView(generics.GenericAPIView):
+    """
+    POST /api/usuarios/excluir-conta/solicitar/
+    Body: { "email": "..." }
+    Chamado pela página pública `/excluir-conta/` (sem login). Exigência
+    da Play Store (Data Safety): precisa existir um link público de
+    exclusão de conta que não dependa do app instalado nem de sessão
+    autenticada.
+    """
+    serializer_class = SolicitarExclusaoContaSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'excluir-conta-solicitar'
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {'detail': 'Se o e-mail existir em nossa base, enviamos um link de confirmação.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ConfirmarExclusaoContaView(generics.GenericAPIView):
+    """
+    POST /api/usuarios/excluir-conta/confirmar/
+    Body: { "token": "..." }
+    Chamado pela página web de confirmação final. authentication_classes=[]
+    pelo mesmo motivo do VerificarEmailView (ver docstring acima): evita
+    que uma sessão de admin ativa no navegador force checagem de CSRF
+    num endpoint AllowAny.
+    """
+    serializer_class = ConfirmarExclusaoContaSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'excluir-conta-confirmar'
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'Conta excluída com sucesso.'}, status=status.HTTP_200_OK)

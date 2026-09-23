@@ -29,6 +29,15 @@ class Usuario(AbstractUser):
     # é confirmado — até lá, o login continua com o e-mail atual.
     email_pendente = models.EmailField(null=True, blank=True)
 
+    # ─── Exclusão de conta via página pública (sem login na web) ─────────
+    # Usado pelo fluxo obrigatório da Play Store (Data Safety): usuário
+    # informa o e-mail numa página pública, recebe um link por e-mail e
+    # confirma a exclusão. Token de uso único, com expiração curta por ser
+    # uma ação irreversível e destrutiva — diferente do
+    # token_verificacao_email (que não expira).
+    token_exclusao_conta = models.CharField(max_length=64, null=True, blank=True)
+    token_exclusao_expira_em = models.DateTimeField(null=True, blank=True)
+
     VIDAS_MAXIMAS = 3
 
     USERNAME_FIELD = 'email'
