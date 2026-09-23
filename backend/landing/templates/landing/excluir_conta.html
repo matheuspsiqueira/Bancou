@@ -18,7 +18,11 @@
       --text: #FFFFFF;
       --text-secondary: #9090B0;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -29,6 +33,7 @@
       padding: 24px;
       font-family: 'Inter', sans-serif;
     }
+
     .card {
       background: var(--card);
       border-radius: 20px;
@@ -37,6 +42,7 @@
       width: 100%;
       text-align: center;
     }
+
     .logo {
       font-family: 'Nunito', sans-serif;
       font-weight: 900;
@@ -44,8 +50,19 @@
       color: var(--text);
       margin-bottom: 8px;
     }
-    .logo .ponto { color: var(--orange); }
-    .icone { font-size: 48px; margin: 16px 0; }
+
+    .logo .ponto {
+      color: var(--orange);
+    }
+
+    .icone {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      display: block;
+      margin: 16px auto;
+    }
+
     h1 {
       font-family: 'Nunito', sans-serif;
       font-weight: 800;
@@ -53,12 +70,14 @@
       color: var(--text);
       margin: 0 0 12px;
     }
+
     p {
       color: var(--text-secondary);
       font-size: 15px;
       line-height: 1.6;
       margin: 0 0 24px;
     }
+
     label {
       display: block;
       text-align: left;
@@ -68,6 +87,7 @@
       color: var(--text-secondary);
       margin-bottom: 6px;
     }
+
     input[type="email"] {
       width: 100%;
       background: var(--bg);
@@ -79,10 +99,12 @@
       color: var(--text);
       margin-bottom: 20px;
     }
+
     input[type="email"]:focus {
       outline: none;
       border-color: var(--primary);
     }
+
     button {
       font-family: 'Nunito', sans-serif;
       font-weight: 700;
@@ -95,9 +117,20 @@
       width: 100%;
       cursor: pointer;
     }
-    button:disabled { opacity: 0.6; cursor: default; }
-    .sucesso { color: var(--green); }
-    .erro { color: var(--red); }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .sucesso {
+      color: var(--green);
+    }
+
+    .erro {
+      color: var(--red);
+    }
+
     .voltar {
       display: inline-block;
       margin-top: 16px;
@@ -107,32 +140,68 @@
     }
   </style>
 </head>
+
 <body>
   <div class="card">
     <div class="logo">Bancou<span class="ponto">.</span></div>
 
     <div id="estado-inicial">
-      <div class="icone">🗑️</div>
+      <img
+        src="../../static/landing/img/lixeira.png"
+        alt="Excluir conta"
+        class="icone"
+      >
+
       <h1>Excluir sua conta</h1>
-      <p>Informe o e-mail cadastrado no Bancou. Vamos te enviar um link para confirmar a exclusão — essa ação é irreversível e apaga todos os seus dados permanentemente.</p>
+
+      <p>
+        Informe o e-mail cadastrado no Bancou. Vamos te enviar um link para
+        confirmar a exclusão — essa ação é irreversível e apaga todos os seus
+        dados permanentemente.
+      </p>
+
       <form id="form-excluir">
         <label for="email">E-mail</label>
-        <input type="email" id="email" name="email" placeholder="seu@email.com" required>
-        <button type="submit" id="btn-enviar">Enviar link de confirmação</button>
+
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="seu@email.com"
+          required
+        >
+
+        <button type="submit" id="btn-enviar">
+          Enviar link de confirmação
+        </button>
       </form>
+
       <a href="/" class="voltar">← Voltar para o Bancou</a>
     </div>
 
     <div id="estado-sucesso" style="display:none;">
-      <div class="icone">📧</div>
+      <img
+        src="../../static/landing/img/envio.png"
+        alt="E-mail enviado"
+        class="icone"
+      >
+
       <h1 class="sucesso">Verifique seu e-mail</h1>
-      <p>Se esse e-mail existir na nossa base, enviamos um link de confirmação. Ele expira em 30 minutos — confira também a caixa de spam.</p>
+
+      <p>
+        Se esse e-mail existir na nossa base, enviamos um link de confirmação.
+        Ele expira em 30 minutos — confira também a caixa de spam.
+      </p>
     </div>
 
     <div id="estado-erro" style="display:none;">
       <div class="icone">⚠️</div>
+
       <h1 class="erro">Algo deu errado</h1>
-      <p id="erro-mensagem">Não foi possível enviar o link agora. Tente novamente em instantes.</p>
+
+      <p id="erro-mensagem">
+        Não foi possível enviar o link agora. Tente novamente em instantes.
+      </p>
     </div>
   </div>
 
@@ -146,32 +215,46 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
       const email = document.getElementById('email').value.trim();
+
       btn.disabled = true;
       btn.textContent = 'Enviando...';
+
       try {
         const res = await fetch('/api/usuarios/excluir-conta/solicitar/', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({ email }),
         });
+
         if (res.ok) {
           estadoInicial.style.display = 'none';
           estadoSucesso.style.display = 'block';
         } else {
           const data = await res.json().catch(() => ({}));
+
           estadoInicial.style.display = 'none';
           estadoErro.style.display = 'block';
-          erroMensagem.textContent = data.email?.[0] || 'Não foi possível enviar o link agora. Tente novamente em instantes.';
+
+          erroMensagem.textContent =
+            data.email?.[0] ||
+            'Não foi possível enviar o link agora. Tente novamente em instantes.';
         }
       } catch (err) {
         btn.disabled = false;
         btn.textContent = 'Enviar link de confirmação';
+
         estadoInicial.style.display = 'none';
         estadoErro.style.display = 'block';
-        erroMensagem.textContent = 'Erro de conexão. Tente novamente.';
+
+        erroMensagem.textContent =
+          'Erro de conexão. Tente novamente.';
       }
     });
   </script>
 </body>
 </html>
+```
