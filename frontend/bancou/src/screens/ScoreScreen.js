@@ -12,6 +12,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tocar } from '../services/somService';
 import ModalConquistaDesbloqueada from '../components/modals/ModalConquistaDesbloqueada';
+import {
+  registrarPartidaConcluida,
+  intersticialDevido,
+  preCarregarIntersticial,
+  mostrarIntersticialSeDevido,
+} from '../services/adsService';
 
 // ─── Lógica de faixa de resultado ────────────────────────────────────────
 function getFaixa(acertos, total, abandonada) {
@@ -105,6 +111,32 @@ export default function ScoreScreen({ navigation, route }) {
     } else {
       setModalConquistaVisivel(false);
     }
+  };
+
+  // ── Anúncio intersticial (a cada N partidas concluídas) ────────────────
+  // Conta a partida ao montar (abandonadas não contam) e, se já for a vez,
+  // começa a carregar o anúncio enquanto o usuário vê o resultado. Ele só é
+  // exibido ao SAIR da tela (botões abaixo), pra não competir com as
+  // animações, o som de fim de partida nem com o modal de conquista.
+  const [saindo, setSaindo] = useState(false);
+
+  useEffect(() => {
+    if (abandonada) return;
+    (async () => {
+      await registrarPartidaConcluida();
+      if (await intersticialDevido()) preCarregarIntersticial();
+    })();
+  }, []);
+
+  const sair = async (destino) => {
+    if (saindo) return;
+    setSaindo(true);
+    try {
+      await mostrarIntersticialSeDevido();
+    } catch {
+      // anúncio nunca pode travar a navegação
+    }
+    destino();
   };
 
   // ── Som de fim de partida ────────────────────────────────────────────
@@ -224,7 +256,7 @@ export default function ScoreScreen({ navigation, route }) {
       <Animated.View style={[styles.ctaWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <TouchableOpacity
           style={styles.botaoPrimario}
-          onPress={() => navigation.replace('Home')}
+          onPress={() => sair(() => navigation.replace('Home'))}
           activeOpacity={0.85}
         >
           <Text style={styles.botaoPrimarioTexto}>Jogar novamente</Text>
@@ -232,7 +264,7 @@ export default function ScoreScreen({ navigation, route }) {
 
         <TouchableOpacity
           style={styles.botaoSecundario}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => sair(() => navigation.navigate('Home'))}
           activeOpacity={0.75}
         >
           <Text style={styles.botaoSecundarioTexto}>Voltar ao início</Text>

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import Usuario
+from .models import Usuario, AnuncioVidaExtra
 from .emails import enviar_email_html
 import random
 import secrets
@@ -64,14 +64,18 @@ class RegistroSerializer(serializers.ModelSerializer):
 
 class UsuarioSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
+    anuncios_vida_restantes = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
         fields = (
             'id', 'email', 'username', 'nome_completo', 'avatar_url',
-            'xp', 'moedas', 'vidas', 'streak',
+            'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
         )
-        read_only_fields = ('xp', 'moedas', 'vidas', 'streak')
+        read_only_fields = ('xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes')
+
+    def get_anuncios_vida_restantes(self, obj):
+        return AnuncioVidaExtra.restantes_hoje(obj)
 
     def get_avatar_url(self, obj):
         request = self.context.get('request')

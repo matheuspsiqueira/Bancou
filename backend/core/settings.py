@@ -141,6 +141,7 @@ REST_FRAMEWORK = {
         'recuperar-senha-confirmar': '10/hour',
         'excluir-conta-solicitar' : '5/hour',
         'excluir-conta-confirmar' : '10/hour',
+        'anuncio-vida-iniciar': '20/hour',
     },
 }
 
@@ -167,3 +168,13 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'Bancou <naoresponda@bancou.app.br>'
+
+
+
+# ─── Anúncios (AdMob) ────────────────────────────────────────────────
+# Bloco premiado "Vida Extra Rewarded" — o SSV só aceita callbacks desse bloco.
+ADMOB_UNIDADE_PREMIADO = config('ADMOB_UNIDADE_PREMIADO', default='ca-app-pub-5823717618050092/5364311155')
+# SÓ para desenvolvimento local (.env). Permite confirmar a vida sem o callback
+# do Google, porque anúncios de TESTE não disparam SSV. Em produção (Render)
+# deve ficar ausente/False — ligar em produção reabre o furo de segurança.
+ANUNCIOS_CONFIRMACAO_DIRETA = config('ANUNCIOS_CONFIRMACAO_DIRETA', default=False, cast=bool)

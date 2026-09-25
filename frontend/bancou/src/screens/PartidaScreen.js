@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import { tocar } from '../services/somService';
+import { ADS } from '../adsConfig';
+import { assistirAnuncioPremiado } from '../services/adsService';
 import { colors, typography, fontSize, spacing } from '../theme';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
@@ -105,6 +107,8 @@ export default function PartidaScreen({ navigation, route }) {
   // inventario: { pula_questao: 2, elimina_alternativas: 1, ... }
   const [inventario, setInventario] = useState({});
   const [usandoBuff, setUsandoBuff] = useState(null); // codigo do buff em requisição, ou null
+  // Mensagem da tela de loading durante o fluxo do anúncio de vida extra (null = padrão)
+  const [statusAd, setStatusAd] = useState(null);
   const [alternativasEliminadas, setAlternativasEliminadas] = useState([]);
 
   // ── Timer ───────────────────────────────────────────────────────────────
@@ -117,17 +121,102 @@ export default function PartidaScreen({ navigation, route }) {
   useEffect(() => {
     // Bloqueia entrada se usuário está sem vidas (checagem definitiva é no backend)
     if ((usuario?.vidas ?? 3) === 0) {
-      alertar(
-        'Sem vidas!',
-        'Você não tem vidas suficientes para jogar. Aguarde a recuperação ou compre na loja.',
-        [{ text: 'Voltar', onPress: () => navigation.goBack() }],
-        { pose: 'ops' }
-      );
+      mostrarAlertaSemVidas();
       return;
     }
     buscarQuestoes();
     buscarInventario();
   }, []);
+
+  // ── Sem vidas: oferece anúncio premiado (+1 vida) ───────────────────────
+  // Fluxo seguro: o app pede um token ao backend, passa o token ao AdMob e
+  // a vida só é creditada quando o GOOGLE confirma o anúncio (SSV) — por
+  // isso, depois do anúncio, o app aguarda o backend creditar (polling do perfil).
+  const mostrarAlertaSemVidas = () => {
+    const podeAssistir = (usuario?.anuncios_vida_restantes ?? 1) > 0;
+    const botoes = [];
+    if (podeAssistir) {
+      botoes.push({ text: 'Assistir anúncio (+1 vida)', onPress: assistirAnuncioParaVida });
+    }
+    botoes.push({ text: 'Voltar', style: 'cancel', onPress: () => navigation.goBack() });
+
+    alertar(
+      'Sem vidas!',
+      podeAssistir
+        ? 'Assista a um anúncio para ganhar 1 vida e jogar agora — ou aguarde a recuperação.'
+        : 'Você já usou todos os anúncios de vida de hoje. Aguarde a recuperação ou compre na loja.',
+      botoes,
+      { pose: 'ops' }
+    );
+  };
+
+  const aguardarVidaCreditada = async () => {
+    for (let tentativa = 0; tentativa < 12; tentativa++) {
+      const resp = await authFetch('/api/usuarios/perfil/');
+      if (resp.ok) {
+        const perfil = await resp.json();
+        if ((perfil.vidas ?? 0) > 0) return perfil;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return null;
+  };
+
+  const assistirAnuncioParaVida = async () => {
+    try {
+      setStatusAd('Preparando anúncio…');
+
+      // 1) token do backend (também valida vidas == 0 e o limite diário)
+      const r1 = await authFetch('/api/usuarios/anuncios/vida-extra/iniciar/', { method: 'POST' });
+      const d1 = await r1.json();
+      if (!r1.ok) throw new Error(d1.detail || 'Não foi possível iniciar o anúncio.');
+
+      // 2) anúncio (o token viaja ao Google como customData)
+      const { recompensa } = await assistirAnuncioPremiado({ userId: usuario.id, token: d1.token });
+      if (!recompensa) {
+        setStatusAd(null);
+        alertar(
+          'Anúncio interrompido',
+          'Assista ao anúncio até o fim para ganhar a vida.',
+          [{ text: 'OK', onPress: mostrarAlertaSemVidas }],
+          { pose: 'ops' }
+        );
+        return;
+      }
+
+      // 3) confirmação: em produção quem confirma é o Google (SSV);
+      //    no modo teste (adsConfig) o app pede a confirmação direta.
+      setStatusAd('Confirmando anúncio…');
+      if (ADS.confirmacaoDireta) {
+        const r2 = await authFetch('/api/usuarios/anuncios/vida-extra/confirmar-teste/', {
+          method: 'POST',
+          body: JSON.stringify({ token: d1.token }),
+        });
+        if (!r2.ok) {
+          const d2 = await r2.json().catch(() => ({}));
+          throw new Error(d2.detail || 'Falha ao confirmar o anúncio (modo teste).');
+        }
+      }
+
+      // 4) espera o backend creditar a vida e segue para a partida
+      const perfil = await aguardarVidaCreditada();
+      if (!perfil) {
+        throw new Error('Não conseguimos confirmar o anúncio agora. Se você assistiu até o fim, tente novamente em instantes.');
+      }
+      atualizarUsuario(perfil);
+      setStatusAd(null);
+      buscarQuestoes();
+      buscarInventario();
+    } catch (e) {
+      setStatusAd(null);
+      alertar(
+        'Não deu certo',
+        e.message || 'Não foi possível carregar o anúncio. Tente novamente.',
+        [{ text: 'OK', onPress: mostrarAlertaSemVidas }],
+        { pose: 'ops' }
+      );
+    }
+  };
 
   const buscarQuestoes = async () => {
     setCarregando(true);
@@ -449,7 +538,7 @@ export default function PartidaScreen({ navigation, route }) {
     return (
       <View style={[styles.centrado, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingTexto}>Preparando sua partida…</Text>
+        <Text style={styles.loadingTexto}>{statusAd ?? 'Preparando sua partida…'}</Text>
       </View>
     );
   }

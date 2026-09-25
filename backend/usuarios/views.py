@@ -1,10 +1,15 @@
+import logging
+
+from django.conf import settings
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.permissions import AllowAny
-from .models import Usuario
+from .models import Usuario, AnuncioVidaExtra
+from . import anuncios
 from .serializers import (
     RegistroSerializer,
     UsuarioSerializer,
@@ -19,6 +24,8 @@ from .serializers import (
     ConfirmarExclusaoContaSerializer,
 )
 from usuarios.services import checar_decaimento_streak
+
+logger = logging.getLogger(__name__)
 
 
 class RegistroView(generics.CreateAPIView):
@@ -148,6 +155,101 @@ class RecuperarVidaView(APIView):
         usuario.vidas += 1
         usuario.save(update_fields=['vidas'])
         return Response(UsuarioSerializer(usuario, context={'request': request}).data)
+
+
+class AnuncioVidaExtraIniciarView(APIView):
+    """
+    POST /api/usuarios/anuncios/vida-extra/iniciar/
+    1º passo do fluxo do anúncio premiado no alert "sem vidas": devolve um
+    `token` que o app passa ao AdMob como `custom_data`. A vida NÃO é
+    creditada aqui — só quando o Google confirmar o anúncio (AnuncioSSVView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'anuncio-vida-iniciar'
+
+    def post(self, request):
+        usuario = request.user
+        if usuario.vidas > 0:
+            return Response(
+                {'detail': 'Você ainda tem vidas disponíveis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        restantes = AnuncioVidaExtra.restantes_hoje(usuario)
+        if restantes <= 0:
+            return Response(
+                {'detail': 'Você já usou todos os anúncios de vida de hoje.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Faxina: tentativas antigas que nunca foram confirmadas.
+        AnuncioVidaExtra.objects.filter(
+            usuario=usuario,
+            confirmado_em__isnull=True,
+            criado_em__lt=timezone.now() - anuncios.VALIDADE_TOKEN,
+        ).delete()
+
+        registro = AnuncioVidaExtra.objects.create(usuario=usuario)
+        return Response({'token': registro.token, 'restantes': restantes})
+
+
+class AnuncioSSVView(APIView):
+    """
+    GET /api/usuarios/anuncios/ssv/
+    Callback chamado pelo GOOGLE (não pelo app) quando o usuário conclui um
+    anúncio premiado. Configurar essa URL no bloco "Vida Extra Rewarded" em
+    AdMob → Blocos de anúncios → Verificação do lado do servidor.
+
+    Só credita a vida se a assinatura do Google for válida. Responde 200 para
+    qualquer callback autêntico (mesmo sem crédito) para o Google não reenviar.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        if not anuncios.verificar_assinatura_ssv(request.META.get('QUERY_STRING', '')):
+            logger.warning('SSV: assinatura inválida.')
+            return Response({'detail': 'Assinatura inválida.'}, status=status.HTTP_403_FORBIDDEN)
+
+        params = request.query_params
+        if not anuncios.unidade_confere(params.get('ad_unit', '')):
+            logger.warning('SSV: ad_unit inesperado (%s).', params.get('ad_unit'))
+            return Response({'detail': 'unidade_desconhecida'}, status=status.HTTP_200_OK)
+
+        resultado = anuncios.creditar_vida_por_anuncio(
+            token=params.get('custom_data', ''),
+            usuario_id=params.get('user_id'),
+            transaction_id=params.get('transaction_id'),
+        )
+        logger.info('SSV: resultado=%s user_id=%s', resultado, params.get('user_id'))
+        return Response({'detail': resultado}, status=status.HTTP_200_OK)
+
+
+class AnuncioConfirmarTesteView(APIView):
+    """
+    POST /api/usuarios/anuncios/vida-extra/confirmar-teste/
+    Body: { "token": "..." }
+    SÓ PARA DESENVOLVIMENTO: com anúncios de teste do Google (IDs de exemplo)
+    o Google não envia o callback SSV, então este endpoint confirma direto.
+    Fica DESLIGADO por padrão: só funciona com ANUNCIOS_CONFIRMACAO_DIRETA=True
+    no ambiente. Em produção NUNCA ligar (seria o furo de segurança de volta).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not settings.ANUNCIOS_CONFIRMACAO_DIRETA:
+            return Response(
+                {'detail': 'Indisponível neste ambiente.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        resultado = anuncios.creditar_vida_por_anuncio(
+            token=request.data.get('token', ''),
+            usuario_id=request.user.pk,
+        )
+        if resultado != anuncios.OK:
+            return Response({'detail': resultado}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.refresh_from_db()
+        return Response(UsuarioSerializer(request.user, context={'request': request}).data)
 
 
 def checar_regeneracao_vidas(usuario):
