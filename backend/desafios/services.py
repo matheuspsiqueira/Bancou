@@ -185,9 +185,10 @@ def avaliar_desafios(usuario):
             continue  # tipo desconhecido/renomeado — não derruba o fim de partida
 
         valor_atual = avaliador(usuario, du.desafio)
+        progresso_para_exibir = min(valor_atual, du.desafio.meta)
 
-        if du.progresso != valor_atual:
-            du.progresso = valor_atual
+        if du.progresso != progresso_para_exibir:
+            du.progresso = progresso_para_exibir
             du.save(update_fields=['progresso'])
 
         if valor_atual >= du.desafio.meta and not du.completado:
