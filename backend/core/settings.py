@@ -47,7 +47,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # TODO: restringir depois que o app estiver publicado
+CORS_ALLOW_ALL_ORIGINS = False
 
 ROOT_URLCONF = 'core.urls'
 
