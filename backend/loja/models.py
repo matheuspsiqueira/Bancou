@@ -140,3 +140,28 @@ class UsoItemPartida(models.Model):
 
     class Meta:
         unique_together = ('partida', 'questao', 'item')
+
+
+class HistoricoCompraItem(models.Model):
+    """
+    Log simples de toda compra feita em comprar_item_virtual, independente
+    do tipo_efeito do item (credito_direto, temporario ou inventário).
+    Não existia até aqui — nenhuma outra parte do sistema precisava saber
+    QUANDO uma compra aconteceu, só o efeito final (moedas, vidas,
+    inventário, buff ativo). Criado especificamente pra sustentar o
+    desafio "comprar_item_hoje" (ver desafios/services.py), que precisa
+    contar compras por dia — algo que nem InventarioItem (só quantidade
+    acumulada) nem BuffAtivo (só o item xp_dobro) resolvem sozinhos.
+    Puramente aditivo: não substitui nem altera nenhum fluxo existente.
+    """
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='historico_compras')
+    item = models.ForeignKey(ItemLoja, on_delete=models.PROTECT)
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Histórico de compra de item'
+        verbose_name_plural = 'Histórico de compras de itens'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f'{self.usuario_id} — {self.item.codigo} — {self.criado_em:%d/%m/%Y %H:%M}'

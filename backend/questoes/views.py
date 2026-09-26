@@ -23,6 +23,7 @@ from .serializers import (
     BancaSerializer, MateriaSerializer, ConcursoSerializer,
     QuestaoPartidaSerializer,
 )
+from desafios.services import sortear_desafios_do_dia, avaliar_desafios
 
 
 # ─── Listas para popular o modal "Iniciar Partida" dinamicamente ──────────
@@ -79,6 +80,7 @@ class IniciarPartidaView(APIView):
     def get(self, request):
         checar_regeneracao_vidas(request.user)
         checar_decaimento_streak(request.user)
+        sortear_desafios_do_dia(request.user)
         request.user.refresh_from_db(fields=['vidas'])
 
         # Checagem rápida antes de gastar esforço montando o sorteio
@@ -348,6 +350,8 @@ class UsarBuffView(APIView):
                 partida=partida, questao=questao, item=item, usuario=request.user,
             )
 
+            avaliar_desafios(request.user)   # NOVO — contabiliza usar_item_hoje na hora do uso
+
             if codigo_buff == 'pula_questao':
                 partida.respondidas_ids.append(questao_id)
                 partida.acertos += 1
@@ -444,6 +448,7 @@ class FinalizarPartidaView(APIView):
         ])
 
         conquistas_desbloqueadas = avaliar_conquistas(request.user)
+        avaliar_desafios(request.user)
 
         return Response({
             'xp_ganho': resultado['xp_ganho'],

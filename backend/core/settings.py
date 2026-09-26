@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'landing',
     'loja',
     'conquistas',
+    'desafios',
 ]
 
 MIDDLEWARE = [

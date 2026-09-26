@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import ItemLoja, InventarioItem
 from .serializers import ItemLojaSerializer
 from .services import comprar_item_virtual, SaldoInsuficienteError
+from desafios.services import avaliar_desafios
 
 
 class ItensLojaView(ListAPIView):
@@ -51,6 +52,8 @@ class ComprarItemView(APIView):
                 {'detail': 'Moedas insuficientes.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        avaliar_desafios(request.user)   # NOVO — contabiliza comprar_item_hoje na hora da compra
 
         request.user.refresh_from_db()
 

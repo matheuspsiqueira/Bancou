@@ -124,10 +124,10 @@ export default function ModalPartida({ visible, onClose, onIniciar }) {
 
                 <View style={styles.infoItem}>
                   <View style={styles.infoIconeRow}>
+                    <Text style={[styles.infoValor, { color: colors.primary }]}>+10</Text>
                     <Image source={require('../../assets/icons/xp.png')} style={styles.infoIcone} resizeMode="contain" />
-                    <Text style={[styles.infoValor, { color: colors.coins }]}>+10</Text>
-                    <Image source={require('../../assets/icons/moeda.png')} style={[styles.infoIcone, { marginLeft: spacing.xs }]} resizeMode="contain" />
                     <Text style={[styles.infoValor, { color: colors.coins }]}>+2</Text>
+                    <Image source={require('../../assets/icons/moeda.png')} style={[styles.infoIcone, { marginLeft: spacing.xs }]} resizeMode="contain" />
                   </View>
                   <Text style={styles.infoLabel}>por acerto</Text>
                 </View>

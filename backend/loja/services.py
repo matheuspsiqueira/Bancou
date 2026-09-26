@@ -1,9 +1,8 @@
-# loja/services.py
 from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import ProdutoIAP, CompraIAP, ItemLoja, InventarioItem, BuffAtivo
+from .models import ProdutoIAP, CompraIAP, ItemLoja, InventarioItem, BuffAtivo, HistoricoCompraItem
 
 
 class SaldoInsuficienteError(Exception):
@@ -61,14 +60,18 @@ def comprar_item_virtual(usuario, codigo_item: str):
         raise SaldoInsuficienteError("Moedas insuficientes.")
 
     usuario_locked.moedas -= item.preco_moedas
+    usuario_locked.save(update_fields=['moedas'])
+
+    # NOVO: log único de toda compra confirmada, independente do tipo de
+    # efeito — usado pelo desafio diário "comprar_item_hoje" pra contar
+    # compras por dia sem depender de InventarioItem/BuffAtivo.
+    HistoricoCompraItem.objects.create(usuario=usuario_locked, item=item)
 
     if item.tipo_efeito == 'credito_direto':
         # vida_extra — passa do teto de VIDAS_MAXIMAS, decisão já validada
         usuario_locked.vidas += item.quantidade_concedida
-        usuario_locked.save(update_fields=['moedas', 'vidas'])
+        usuario_locked.save(update_fields=['vidas'])
         return {'tipo': 'vida_extra', 'vidas_atuais': usuario_locked.vidas}
-
-    usuario_locked.save(update_fields=['moedas'])
 
     if item.tipo_efeito == 'temporario':
         ativo = BuffAtivo.objects.create(
