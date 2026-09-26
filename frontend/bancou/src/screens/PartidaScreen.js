@@ -136,7 +136,11 @@ export default function PartidaScreen({ navigation, route }) {
     const podeAssistir = (usuario?.anuncios_vida_restantes ?? 1) > 0;
     const botoes = [];
     if (podeAssistir) {
-      botoes.push({ text: 'Assistir anúncio (+1 vida)', onPress: assistirAnuncioParaVida });
+      botoes.push({
+      text: '+1 Vida',
+      icon: require('../assets/icons/ad.png'),
+      onPress: assistirAnuncioParaVida,
+    });
     }
     botoes.push({ text: 'Voltar', style: 'cancel', onPress: () => navigation.goBack() });
 

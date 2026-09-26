@@ -54,14 +54,24 @@ export default function KouAlert({ visivel, titulo, mensagem, botoes = [], pose,
                 onPress={() => executar(botao)}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.botaoTexto,
-                    botao.style === 'cancel' && styles.botaoTextoCancelar,
-                  ]}
-                >
-                  {botao.text}
-                </Text>
+                <View style={styles.botaoConteudo}>
+                  {botao.icon && (
+                    <Image
+                      source={botao.icon}
+                      style={styles.botaoIcone}
+                      resizeMode="contain"
+                    />
+                  )}
+
+                  <Text
+                    style={[
+                      styles.botaoTexto,
+                      botao.style === 'cancel' && styles.botaoTextoCancelar,
+                    ]}
+                  >
+                    {botao.text}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -142,5 +152,16 @@ const styles = StyleSheet.create({
   },
   botaoTextoCancelar: {
     color: colors.textSecondary,
+  },
+  botaoConteudo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+
+  botaoIcone: {
+    width: 22,
+    height: 22,
   },
 });

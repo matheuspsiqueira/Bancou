@@ -30,7 +30,7 @@ const PRODUCAO = {
 };
 
 // ▼▼▼ TROQUE AQUI: TESTE  ↔  PRODUCAO ▼▼▼
-export const ADS = TESTE;
+export const ADS = PRODUCAO;
 // ▲▲▲ Antes de gerar o AAB da Play Store: ADS = PRODUCAO ▲▲▲
 
 // Intersticial: aparece a cada N partidas concluídas (abandonadas não contam).
