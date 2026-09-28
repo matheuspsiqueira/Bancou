@@ -305,7 +305,7 @@ export default function PerfilScreen() {
 
             <View style={styles.opcaoItem}>
               <View style={styles.opcaoTextRow}>
-                <Image source={require('../assets/icons/xp.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+                <Image source={require('../assets/icons/sino.png')} style={styles.opcaoIconePng} resizeMode="contain" />
                 <Text style={styles.opcaoText}> Notificações</Text>
               </View>
               <Switch
