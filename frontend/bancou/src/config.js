@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://representative-tariff-experience-amsterdam.trycloudflare.com';
+const DEV_URL = 'https://vat-advantage-clothes-her.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
 export const API_URL = PROD_URL;

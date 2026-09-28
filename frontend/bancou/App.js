@@ -16,6 +16,7 @@ import { colors } from './src/theme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KouAlertProvider } from './src/context/KouAlertContext';
 import { iniciarSom } from './src/services/somService';
+import { configurarNotificacoes } from './src/services/notificacaoService';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -29,6 +30,10 @@ export default function App() {
 
   useEffect(() => {
     iniciarSom();
+    // Configuração de dispositivo (canal Android) — não depende de login,
+    // por isso mora aqui e não no AuthContext. O pedido de permissão em
+    // si, que sim depende de usuário autenticado, é feito pelo AuthContext.
+    configurarNotificacoes();
   }, []);
 
   if (!fontsLoaded) {

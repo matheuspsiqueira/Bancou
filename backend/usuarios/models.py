@@ -41,6 +41,18 @@ class Usuario(AbstractUser):
     token_exclusao_conta = models.CharField(max_length=64, null=True, blank=True)
     token_exclusao_expira_em = models.DateTimeField(null=True, blank=True)
 
+    # ─── Notificações push (Expo Push Notifications) ─────────────────────
+    # `notificacoes_ativadas` é a preferência interna do usuário (toggle na
+    # PerfilScreen) — default True. É o que o management command de envio
+    # agendado consulta antes de disparar qualquer notificação; desligar
+    # aqui NÃO mexe na permissão do sistema operacional, só faz o backend
+    # parar de contar esse usuário nos disparos.
+    # `expo_push_token` é o token do device gerado pelo expo-notifications,
+    # reenviado a cada login/abertura do app (pode mudar em reinstall ou
+    # troca de aparelho). Null enquanto a permissão do SO não foi concedida.
+    notificacoes_ativadas = models.BooleanField(default=True)
+    expo_push_token = models.CharField(max_length=255, null=True, blank=True)
+
     VIDAS_MAXIMAS = 3
 
     USERNAME_FIELD = 'email'
@@ -102,3 +114,51 @@ class AnuncioVidaExtra(models.Model):
     @classmethod
     def restantes_hoje(cls, usuario):
         return max(0, cls.LIMITE_DIARIO - cls.assistidos_hoje(usuario))
+
+
+class NotificacaoEnviada(models.Model):
+    """
+    Um registro por notificação push agendada efetivamente enviada — é o
+    que garante idempotência: o cron do GitHub Actions bate no endpoint a
+    cada 15 minutos, e sem esse registro a mesma notificação seria
+    reenviada em toda chamada dentro da mesma janela de horário.
+
+    A constraint única (usuario, tipo, data) é a trava real — mesmo que o
+    endpoint seja chamado em paralelo por engano, o banco impede duplicar.
+    Gerenciável pelo Django admin, mesmo padrão da Loja e das Conquistas —
+    dá pra auditar o que foi mandado pra quem sem precisar de log externo.
+    """
+    TIPO_VIDAS_RESTAURADAS = 'vidas_restauradas'
+    TIPO_STREAK_EM_RISCO = 'streak_em_risco'
+    TIPO_CONVITE_CASUAL = 'convite_casual'
+    TIPO_DESAFIO_60S = 'desafio_60s'
+    TIPO_REENGAJAMENTO = 'reengajamento'
+    TIPO_CHOICES = [
+        (TIPO_VIDAS_RESTAURADAS, 'Vidas restauradas'),
+        (TIPO_STREAK_EM_RISCO, 'Streak em risco'),
+        (TIPO_CONVITE_CASUAL, 'Convite casual'),
+        (TIPO_DESAFIO_60S, 'Desafio de 60 segundos'),
+        (TIPO_REENGAJAMENTO, 'Reengajamento'),
+    ]
+
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name='notificacoes_enviadas',
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    # Dia (fuso America/Sao_Paulo) em que foi enviada — junto com usuario+tipo
+    # forma a chave de idempotência do dia.
+    data = models.DateField()
+    enviado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Notificação enviada'
+        verbose_name_plural = 'Notificações enviadas'
+        ordering = ['-enviado_em']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'tipo', 'data'], name='notificacao_unica_por_usuario_tipo_dia',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.usuario_id} — {self.get_tipo_display()} — {self.data:%d/%m/%Y}'

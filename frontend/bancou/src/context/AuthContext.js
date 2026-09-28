@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
+import { registrarTokenNotificacao } from '../services/notificacaoService';
 
 
 const AuthContext = createContext();
@@ -94,6 +95,11 @@ export function AuthProvider({ children }) {
         if (token) {
           setAutenticado(true);
           await carregarPerfil();
+          // Pede permissão de notificação automaticamente (decisão
+          // 26/09/2026) e reenvia o token a cada abertura do app — cobre
+          // o caso de reinstall/troca de aparelho gerar um token novo.
+          // Silencioso: se negar ou falhar a rede, o app segue normal.
+          registrarTokenNotificacao(authFetch);
         } else {
           setAutenticado(false);
         }
@@ -104,7 +110,7 @@ export function AuthProvider({ children }) {
       }
     };
     verificar();
-  }, [carregarPerfil]);
+  }, [carregarPerfil, authFetch]);
 
   // ── Recarrega o perfil sempre que o app volta a ficar ativo ───────────
   // Cobre o caso do Android pausar/matar parcialmente o processo ao
@@ -131,6 +137,9 @@ export function AuthProvider({ children }) {
     await AsyncStorage.setItem('refresh_token', refresh);
     setAutenticado(true);
     await carregarPerfil();
+    // Mesmo pedido de permissão/registro de token, agora no momento do
+    // login (cobre quem está logando pela primeira vez nesse aparelho).
+    registrarTokenNotificacao(authFetch);
   };
 
   // ── Atualiza campos do usuário localmente após edição ─────────────────

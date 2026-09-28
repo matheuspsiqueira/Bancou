@@ -2,6 +2,7 @@ from pathlib import Path
 from decouple import config
 import dj_database_url
 from datetime import timedelta
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -179,3 +180,6 @@ ADMOB_UNIDADE_PREMIADO = config('ADMOB_UNIDADE_PREMIADO', default='ca-app-pub-58
 # do Google, porque anúncios de TESTE não disparam SSV. Em produção (Render)
 # deve ficar ausente/False — ligar em produção reabre o furo de segurança.
 ANUNCIOS_CONFIRMACAO_DIRETA = config('ANUNCIOS_CONFIRMACAO_DIRETA', default=False, cast=bool)
+
+
+NOTIFICACOES_CRON_SECRET = os.environ.get('NOTIFICACOES_CRON_SECRET', '')

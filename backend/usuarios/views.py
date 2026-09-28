@@ -22,6 +22,7 @@ from .serializers import (
     VerificarEmailSerializer,
     SolicitarExclusaoContaSerializer,
     ConfirmarExclusaoContaSerializer,
+    NotificacaoConfigSerializer,
 )
 from usuarios.services import checar_decaimento_streak
 
@@ -123,6 +124,48 @@ class AlterarSenhaView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'detail': 'Senha alterada com sucesso.'}, status=status.HTTP_200_OK)
+
+
+class NotificacaoConfigView(APIView):
+    """
+    PATCH /api/usuarios/notificacoes/
+    Body: { "notificacoes_ativadas": true/false, "expo_push_token": "..." }
+    Ambos os campos são opcionais e independentes — ver docstring do
+    NotificacaoConfigSerializer. Usado tanto pelo toggle na PerfilScreen
+    quanto pelo registro automático do token feito pelo AuthContext no
+    login/abertura do app.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        serializer = NotificacaoConfigSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UsuarioSerializer(request.user, context={'request': request}).data)
+
+
+class DispararNotificacoesAgendadasView(APIView):
+    """
+    POST /api/usuarios/notificacoes/disparar-agendadas/
+    Chamado pelo workflow do GitHub Actions a cada poucos minutos, nunca
+    pelo app — por isso AllowAny + sem autenticação JWT (quem chama não é
+    um usuário logado), protegido em vez disso por um segredo compartilhado
+    no header X-Cron-Secret (settings.NOTIFICACOES_CRON_SECRET). A lógica
+    de verdade mora em usuarios/notificacoes.py (hierarquia de prioridade,
+    idempotência via NotificacaoEnviada) — esta view só autentica e chama.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        segredo_esperado = getattr(settings, 'NOTIFICACOES_CRON_SECRET', '')
+        segredo_recebido = request.headers.get('X-Cron-Secret', '')
+        if not segredo_esperado or segredo_recebido != segredo_esperado:
+            return Response({'detail': 'Não autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .notificacoes import processar_notificacoes_agendadas
+        contagem = processar_notificacoes_agendadas()
+        return Response({'enviadas': contagem}, status=status.HTTP_200_OK)
 
 
 class RegistrarResultadoView(APIView):

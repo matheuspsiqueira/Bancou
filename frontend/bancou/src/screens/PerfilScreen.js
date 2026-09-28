@@ -20,9 +20,20 @@
 // O box de altura fixa (mesmo tamanho da imagem) resolve isso: todas as
 // colunas passam a ter a mesma altura de referência, então os rótulos
 // embaixo alinham certinho.
+//
+// 26/09/2026 — Reestruturação da seção 3: "Configurações" agora só tem
+// itens do jogo/conta (Editar perfil, Alterar senha, Sair). Criado um
+// bloco novo "Sistema" abaixo, pra tudo que é preferência de
+// dispositivo/app: Efeitos sonoros (que morava em Configurações),
+// Notificações (novo — toggle liga/desliga notificacoes_ativadas no
+// backend, pedindo permissão do SO na primeira vez que liga), Política
+// de Privacidade e Termos de uso (viraram itens clicáveis com chevron,
+// saem do texto corrido de antes) e Versão do app (não clicável, só
+// informativo). O botão de Relatar Bug entra em Sistema futuramente.
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
 import TelaComHeader from '../components/TelaComHeader';
@@ -33,20 +44,23 @@ import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { getLigaImagem, getLigaNome } from '../utils/ligas';
 import { tocar, useSomHabilitado } from '../services/somService';
+import { pedirPermissaoEObterToken } from '../services/notificacaoService';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
 import { SITE_URL } from '../config';
 
 const URL_TERMOS = `${SITE_URL}/termos/`;
 const URL_PRIVACIDADE = `${SITE_URL}/privacidade/`;
+const VERSAO_APP = Constants.expoConfig?.version ?? '—';
 
 const ALTURA_VALOR_STAT = 45; // mesmo tamanho das imagens de conquista/liga
 
 export default function PerfilScreen() {
-  const { usuario, signOut, authFetch } = useAuth();
+  const { usuario, signOut, authFetch, atualizarUsuario } = useAuth();
   const { alertar } = useKouAlert();
   const [modalSenha, setModalSenha] = useState(false);
   const [modalPerfil, setModalPerfil] = useState(false);
   const [somHabilitado, alternarSom] = useSomHabilitado();
+  const [alternandoNotificacoes, setAlternandoNotificacoes] = useState(false);
 
   // TODO: quando existir navegação Ranking -> perfil de outro usuário,
   // isso vira uma prop (ex: `usuarioAlvo`) comparada ao usuário logado,
@@ -120,6 +134,45 @@ export default function PerfilScreen() {
     Linking.openURL(url).catch(() => {
       alertar('Erro', 'Não foi possível abrir o link.', [{ text: 'OK' }], { pose: 'ops' });
     });
+  };
+
+  // Notificações: diferente do Som (preferência 100% local), esse toggle
+  // reflete `usuario.notificacoes_ativadas` no backend — é o que o envio
+  // agendado do servidor consulta antes de disparar qualquer notificação.
+  // Ligar pede permissão do SO na hora (além do pedido automático já
+  // feito no login); negar mantém o switch desligado e avisa o usuário.
+  const alternarNotificacoes = async (valor) => {
+    setAlternandoNotificacoes(true);
+    try {
+      if (valor) {
+        const token = await pedirPermissaoEObterToken();
+        if (!token) {
+          alertar(
+            'Notificações bloqueadas',
+            'Ative as notificações do Bancou nas configurações do seu celular para poder ligar essa opção.',
+            [{ text: 'OK' }],
+            { pose: 'ops' }
+          );
+          return;
+        }
+        const resp = await authFetch('/api/usuarios/notificacoes/', {
+          method: 'PATCH',
+          body: JSON.stringify({ notificacoes_ativadas: true, expo_push_token: token }),
+        });
+        if (resp.ok) atualizarUsuario({ notificacoes_ativadas: true });
+      } else {
+        const resp = await authFetch('/api/usuarios/notificacoes/', {
+          method: 'PATCH',
+          body: JSON.stringify({ notificacoes_ativadas: false }),
+        });
+        if (resp.ok) atualizarUsuario({ notificacoes_ativadas: false });
+      }
+    } catch {
+      // silencioso — falha de rede, o switch simplesmente não reflete a
+      // mudança (continua mostrando o valor anterior de usuario)
+    } finally {
+      setAlternandoNotificacoes(false);
+    }
   };
 
   return (
@@ -211,24 +264,10 @@ export default function PerfilScreen() {
           </View>
         )}
 
-        {/* ===== Seção 3 — Configurações (só o dono vê) ===== */}
+        {/* ===== Seção 3 — Configurações (do jogo/conta — só o dono vê) ===== */}
         {souDono && (
           <>
             <Text style={[styles.secaoTitulo, styles.secaoTituloEspacada]}>Configurações</Text>
-
-            <View style={styles.opcaoItem}>
-              <View style={styles.opcaoTextRow}>
-                <Image source={require('../assets/icons/com-som.png')} style={styles.opcaoIconePng} resizeMode="contain" />
-                <Text style={styles.opcaoText}> Efeitos sonoros</Text>
-              </View>
-              <Switch
-                value={somHabilitado}
-                onValueChange={alternarSom}
-                trackColor={{ false: colors.background, true: colors.primary }}
-                thumbColor={colors.text}
-                ios_backgroundColor={colors.background}
-              />
-            </View>
 
             <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalPerfil(true)} activeOpacity={0.7}>
               <View style={styles.opcaoTextRow}>
@@ -246,21 +285,63 @@ export default function PerfilScreen() {
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
 
+
+            {/* ===== Seção 4 — Sistema (preferências de dispositivo/app) ===== */}
+            <Text style={[styles.secaoTitulo, styles.secaoTituloEspacada]}>Sistema</Text>
+
+            <View style={styles.opcaoItem}>
+              <View style={styles.opcaoTextRow}>
+                <Image source={require('../assets/icons/com-som.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+                <Text style={styles.opcaoText}> Efeitos sonoros</Text>
+              </View>
+              <Switch
+                value={somHabilitado}
+                onValueChange={alternarSom}
+                trackColor={{ false: colors.background, true: colors.primary }}
+                thumbColor={colors.text}
+                ios_backgroundColor={colors.background}
+              />
+            </View>
+
+            <View style={styles.opcaoItem}>
+              <View style={styles.opcaoTextRow}>
+                <Image source={require('../assets/icons/xp.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+                <Text style={styles.opcaoText}> Notificações</Text>
+              </View>
+              <Switch
+                value={usuario?.notificacoes_ativadas ?? true}
+                onValueChange={alternarNotificacoes}
+                disabled={alternandoNotificacoes}
+                trackColor={{ false: colors.background, true: colors.primary }}
+                thumbColor={colors.text}
+                ios_backgroundColor={colors.background}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.opcaoItem} onPress={() => abrirLink(URL_PRIVACIDADE)} activeOpacity={0.7}>
+              <View style={styles.opcaoTextRow}>
+                <Text style={styles.opcaoText}>Política de privacidade</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.opcaoItem} onPress={() => abrirLink(URL_TERMOS)} activeOpacity={0.7}>
+              <View style={styles.opcaoTextRow}>
+                <Text style={styles.opcaoText}>Termos de uso</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <View style={styles.opcaoItem}>
+              <View style={styles.opcaoTextRow}>
+                <Text style={styles.opcaoText}>Versão</Text>
+              </View>
+              <Text style={styles.versaoTexto}>{VERSAO_APP}</Text>
+            </View>
+
             <TouchableOpacity style={styles.btnLogout} onPress={handleLogout} activeOpacity={0.8}>
               <Text style={styles.btnLogoutText}>Sair da conta</Text>
             </TouchableOpacity>
-
-            <Text style={styles.legalTexto}>
-              Acesse a{' '}
-              <Text style={styles.legalLink} onPress={() => abrirLink(URL_PRIVACIDADE)}>
-                política de privacidade
-              </Text>
-              {' '}e os{' '}
-              <Text style={styles.legalLink} onPress={() => abrirLink(URL_TERMOS)}>
-                termos de uso
-              </Text>
-              .
-            </Text>
 
             <ModalAlterarSenha visible={modalSenha} onClose={() => setModalSenha(false)} />
             <ModalEditarPerfil visible={modalPerfil} onClose={() => setModalPerfil(false)} />
@@ -340,16 +421,11 @@ const styles = StyleSheet.create({
   opcaoIconePng: { width: 18, height: 18 },
   opcaoText: { fontFamily: typography.medium, fontSize: fontSize.body, color: colors.text },
   chevron: { color: colors.textSecondary, fontSize: 18 },
+  versaoTexto: { fontFamily: typography.regular, fontSize: fontSize.label, color: colors.textSecondary },
 
   btnLogout: {
-    marginTop: spacing.lg, borderWidth: 1, borderColor: colors.lives,
+    marginTop: spacing.sm, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.lives,
     borderRadius: borderRadius.lg, padding: spacing.lg, alignItems: 'center',
   },
   btnLogoutText: { fontFamily: typography.bold, fontSize: fontSize.button, color: colors.lives },
-
-  legalTexto: {
-    fontFamily: typography.regular, fontSize: fontSize.caption, color: colors.textSecondary,
-    textAlign: 'center', lineHeight: 18, marginTop: spacing.xl, paddingHorizontal: spacing.sm,
-  },
-  legalLink: { color: colors.primary, fontFamily: typography.medium },
 });

@@ -27,6 +27,7 @@ export default {
     },
     android: {
       package: ANDROID_PACKAGE,
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './src/assets/adaptative-icon.png',
         backgroundColor: '#1a1a2e',
@@ -49,6 +50,14 @@ export default {
           androidAppId: 'ca-app-pub-5823717618050092~2442548622',
         },
       ],
+      // expo-notifications: sem icon/color customizado por enquanto —
+      // o Android usa um ícone padrão nas notificações até vocês
+      // desenharem um ícone monocromático próprio (silhueta branca em
+      // fundo transparente, exigência do próprio Android pra esse tipo
+      // de ícone). Funciona normalmente sem isso, só fica visualmente
+      // genérico — dá pra customizar depois sem precisar de novo build
+      // imediato, é só trocar aqui e gerar o próximo build.
+      'expo-notifications',
     ],
     extra: {
       eas: {

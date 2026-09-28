@@ -71,8 +71,12 @@ class UsuarioSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'email', 'username', 'nome_completo', 'avatar_url',
             'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
+            'notificacoes_ativadas',
         )
-        read_only_fields = ('xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes')
+        read_only_fields = (
+            'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
+            'notificacoes_ativadas',
+        )
 
     def get_anuncios_vida_restantes(self, obj):
         return AnuncioVidaExtra.restantes_hoje(obj)
@@ -375,3 +379,20 @@ class ConfirmarExclusaoContaSerializer(serializers.Serializer):
         usuario = self.usuario
         usuario.delete()
         return usuario
+
+
+class NotificacaoConfigSerializer(serializers.ModelSerializer):
+    """
+    Usado pela PerfilScreen (toggle de notificações) e pelo registro
+    automático de token no login/abertura do app. Os dois campos são
+    opcionais e independentes: o app manda só o que mudou — por exemplo,
+    só `expo_push_token` ao reabrir o app com o toggle já ligado, ou só
+    `notificacoes_ativadas` quando o usuário liga/desliga manualmente.
+    """
+    class Meta:
+        model = Usuario
+        fields = ('notificacoes_ativadas', 'expo_push_token')
+        extra_kwargs = {
+            'notificacoes_ativadas': {'required': False},
+            'expo_push_token': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }

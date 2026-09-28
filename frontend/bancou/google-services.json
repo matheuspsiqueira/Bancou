@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "954494889775",
+    "project_id": "bancou-22dcc",
+    "storage_bucket": "bancou-22dcc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954494889775:android:67148d72b3915dd82ffbda",
+        "android_client_info": {
+          "package_name": "br.com.bancou.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCroxEeCpGRqsCUUJDpnQZaM-nNlOgRm48"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954494889775:android:600f79bd9c71f7882ffbda",
+        "android_client_info": {
+          "package_name": "br.com.bancou.app.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCroxEeCpGRqsCUUJDpnQZaM-nNlOgRm48"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
