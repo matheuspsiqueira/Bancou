@@ -397,6 +397,12 @@ class FinalizarPartidaView(APIView):
     Idempotente: se chamada de novo pra mesma partida, retorna o
     resultado já salvo em vez de creditar duas vezes.
 
+    STREAK: só é atualizado se a partida foi realmente concluída — ou
+    seja, todas as questões sorteadas foram respondidas (verificado no
+    banco via respondidas_ids, não pela flag "abandonada" do app) e a
+    partida não veio marcada como abandonada. Partida abandonada ainda
+    credita o XP/moedas dos acertos já feitos, mas não conta o dia.
+
     Dispara avaliar_conquistas() logo depois de consolidar o resultado —
     é o ponto onde acertos/erros da partida (e os RespostaUsuario
     associados a ela) já estão fechados no banco. Não roda de novo se a
@@ -430,10 +436,16 @@ class FinalizarPartidaView(APIView):
 
         abandonada = bool(request.data.get('abandonada', False))
 
+        # A verdade está no banco: a partida só é "completa" se todas as
+        # questões sorteadas foram respondidas.
+        partida_completa = len(partida.respondidas_ids) >= len(partida.questoes_ids)
+        contar_streak = partida_completa and not abandonada
+
         resultado = creditar_resultado_partida(
             usuario=request.user,
             acertos=partida.acertos,
             erros=partida.erros,
+            contar_streak=contar_streak,
         )
 
         partida.finalizada = True

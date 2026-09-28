@@ -32,7 +32,7 @@ def checar_decaimento_streak(usuario):
         usuario.save(update_fields=['streak'])
 
 
-def creditar_resultado_partida(usuario, acertos, erros):
+def creditar_resultado_partida(usuario, acertos, erros, contar_streak=True):
     """
     Aplica XP, moedas e streak no usuário a partir de contagens
     confiáveis (vindas do banco, nunca do app). A vida NÃO é mais
@@ -42,6 +42,11 @@ def creditar_resultado_partida(usuario, acertos, erros):
     NOVO: se o usuário tiver o buff xp_dobro ativo, o XP ganho é
     dobrado. Se o streak for resetar por ter pulado um dia, tenta
     consumir 1 unidade de congela_streak antes de resetar de fato.
+
+    contar_streak=False (partida abandonada/incompleta): XP e moedas
+    continuam sendo creditados normalmente, mas o streak e a
+    data_ultima_partida NÃO são tocados — o dia só conta como "jogado"
+    quando o usuário termina uma partida de verdade.
     """
     xp_ganho = acertos * XP_POR_ACERTO
     if tem_xp_dobro_ativo(usuario):
@@ -51,6 +56,13 @@ def creditar_resultado_partida(usuario, acertos, erros):
 
     usuario.xp += xp_ganho
     usuario.moedas += moedas_ganhas
+
+    if not contar_streak:
+        usuario.save(update_fields=['xp', 'moedas'])
+        return {
+            'xp_ganho': xp_ganho,
+            'moedas_ganhas': moedas_ganhas,
+        }
 
     hoje = timezone.localdate()
     ultima = usuario.data_ultima_partida
