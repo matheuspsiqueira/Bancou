@@ -19,6 +19,15 @@ import {
   mostrarIntersticialSeDevido,
 } from '../services/adsService';
 
+// ─── Regra única de "resultado positivo" ─────────────────────────────────
+// Metade ou mais de acertos = positivo (som de sucesso + Kou animado/positivo).
+// Menos da metade = negativo. Partida abandonada é sempre negativa.
+// Comparação exata (sem arredondar porcentagem) pra não haver divergência
+// entre o som e o Kou em partidas com total ímpar/diferente de 10.
+function atingiuMetade(acertos, total) {
+  return total > 0 && acertos * 2 >= total;
+}
+
 // ─── Lógica de faixa de resultado ────────────────────────────────────────
 function getFaixa(acertos, total, abandonada) {
   if (abandonada) {
@@ -44,7 +53,7 @@ function getFaixa(acertos, total, abandonada) {
       pose: require('../assets/kou-torcendo.png'),
       corTitulo: '#6C63FF',
     };
-  } else if (pct >= 0.4) {
+  } else if (atingiuMetade(acertos, total)) {
     return {
       titulo: 'Bom trabalho!',
       subtitulo: 'Continue estudando com constância e os resultados vão melhorar.',
@@ -140,14 +149,11 @@ export default function ScoreScreen({ navigation, route }) {
   };
 
   // ── Som de fim de partida ────────────────────────────────────────────
-  // Toca uma única vez ao montar a tela: sucesso se aproveitamento > 50%,
-  // erro caso contrário (partida abandonada sempre conta como erro).
+  // Toca uma única vez ao montar a tela. Mesma regra do Kou (atingiuMetade):
+  // metade ou mais de acertos = sucessoFim; menos que isso = erroFim.
+  // Partida abandonada sempre conta como erro.
   useEffect(() => {
-    if (abandonada) {
-      tocar('erroFim');
-    } else {
-      tocar(aproveitamento > 49 ? 'sucessoFim' : 'erroFim');
-    }
+    tocar(!abandonada && atingiuMetade(acertos, total) ? 'sucessoFim' : 'erroFim');
   }, []);
 
   useEffect(() => {
