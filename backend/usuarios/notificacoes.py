@@ -6,23 +6,28 @@ manual/local) quanto pela view de cron (`DispararNotificacoesAgendadasView`,
 batida pelo GitHub Actions a cada poucos minutos) — as duas só existem pra
 disparar `processar_notificacoes_agendadas()`; a lógica mora aqui uma vez só.
 
-Hierarquia decidida em 26/09/2026:
+Hierarquia decidida em 26/09/2026 (faixas de horário ajustadas em
+29/09/2026 pra tolerar atraso do cron do GitHub Actions — ver docstring
+do workflow):
 
   Grupo A (usuário jogou nos últimos 0-2 dias) — no máximo 1 notificação
   por dia, por ordem de prioridade horária:
-    7h   -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
-    12h  -> Tipo 3 (convite casual)
-    15h  -> Tipo 4 (desafio de 60 segundos)
-    20h30-21h30 -> Tipo 2 (streak em risco) — ÚNICA exceção ao limite de
+    7h-11h59   -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
+    12h-14h59  -> Tipo 3 (convite casual)
+    15h-20h29  -> Tipo 4 (desafio de 60 segundos)
+    20h30-23h59 -> Tipo 2 (streak em risco) — ÚNICA exceção ao limite de
                    1/dia: dispara mesmo se já notificado hoje, porque
                    perder a streak é uma perda concreta (XP+moedas do
-                   marco, e a sequência em si)
+                   marco, e a sequência em si). Não cruza a meia-noite de
+                   propósito: depois disso, "hoje" já virou outro dia e o
+                   risco de streak já é de ontem, não faz sentido checar
   Usuário que já jogou hoje não recebe nada do Grupo A.
 
   Grupo B (3+ dias sem jogar) — sai do fluxo acima. Cadência própria nos
   dias 3/7/14/30 de inatividade. Horário personalizado por uso costumeiro
-  fica pra fase 2 — por enquanto, testa horário fixo 9h ou 19h, dividido
-  por paridade do id do usuário (split simples de A/B).
+  fica pra fase 2 — por enquanto, testa faixa da manhã (8h-11h59) ou da
+  noite (18h-21h59), dividido por paridade do id do usuário (split
+  simples de A/B).
 
 Import de `checar_regeneracao_vidas` é feito DENTRO da função, não no topo
 do arquivo — de propósito: views.py importa deste módulo, e este módulo
@@ -139,8 +144,9 @@ def processar_notificacoes_agendadas():
         if dias_inatividade is not None and dias_inatividade >= 3:
             if dias_inatividade not in DIAS_REENGAJAMENTO:
                 continue
-            horario_teste = 9 if usuario.id % 2 == 0 else 19
-            if hora != horario_teste:
+            usa_faixa_manha = usuario.id % 2 == 0
+            dentro_da_faixa = (8 <= hora <= 11) if usa_faixa_manha else (18 <= hora <= 21)
+            if not dentro_da_faixa:
                 continue
             ja_enviado = NotificacaoEnviada.objects.filter(
                 usuario=usuario, tipo=NotificacaoEnviada.TIPO_REENGAJAMENTO, data=hoje,
@@ -153,9 +159,9 @@ def processar_notificacoes_agendadas():
 
         # ── Grupo A: fluxo diário normal ──────────────────────────────
         # Tipo 2 (streak em risco) é checado primeiro e ignora o limite
-        # de 1/dia de propósito — ver docstring do módulo.
-        dentro_da_janela_streak = (hora == 20 and minuto >= 30) or (hora == 21 and minuto < 30)
-        if dentro_da_janela_streak and usuario.streak > 0:
+        # de 1/dia de propósito — ver docstring do módulo. Faixa não
+        # cruza a meia-noite (ver docstring).
+        if 20 <= hora <= 23 and (hora > 20 or minuto >= 30) and usuario.streak > 0:
             ja_enviado_streak = NotificacaoEnviada.objects.filter(
                 usuario=usuario, tipo=NotificacaoEnviada.TIPO_STREAK_EM_RISCO, data=hoje,
             ).exists()
@@ -176,9 +182,9 @@ def processar_notificacoes_agendadas():
         if ja_notificado_grupo_a_hoje:
             continue
 
-        # Tipo 1 — 7h, só se estava com vidas zeradas (reaproveita a mesma
-        # lógica de reset diário usada no PerfilView).
-        if hora == 7:
+        # Tipo 1 — 7h-11h59, só se estava com vidas zeradas (reaproveita a
+        # mesma lógica de reset diário usada no PerfilView).
+        if 7 <= hora <= 11:
             vidas_antes = usuario.vidas
             checar_regeneracao_vidas(usuario)
             if vidas_antes == 0 and usuario.vidas > vidas_antes:
@@ -186,15 +192,15 @@ def processar_notificacoes_agendadas():
                 mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, corpo))
             continue
 
-        # Tipo 3 — 12h
-        if hora == 12:
+        # Tipo 3 — 12h-14h59
+        if 12 <= hora <= 14:
             corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_CONVITE_CASUAL)
             mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_CONVITE_CASUAL, corpo))
             continue
 
-        # Tipo 4 — 15h
-        if hora == 15:
-            corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_DESAFIO_60S, )
+        # Tipo 4 — 15h-20h29 (pára antes da faixa do streak em risco)
+        if 15 <= hora <= 20:
+            corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_DESAFIO_60S)
             mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_DESAFIO_60S, corpo))
             continue
 
