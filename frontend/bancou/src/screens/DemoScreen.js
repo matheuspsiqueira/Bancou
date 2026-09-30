@@ -114,7 +114,7 @@ const QUESTOES_DEMO = [
       { id: 'A', texto: '12 horas' },
       { id: 'B', texto: '15 horas' },
       { id: 'C', texto: '16 horas' },
-      { id: 'D', texto: '15 horas' },
+      { id: 'D', texto: '13 horas' },
       { id: 'E', texto: '18 horas' },
     ],
     gabarito: 'B',
