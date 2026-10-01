@@ -3,37 +3,39 @@ Lógica de negócio das notificações push agendadas (Expo Push Notifications).
 
 Chamada tanto pelo management command (`enviar_notificacoes_agendadas`, uso
 manual/local) quanto pela view de cron (`DispararNotificacoesAgendadasView`,
-batida pelo GitHub Actions a cada poucos minutos) — as duas só existem pra
-disparar `processar_notificacoes_agendadas()`; a lógica mora aqui uma vez só.
+batida por um agendador externo a cada poucos minutos) — as duas só existem
+pra disparar `processar_notificacoes_agendadas()`; a lógica mora aqui uma
+vez só.
 
-Hierarquia decidida em 26/09/2026 (faixas de horário ajustadas em
-29/09/2026 pra tolerar atraso do cron do GitHub Actions — ver docstring
-do workflow):
+Regras (hierarquia de 26/09/2026, faixas ajustadas em 29/09/2026 pra tolerar
+atraso do cron, convites alternados em 01/10/2026):
 
-  Grupo A (usuário jogou nos últimos 0-2 dias) — no máximo 1 notificação
-  por dia, por ordem de prioridade horária:
-    7h-11h59   -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
-    12h-14h59  -> Tipo 3 (convite casual)
-    15h-20h29  -> Tipo 4 (desafio de 60 segundos)
-    20h30-23h59 -> Tipo 2 (streak em risco) — ÚNICA exceção ao limite de
-                   1/dia: dispara mesmo se já notificado hoje, porque
-                   perder a streak é uma perda concreta (XP+moedas do
-                   marco, e a sequência em si). Não cruza a meia-noite de
-                   propósito: depois disso, "hoje" já virou outro dia e o
-                   risco de streak já é de ontem, não faz sentido checar
-  Usuário que já jogou hoje não recebe nada do Grupo A.
+  Convite do dia (Tipo 3 / Tipo 4) — SEM requisito: vale pra quem jogou
+  hoje e pra quem não jogou (Grupo A: 0-2 dias de inatividade, ou nunca
+  jogou). Alterna pela paridade do dia (fuso do Django):
+    dia PAR   -> só Tipo 3 (convite casual), faixa 12h-14h59
+    dia ÍMPAR -> só Tipo 4 (desafio de 60 segundos), faixa 15h-20h29
 
-  Grupo B (3+ dias sem jogar) — sai do fluxo acima. Cadência própria nos
-  dias 3/7/14/30 de inatividade. Horário personalizado por uso costumeiro
-  fica pra fase 2 — por enquanto, testa faixa da manhã (8h-11h59) ou da
-  noite (18h-21h59), dividido por paridade do id do usuário (split
-  simples de A/B).
+  Demais notificações do Grupo A (só pra quem NÃO jogou hoje):
+    7h-11h59    -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
+    20h30-23h59 -> Tipo 2 (streak em risco), só se streak > 0. Não cruza a
+                   meia-noite de propósito: depois disso "hoje" já virou
+                   outro dia e o risco de streak já é de ontem
+
+  Grupo B (3+ dias sem jogar) — fora do fluxo acima. Cadência própria nos
+  dias 3/7/14/30 de inatividade, faixa da manhã (8h-11h59) ou da noite
+  (18h-21h59) dividida por paridade do id do usuário. Não recebe os
+  convites do dia.
+
+Idempotência: NotificacaoEnviada (unique por usuário+tipo+dia) garante que o
+mesmo tipo nunca sai duas vezes no mesmo dia, mesmo com o cron batendo várias
+vezes dentro da mesma faixa. Só é registrada como enviada a mensagem cujo
+ticket a Expo devolveu como "ok" — se der erro, o próximo ciclo tenta de novo.
 
 Import de `checar_regeneracao_vidas` é feito DENTRO da função, não no topo
 do arquivo — de propósito: views.py importa deste módulo, e este módulo
 precisa de uma função de views.py, então importar em cima criaria um
-import circular. Adiando pra dentro da função, os dois módulos já estão
-totalmente carregados na hora em que o import realmente roda.
+import circular.
 """
 import logging
 import random
@@ -82,46 +84,87 @@ def _escolher_mensagem(tipo, **contexto):
     return template.format(**contexto)
 
 
+def _tipo_convite_do_dia(hoje):
+    """Dia par -> convite das 12h (Tipo 3); dia ímpar -> desafio das 15h (Tipo 4)."""
+    if hoje.toordinal() % 2 == 0:
+        return NotificacaoEnviada.TIPO_CONVITE_CASUAL
+    return NotificacaoEnviada.TIPO_DESAFIO_60S
+
+
+def _na_faixa_do_convite(tipo, hora, minuto):
+    if tipo == NotificacaoEnviada.TIPO_CONVITE_CASUAL:
+        return 12 <= hora <= 14  # 12h00-14h59
+    # Tipo 4: 15h00-20h29 (pára antes da faixa do streak em risco)
+    return 15 <= hora <= 19 or (hora == 20 and minuto < 30)
+
+
 def _enviar_lote_expo(mensagens):
     """
     mensagens: lista de dicts no formato da Expo Push API. Envia em lotes
-    de 100 (limite recomendado pela Expo). Retorna quantas mensagens
-    tiveram o lote aceito na resposta HTTP — não confirma entrega
-    individual por token (a Expo devolve um "ticket" por mensagem que
-    permite checar isso depois; fica de fora da v1, mesmo princípio de
-    "sem SSV" — só o anúncio rewarded tem verificação forte, aqui não é
-    crédito de jogo, então o risco de over-engineering não compensa agora).
+    de 100 e devolve uma lista de resultados, um por mensagem, na mesma
+    ordem: {'ok': bool, 'erro': str | None}.
+
+    Lê o ticket de cada mensagem: a Expo responde HTTP 200 mesmo quando o
+    envio de uma mensagem falha (credencial FCM ausente/inválida, token de
+    aparelho que não existe mais etc.) — o erro vem dentro do ticket e agora
+    é logado (aparece no log do Render como "Expo push: ticket com erro").
+    Isso ainda NÃO confirma entrega no aparelho (isso é o "receipt", checado
+    depois); mas já pega os erros de credencial e de token.
     """
-    aceitas = 0
+    resultados = []
     for inicio in range(0, len(mensagens), 100):
         lote = mensagens[inicio:inicio + 100]
         try:
             resp = requests.post(EXPO_PUSH_URL, json=lote, timeout=10)
-            if resp.ok:
-                aceitas += len(lote)
-            else:
-                logger.warning('Expo push: lote rejeitado (%s) — %s', resp.status_code, resp.text[:300])
         except requests.RequestException as exc:
             logger.warning('Expo push: falha de rede no lote — %s', exc)
-    return aceitas
+            resultados.extend({'ok': False, 'erro': 'rede'} for _ in lote)
+            continue
+
+        if not resp.ok:
+            logger.warning('Expo push: lote rejeitado (%s) — %s', resp.status_code, resp.text[:300])
+            resultados.extend({'ok': False, 'erro': f'http_{resp.status_code}'} for _ in lote)
+            continue
+
+        try:
+            tickets = resp.json().get('data', [])
+        except ValueError:
+            logger.warning('Expo push: resposta não é JSON — %s', resp.text[:300])
+            tickets = []
+
+        for i in range(len(lote)):
+            ticket = tickets[i] if i < len(tickets) else {}
+            if ticket.get('status') == 'ok':
+                resultados.append({'ok': True, 'erro': None})
+            else:
+                erro = (ticket.get('details') or {}).get('error') or 'ticket_invalido'
+                logger.warning(
+                    'Expo push: ticket com erro (%s) — %s', erro, (ticket.get('message') or '')[:300],
+                )
+                resultados.append({'ok': False, 'erro': erro})
+    return resultados
+
+
+def _ja_enviado_hoje(usuario, tipo, hoje):
+    return NotificacaoEnviada.objects.filter(usuario=usuario, tipo=tipo, data=hoje).exists()
 
 
 def processar_notificacoes_agendadas():
     """
     Roda a checagem completa pra todos os usuários elegíveis, monta as
-    mensagens e dispara. Idempotente: usa NotificacaoEnviada (unique por
-    usuário+tipo+dia) pra nunca mandar a mesma notificação duas vezes no
-    mesmo dia, mesmo chamada várias vezes seguidas pelo cron dentro da
-    mesma janela de horário.
+    mensagens e dispara. Idempotente (ver docstring do módulo).
 
-    Retorna um dict {tipo: quantidade} das notificações enviadas nesta
-    chamada, pra log/debug (management command imprime isso).
+    Retorna um dict {tipo: quantidade} das notificações aceitas pela Expo
+    nesta chamada, pra log/debug.
     """
     from .views import checar_regeneracao_vidas  # import tardio — ver docstring do módulo
 
     agora = timezone.localtime()
     hoje = agora.date()
     hora, minuto = agora.hour, agora.minute
+
+    tipo_convite_hoje = _tipo_convite_do_dia(hoje)
+    convite_na_faixa = _na_faixa_do_convite(tipo_convite_hoje, hora, minuto)
 
     mensagens_para_enviar = []  # [(usuario, tipo, corpo)]
 
@@ -137,8 +180,6 @@ def processar_notificacoes_agendadas():
             dias_inatividade = (hoje - usuario.data_ultima_partida).days
 
         jogou_hoje = dias_inatividade == 0
-        if jogou_hoje:
-            continue  # já converteu hoje, Grupo A não se aplica
 
         # ── Grupo B: 3+ dias sem jogar ────────────────────────────────
         if dias_inatividade is not None and dias_inatividade >= 3:
@@ -148,60 +189,41 @@ def processar_notificacoes_agendadas():
             dentro_da_faixa = (8 <= hora <= 11) if usa_faixa_manha else (18 <= hora <= 21)
             if not dentro_da_faixa:
                 continue
-            ja_enviado = NotificacaoEnviada.objects.filter(
-                usuario=usuario, tipo=NotificacaoEnviada.TIPO_REENGAJAMENTO, data=hoje,
-            ).exists()
-            if ja_enviado:
+            if _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_REENGAJAMENTO, hoje):
                 continue
             corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_REENGAJAMENTO, dias=dias_inatividade)
             mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_REENGAJAMENTO, corpo))
             continue
 
-        # ── Grupo A: fluxo diário normal ──────────────────────────────
-        # Tipo 2 (streak em risco) é checado primeiro e ignora o limite
-        # de 1/dia de propósito — ver docstring do módulo. Faixa não
-        # cruza a meia-noite (ver docstring).
-        if 20 <= hora <= 23 and (hora > 20 or minuto >= 30) and usuario.streak > 0:
-            ja_enviado_streak = NotificacaoEnviada.objects.filter(
-                usuario=usuario, tipo=NotificacaoEnviada.TIPO_STREAK_EM_RISCO, data=hoje,
-            ).exists()
-            if not ja_enviado_streak:
-                corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_STREAK_EM_RISCO, streak=usuario.streak)
-                mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_STREAK_EM_RISCO, corpo))
+        # ── Grupo A (0-2 dias, ou nunca jogou) ────────────────────────
+        # Convite do dia (12h OU 15h, alternado): sem requisito, vale
+        # inclusive pra quem já jogou hoje.
+        if convite_na_faixa:
+            if not _ja_enviado_hoje(usuario, tipo_convite_hoje, hoje):
+                corpo = _escolher_mensagem(tipo_convite_hoje)
+                mensagens_para_enviar.append((usuario, tipo_convite_hoje, corpo))
             continue
 
-        ja_notificado_grupo_a_hoje = NotificacaoEnviada.objects.filter(
-            usuario=usuario,
-            tipo__in=[
-                NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS,
-                NotificacaoEnviada.TIPO_CONVITE_CASUAL,
-                NotificacaoEnviada.TIPO_DESAFIO_60S,
-            ],
-            data=hoje,
-        ).exists()
-        if ja_notificado_grupo_a_hoje:
+        if jogou_hoje:
+            continue  # o resto (vidas, streak) só faz sentido pra quem ainda não jogou hoje
+
+        # Tipo 2 — streak em risco, 20h30-23h59
+        if 20 <= hora <= 23 and (hora > 20 or minuto >= 30) and usuario.streak > 0:
+            if not _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_STREAK_EM_RISCO, hoje):
+                corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_STREAK_EM_RISCO, streak=usuario.streak)
+                mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_STREAK_EM_RISCO, corpo))
             continue
 
         # Tipo 1 — 7h-11h59, só se estava com vidas zeradas (reaproveita a
         # mesma lógica de reset diário usada no PerfilView).
         if 7 <= hora <= 11:
+            if _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, hoje):
+                continue
             vidas_antes = usuario.vidas
             checar_regeneracao_vidas(usuario)
             if vidas_antes == 0 and usuario.vidas > vidas_antes:
                 corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS)
                 mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, corpo))
-            continue
-
-        # Tipo 3 — 12h-14h59
-        if 12 <= hora <= 14:
-            corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_CONVITE_CASUAL)
-            mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_CONVITE_CASUAL, corpo))
-            continue
-
-        # Tipo 4 — 15h-20h29 (pára antes da faixa do streak em risco)
-        if 15 <= hora <= 20:
-            corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_DESAFIO_60S)
-            mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_DESAFIO_60S, corpo))
             continue
 
     if not mensagens_para_enviar:
@@ -211,13 +233,14 @@ def processar_notificacoes_agendadas():
         {'to': usuario.expo_push_token, 'title': TITULO_PADRAO, 'body': corpo, 'sound': 'default'}
         for usuario, _tipo, corpo in mensagens_para_enviar
     ]
-    _enviar_lote_expo(payload)
+    resultados = _enviar_lote_expo(payload)
 
-    # Registra como enviada só depois do POST pra Expo — se a chamada
-    # inteira falhar antes daqui (exceção não tratada), nada fica marcado
-    # e o próximo ciclo do cron tenta de novo.
+    # Registra como enviada só o que a Expo aceitou (ticket "ok"). O que
+    # falhou fica sem registro e é tentado de novo no próximo ciclo do cron.
     contagem = {}
-    for usuario, tipo, _corpo in mensagens_para_enviar:
+    for (usuario, tipo, _corpo), resultado in zip(mensagens_para_enviar, resultados):
+        if not resultado['ok']:
+            continue
         NotificacaoEnviada.objects.get_or_create(usuario=usuario, tipo=tipo, data=hoje)
         contagem[tipo] = contagem.get(tipo, 0) + 1
 
