@@ -21,6 +21,9 @@ class UsuarioAdmin(DjangoUserAdmin):
         ('🎮 Economia do jogo', {
             'fields': ('xp', 'moedas', 'vidas', 'streak', 'data_ultima_partida', 'vidas_atualizadas_em'),
         }),
+        ('Notificações', {
+            'fields': ('notificacoes_ativadas', 'expo_push_token'),
+        }),
     )
 
     add_fieldsets = (
