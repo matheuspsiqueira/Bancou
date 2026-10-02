@@ -7,25 +7,27 @@ batida por um agendador externo a cada poucos minutos) — as duas só existem
 pra disparar `processar_notificacoes_agendadas()`; a lógica mora aqui uma
 vez só.
 
-Regras (hierarquia de 26/09/2026, faixas ajustadas em 29/09/2026 pra tolerar
-atraso do cron, convites alternados em 01/10/2026):
+Regras (hierarquia de 26/09/2026; janelas estreitas + cron preciso em 02/10/2026).
+
+O cron externo (cron-job.org, fuso America/Sao_Paulo) bate de 15 em 15 min
+SÓ nas horas 7, 9, 12, 15, 19, 20 e 21 (28 chamadas/dia). Cada janela abaixo
+cobre a hora cheia do cron (4 chamadas) — se uma falhar, a seguinte ainda
+pega, e NotificacaoEnviada impede duplicata.
 
   Convite do dia (Tipo 3 / Tipo 4) — SEM requisito: vale pra quem jogou
   hoje e pra quem não jogou (Grupo A: 0-2 dias de inatividade, ou nunca
-  jogou). Alterna pela paridade do dia (fuso do Django):
-    dia PAR   -> só Tipo 3 (convite casual), faixa 12h-14h59
-    dia ÍMPAR -> só Tipo 4 (desafio de 60 segundos), faixa 15h-20h29
+  jogou). Alterna pela contagem corrida de dias (date.toordinal, fuso do
+  Django):
+    dia PAR   -> só Tipo 3 (convite casual), 12h00-12h59
+    dia ÍMPAR -> só Tipo 4 (desafio de 60 segundos), 15h00-15h59
 
   Demais notificações do Grupo A (só pra quem NÃO jogou hoje):
-    7h-11h59    -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
-    20h30-23h59 -> Tipo 2 (streak em risco), só se streak > 0. Não cruza a
-                   meia-noite de propósito: depois disso "hoje" já virou
-                   outro dia e o risco de streak já é de ontem
+    7h00-7h59   -> Tipo 1 (vidas restauradas), só se estava com vidas zeradas
+    20h30-21h59 -> Tipo 2 (streak em risco), só se streak > 0
 
   Grupo B (3+ dias sem jogar) — fora do fluxo acima. Cadência própria nos
-  dias 3/7/14/30 de inatividade, faixa da manhã (8h-11h59) ou da noite
-  (18h-21h59) dividida por paridade do id do usuário. Não recebe os
-  convites do dia.
+  dias 3/7/14/30 de inatividade, às 9h (id par) ou às 19h (id ímpar).
+  Não recebe os convites do dia.
 
 Idempotência: NotificacaoEnviada (unique por usuário+tipo+dia) garante que o
 mesmo tipo nunca sai duas vezes no mesmo dia, mesmo com o cron batendo várias
@@ -93,9 +95,8 @@ def _tipo_convite_do_dia(hoje):
 
 def _na_faixa_do_convite(tipo, hora, minuto):
     if tipo == NotificacaoEnviada.TIPO_CONVITE_CASUAL:
-        return 12 <= hora <= 14  # 12h00-14h59
-    # Tipo 4: 15h00-20h29 (pára antes da faixa do streak em risco)
-    return 15 <= hora <= 19 or (hora == 20 and minuto < 30)
+        return hora == 12  # 12h00-12h59
+    return hora == 15  # Tipo 4: 15h00-15h59
 
 
 def _enviar_lote_expo(mensagens):
@@ -186,7 +187,7 @@ def processar_notificacoes_agendadas():
             if dias_inatividade not in DIAS_REENGAJAMENTO:
                 continue
             usa_faixa_manha = usuario.id % 2 == 0
-            dentro_da_faixa = (8 <= hora <= 11) if usa_faixa_manha else (18 <= hora <= 21)
+            dentro_da_faixa = (hora == 9) if usa_faixa_manha else (hora == 19)
             if not dentro_da_faixa:
                 continue
             if _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_REENGAJAMENTO, hoje):
@@ -207,16 +208,16 @@ def processar_notificacoes_agendadas():
         if jogou_hoje:
             continue  # o resto (vidas, streak) só faz sentido pra quem ainda não jogou hoje
 
-        # Tipo 2 — streak em risco, 20h30-23h59
-        if 20 <= hora <= 23 and (hora > 20 or minuto >= 30) and usuario.streak > 0:
+        # Tipo 2 — streak em risco, 20h30-21h59
+        if ((hora == 20 and minuto >= 30) or hora == 21) and usuario.streak > 0:
             if not _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_STREAK_EM_RISCO, hoje):
                 corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_STREAK_EM_RISCO, streak=usuario.streak)
                 mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_STREAK_EM_RISCO, corpo))
             continue
 
-        # Tipo 1 — 7h-11h59, só se estava com vidas zeradas (reaproveita a
+        # Tipo 1 — 7h00-7h59, só se estava com vidas zeradas (reaproveita a
         # mesma lógica de reset diário usada no PerfilView).
-        if 7 <= hora <= 11:
+        if hora == 7:
             if _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, hoje):
                 continue
             vidas_antes = usuario.vidas
