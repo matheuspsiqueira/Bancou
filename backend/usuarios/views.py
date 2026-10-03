@@ -1,6 +1,8 @@
 import logging
 
 from django.conf import settings
+from django.db.models import F, IntegerField, Q
+from django.db.models.functions import Greatest
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -296,16 +298,23 @@ class AnuncioConfirmarTesteView(APIView):
 
 
 def checar_regeneracao_vidas(usuario):
-    from django.utils import timezone
+    """
+    Recarga diária: à 00h de Brasília (TIME_ZONE = America/Sao_Paulo), todo
+    usuário volta a ter pelo menos VIDAS_MAXIMAS vidas — nunca tira vidas
+    acima disso (ex.: compradas na loja). Roda sob demanda (perfil, iniciar
+    partida, cron de notificações) e é atômica: só uma requisição por dia
+    aplica a recarga, sem risco de sobrescrever um desconto de vida feito
+    em paralelo.
+    """
     agora = timezone.now()
-    precisa_resetar = (
-        usuario.vidas_atualizadas_em is None or
-        usuario.vidas_atualizadas_em.date() < agora.date()
+    inicio_do_dia = timezone.localtime(agora).replace(hour=0, minute=0, second=0, microsecond=0)
+    Usuario.objects.filter(pk=usuario.pk).filter(
+        Q(vidas_atualizadas_em__isnull=True) | Q(vidas_atualizadas_em__lt=inicio_do_dia)
+    ).update(
+        vidas=Greatest(F('vidas'), Usuario.VIDAS_MAXIMAS, output_field=IntegerField()),
+        vidas_atualizadas_em=agora,
     )
-    if precisa_resetar and usuario.vidas < usuario.VIDAS_MAXIMAS:
-        usuario.vidas = usuario.VIDAS_MAXIMAS
-        usuario.vidas_atualizadas_em = agora
-        usuario.save(update_fields=['vidas', 'vidas_atualizadas_em'])
+    usuario.refresh_from_db(fields=['vidas', 'vidas_atualizadas_em'])
 
 
 class SolicitarRecuperacaoSenhaView(generics.GenericAPIView):

@@ -135,19 +135,19 @@ export default function PartidaScreen({ navigation, route }) {
   const mostrarAlertaSemVidas = () => {
     const podeAssistir = (usuario?.anuncios_vida_restantes ?? 1) > 0;
     const botoes = [];
-    if (podeAssistir) {
-      botoes.push({
-      text: '+1 Vida',
-      icon: require('../assets/icons/ad.png'),
-      onPress: assistirAnuncioParaVida,
-    });
-    }
+    //if (podeAssistir) {
+    //  botoes.push({
+    //  text: '+1 Vida',
+    //  icon: require('../assets/icons/ad.png'),
+    //  onPress: assistirAnuncioParaVida,
+    //});
+    //}
     botoes.push({ text: 'Voltar', style: 'cancel', onPress: () => navigation.goBack() });
 
     alertar(
       'Sem vidas!',
       podeAssistir
-        ? 'Assista a um anúncio para ganhar 1 vida e jogar agora — ou aguarde a recuperação.'
+        ? 'Compre 1 vida na loja para jogar agora — ou aguarde a recuperação.'
         : 'Você já usou todos os anúncios de vida de hoje. Aguarde a recuperação ou compre na loja.',
       botoes,
       { pose: 'ops' }

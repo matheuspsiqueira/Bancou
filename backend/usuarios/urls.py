@@ -1,8 +1,8 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
-    RegistroView, PerfilView, AlterarSenhaView, RegistrarResultadoView,
-    RecuperarVidaView, SolicitarRecuperacaoSenhaView, ConfirmarRecuperacaoSenhaView,
+    RegistroView, PerfilView, AlterarSenhaView,
+    SolicitarRecuperacaoSenhaView, ConfirmarRecuperacaoSenhaView,
     VerificarEmailView, SolicitarTrocaEmailView,
     SolicitarExclusaoContaView, ConfirmarExclusaoContaView,
     AnuncioVidaExtraIniciarView, AnuncioSSVView, AnuncioConfirmarTesteView,
@@ -19,8 +19,6 @@ urlpatterns = [
     path('alterar-senha/', AlterarSenhaView.as_view(), name='alterar_senha'),
     path('notificacoes/', NotificacaoConfigView.as_view(), name='notificacoes_config'),
     path('notificacoes/disparar-agendadas/', DispararNotificacoesAgendadasView.as_view(), name='notificacoes_disparar_agendadas'),
-    path('registrar-resultado/', RegistrarResultadoView.as_view(), name='registrar_resultado'),
-    path('recuperar-vida/', RecuperarVidaView.as_view(), name='recuperar_vida'),
     path('anuncios/vida-extra/iniciar/', AnuncioVidaExtraIniciarView.as_view(), name='anuncio-vida-iniciar'),
     path('anuncios/vida-extra/confirmar-teste/', AnuncioConfirmarTesteView.as_view(), name='anuncio-vida-confirmar-teste'),
     path('anuncios/ssv/', AnuncioSSVView.as_view(), name='anuncio-ssv'),

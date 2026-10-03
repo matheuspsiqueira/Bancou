@@ -11,25 +11,37 @@ MOEDAS_POR_ACERTO = 2
 def checar_decaimento_streak(usuario):
     """
     Lazy check de streak — mesmo padrão do checar_regeneracao_vidas.
-    Deve ser chamado sempre que o perfil é carregado (PerfilView.get()
-    e IniciarPartidaView.get()), ANTES de qualquer partida ser jogada.
+    Chamado sempre que o perfil é carregado (PerfilView.get()) e ao iniciar
+    uma partida (IniciarPartidaView.get()), ANTES de qualquer partida ser jogada.
 
-    Se o usuário pulou pelo menos 1 dia sem jogar, o streak zera (vira 0),
-    a menos que ele tenha uma proteção de streak ativa pra consumir.
-    Não mexe em nada se ele já jogou hoje ou nunca jogou.
+    "Dia" = dia de Brasília (TIME_ZONE = America/Sao_Paulo), virando à 00h.
+
+    Regra: o streak sobrevive se o usuário jogou hoje ou ontem. Se o último
+    dia jogado foi anteontem ou antes (ou seja, ontem inteiro passou em
+    branco), o streak zera — a menos que ele tenha um congela_streak, que é
+    consumido (1 unidade perdoa o intervalo inteiro, simplificação atual).
+    Quando o congelamento é usado, data_ultima_partida passa a ser ONTEM:
+    sem isso, a próxima chamada veria o mesmo intervalo de novo e gastaria
+    outro congelamento (ou zeraria o streak que acabou de ser salvo).
+    Não mexe em nada se o streak já é 0 (nada a perder, nada a proteger).
     """
     hoje = timezone.localdate()
     ultima = usuario.data_ultima_partida
+    ontem = hoje - datetime.timedelta(days=1)
 
-    if ultima is None or ultima == hoje:
-        return  # nunca jogou, ou já jogou hoje — nada a fazer
+    if ultima is None or ultima >= ontem:
+        return  # nunca jogou, ou jogou hoje/ontem — streak segue vivo
 
-    if ultima < hoje - datetime.timedelta(days=1):
-        # pulou pelo menos 1 dia sem jogar — tenta proteção antes de zerar
-        if consumir_protecao_streak(usuario):
-            return
-        usuario.streak = 0
-        usuario.save(update_fields=['streak'])
+    if usuario.streak == 0:
+        return  # já zerado; não gasta congelamento à toa
+
+    if consumir_protecao_streak(usuario):
+        usuario.data_ultima_partida = ontem
+        usuario.save(update_fields=['data_ultima_partida'])
+        return
+
+    usuario.streak = 0
+    usuario.save(update_fields=['streak'])
 
 
 def creditar_resultado_partida(usuario, acertos, erros, contar_streak=True):
@@ -39,9 +51,9 @@ def creditar_resultado_partida(usuario, acertos, erros, contar_streak=True):
     descontada aqui — ela é paga integralmente na entrada da partida
     (ver IniciarPartidaView). Erros não afetam mais as vidas.
 
-    NOVO: se o usuário tiver o buff xp_dobro ativo, o XP ganho é
-    dobrado. Se o streak for resetar por ter pulado um dia, tenta
-    consumir 1 unidade de congela_streak antes de resetar de fato.
+    Se o usuário tiver o buff xp_dobro ativo, o XP ganho é dobrado. O
+    congelamento de streak é tratado em checar_decaimento_streak (que roda
+    antes de toda partida), não aqui.
 
     contar_streak=False (partida abandonada/incompleta): XP e moedas
     continuam sendo creditados normalmente, mas o streak e a
@@ -74,15 +86,11 @@ def creditar_resultado_partida(usuario, acertos, erros, contar_streak=True):
     elif ultima == hoje - datetime.timedelta(days=1):
         usuario.streak += 1
     else:
-        # Pulou pelo menos 1 dia — tenta consumir um congelamento de streak
-        # antes de resetar. Simplificação atual: 1 unidade de congela_streak
-        # sempre "perdoa" o intervalo inteiro, não importa quantos dias
-        # foram pulados. Se quiser cobrir só 1 dia por unidade, dá pra
-        # refinar depois comparando (hoje - ultima).days.
-        if consumir_protecao_streak(usuario):
-            usuario.streak += 1
-        else:
-            usuario.streak = 1
+        # Pulou pelo menos 1 dia e o streak já foi tratado em
+        # checar_decaimento_streak (zerado, ou salvo por congelamento — nesse
+        # caso data_ultima_partida já virou "ontem" e caiu no elif acima).
+        # Aqui o usuário recomeça: hoje é o dia 1.
+        usuario.streak = 1
 
     usuario.data_ultima_partida = hoje
     usuario.save(update_fields=['xp', 'moedas', 'streak', 'data_ultima_partida'])
