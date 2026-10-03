@@ -13,7 +13,7 @@
       <span class="quiz-chip">FGV · Direito Administrativo</span>
       <span class="quiz-vidas">
         <img src="{% static 'landing/img/vida.png' %}" alt="" class="icon-inline">
-        4
+        3
       </span>
     </div>
 
@@ -67,11 +67,6 @@
     </span>
 
     <span class="chip">
-      <img src="{% static 'landing/img/trofeu.png' %}" alt="" class="icon-inline">
-      Ranking semanal
-    </span>
-
-    <span class="chip">
       <img src="{% static 'landing/img/materias.png' %}" alt="" class="icon-inline">
       Bancas reais
     </span>
@@ -99,7 +94,7 @@
   <h2 class="section-title">Feito pra virar hábito</h2>
 
   <p class="section-sub">
-    Cada partida leva poucos minutos — dá pra estudar no ônibus, na fila do banco ou naquele intervalo
+    Cada partida leva poucos minutos — dá pra estudar no ônibus, na hora do almoço ou naquele intervalo
     entre uma tarefa e outra.
   </p>
 
@@ -165,24 +160,229 @@
       >
       <h3>Sistema de vidas</h3>
       <p>
-        Cada erro custa uma vida. Isso mantém o foco durante a partida, do mesmo jeito que uma
-        prova de verdade cobra atenção.
+        Cada partida custa uma vida, e você começa o dia com 3. Acabaram? Assista a um anúncio
+        para ganhar mais uma e continuar estudando.
       </p>
     </div>
 
     <div class="feat-card">
       <img
-        src="{% static 'landing/img/trofeu.png' %}"
-        alt="Ranking semanal"
-        class="feat-icon-img"
+        src="{% static 'landing/img/primeiros-passos.png' %}"
+        alt="Conquistas"
+        class="feat-icon-img feat-icon-img--ampliado"
       >
-      <h3>Ranking semanal</h3>
+      <h3>Conquistas</h3>
       <p>
-        Compare seu desempenho com outros concurseiros e suba de liga toda semana.
+        Desbloqueie conquistas conforme evolui e comemore cada marco ao lado do Kou.
       </p>
     </div>
 
   </div>
+</section>
+
+<section id="desafios">
+  <p class="section-label">Desafios diários</p>
+
+  <h2 class="section-title">Todo dia tem missão nova</h2>
+
+  <p class="section-sub">
+    A cada dia, o Bancou sorteia 3 desafios para você: acertar questões, jogar uma partida,
+    usar um item da loja. Cumpriu, ganhou XP e moedas. À meia-noite, vem desafio novo.
+  </p>
+
+  <img
+    class="destaque-kou"
+    src="{% static 'landing/img/kou-foco.png' %}"
+    alt="Kou concentrado"
+    onerror="this.style.display='none'"
+  >
+
+  <div class="desafios-lista" aria-hidden="true">
+    <div class="desafio">
+      <span class="desafio-prog">3/5</span>
+      <span class="desafio-txt">Acerte 5 questões</span>
+      <span class="desafio-recompensa">
+        <span>+20 <img src="{% static 'landing/img/moeda.png' %}" alt=""></span>
+      </span>
+    </div>
+    <div class="desafio">
+      <span class="desafio-prog">0/1</span>
+      <span class="desafio-txt">Compre 1 item da loja</span>
+      <span class="desafio-recompensa">
+        <span>+30 <img src="{% static 'landing/img/moeda.png' %}" alt=""></span>
+        <span>+15 <img src="{% static 'landing/img/xp.png' %}" alt=""></span>
+      </span>
+    </div>
+    <div class="desafio feito">
+      <span class="desafio-prog">✓</span>
+      <span class="desafio-txt">Jogue 1 partida</span>
+      <span class="desafio-recompensa">
+        <span>+10 <img src="{% static 'landing/img/moeda.png' %}" alt=""></span>
+      </span>
+    </div>
+  </div>
+  <p class="legenda">Exemplo ilustrativo. Os desafios e as recompensas mudam todo dia.</p>
+</section>
+
+<section id="conquistas">
+  <p class="section-label">Conquistas</p>
+
+  <h2 class="section-title">Cada marco merece comemoração</h2>
+
+  <p class="section-sub">
+    Gabaritou uma partida? Fechou sete dias seguidos? O Kou avisa e você desbloqueia a conquista.
+  </p>
+
+  <img
+    class="destaque-kou"
+    src="{% static 'landing/img/kou-torcendo.png' %}"
+    alt="Kou torcendo"
+    onerror="this.style.display='none'"
+  >
+
+  <div class="features-grid features-grid--tres" aria-hidden="true">
+    <div class="feat-card feat-card--conquista">
+      <img src="{% static 'landing/img/gabaritou.png' %}" alt="" class="feat-icon-img">
+      <h3>Gabaritou!</h3>
+      <p>Acerte as 10 questões de uma partida.</p>
+    </div>
+
+    <div class="feat-card feat-card--conquista">
+      <img src="{% static 'landing/img/7-dias.png' %}" alt="" class="feat-icon-img">
+      <h3>Sete dias seguidos</h3>
+      <p>Estude uma semana sem falhar.</p>
+    </div>
+
+    <div class="feat-card feat-card--conquista bloqueada">
+      <img src="{% static 'landing/img/materias.png' %}" alt="" class="feat-icon-img">
+      <h3>Conquista secreta</h3>
+      <p>Continue jogando para descobrir.</p>
+    </div>
+  </div>
+  <p class="legenda">Alguns exemplos. O app tem muito mais para desbloquear.</p>
+</section>
+
+<section id="loja">
+  <p class="section-label">Loja</p>
+
+  <h2 class="section-title">Gaste suas moedas com estratégia</h2>
+
+  <p class="section-sub">
+    As moedas que você ganha estudando valem na loja. Escolha o item certo para o momento
+    e leve a partida adiante.
+  </p>
+
+  <div class="features-grid features-grid--quatro">
+    <div class="feat-card feat-card--item">
+      <img
+        src="{% static 'landing/img/pula_questao.png' %}"
+        alt=""
+        class="feat-icon-img"
+        onerror="this.style.display='none'"
+      >
+      <h3>Pular questão</h3>
+      <p>Travou numa questão difícil? Pule e ainda conte o acerto.</p>
+    </div>
+
+    <div class="feat-card feat-card--item">
+      <img
+        src="{% static 'landing/img/bomba.png' %}"
+        alt=""
+        class="feat-icon-img"
+        onerror="this.style.display='none'"
+      >
+      <h3>Eliminar 2</h3>
+      <p>Esconde duas alternativas erradas e deixa a escolha mais fácil.</p>
+    </div>
+
+    <div class="feat-card feat-card--item">
+      <img src="{% static 'landing/img/xp.png' %}" alt="" class="feat-icon-img">
+      <h3>XP em dobro</h3>
+      <p>Dobra o XP que você ganha nas partidas enquanto estiver ativo.</p>
+    </div>
+
+    <div class="feat-card feat-card--item">
+      <img src="{% static 'landing/img/congelamento_streak.png' %}" alt="" class="feat-icon-img">
+      <h3>Proteção de streak</h3>
+      <p>Esqueceu de estudar um dia? Ela segura a sua sequência.</p>
+    </div>
+  </div>
+</section>
+
+<section id="ranking">
+  <p class="section-label">Em breve</p>
+
+  <h2 class="section-title">Duele, some troféus e suba de liga</h2>
+
+  <p class="section-sub">
+    Estamos preparando o ranking: desafie outros concurseiros em duelos, acumule troféus
+    e suba de liga. Ainda não está no app, mas já está a caminho.
+  </p>
+
+  <img
+    class="destaque-kou"
+    src="{% static 'landing/img/kou-obra.png' %}"
+    alt="Kou em obras"
+    onerror="this.style.display='none'"
+  >
+
+  <div class="ligas" aria-hidden="true">
+    <div class="liga">
+      <img src="{% static 'landing/img/liga_bronze.png' %}" alt="Liga Bronze" class="escudo">
+      Bronze
+    </div>
+    <div class="liga">
+      <img src="{% static 'landing/img/liga_prata.png' %}" alt="Liga Prata" class="escudo">
+      Prata
+    </div>
+    <div class="liga">
+      <img src="{% static 'landing/img/liga_ouro.png' %}" alt="Liga Ouro" class="escudo">
+      Ouro
+    </div>
+    <div class="liga">
+      <img src="{% static 'landing/img/liga_diamante.png' %}" alt="Liga Diamante" class="escudo">
+      Diamante
+    </div>
+  </div>
+
+  <div class="ranking-lista" aria-hidden="true">
+    <div class="ranking-linha">
+      <span class="ranking-pos">1</span>
+      <span class="ranking-avatar">M</span>
+      <span class="ranking-nome">Marina</span>
+      <span class="ranking-trofeus">1.240 <img src="{% static 'landing/img/trofeu.png' %}" alt=""></span>
+      <span class="ranking-duelar">Duelar</span>
+    </div>
+    <div class="ranking-linha">
+      <span class="ranking-pos">2</span>
+      <span class="ranking-avatar">R</span>
+      <span class="ranking-nome">Rafael</span>
+      <span class="ranking-trofeus">1.185 <img src="{% static 'landing/img/trofeu.png' %}" alt=""></span>
+      <span class="ranking-duelar">Duelar</span>
+    </div>
+    <div class="ranking-linha voce">
+      <span class="ranking-pos">3</span>
+      <span class="ranking-avatar">V</span>
+      <span class="ranking-nome">Você</span>
+      <span class="ranking-trofeus">1.120 <img src="{% static 'landing/img/trofeu.png' %}" alt=""></span>
+      <span class="ranking-duelar">Duelar</span>
+    </div>
+    <div class="ranking-linha">
+      <span class="ranking-pos">4</span>
+      <span class="ranking-avatar">C</span>
+      <span class="ranking-nome">Camila</span>
+      <span class="ranking-trofeus">1.040 <img src="{% static 'landing/img/trofeu.png' %}" alt=""></span>
+      <span class="ranking-duelar">Duelar</span>
+    </div>
+    <div class="ranking-linha">
+      <span class="ranking-pos">5</span>
+      <span class="ranking-avatar">J</span>
+      <span class="ranking-nome">João</span>
+      <span class="ranking-trofeus">980 <img src="{% static 'landing/img/trofeu.png' %}" alt=""></span>
+      <span class="ranking-duelar">Duelar</span>
+    </div>
+  </div>
+  <p class="legenda">Exemplo ilustrativo. Nomes e valores fictícios.</p>
 </section>
 
 <section id="como-funciona">
@@ -229,8 +429,8 @@
       <div>
         <h4>Volte todo dia</h4>
         <p>
-          Mantenha o streak, suba de nível e de liga. A constância é o que separa quem
-          estuda de quem passa.
+          Cumpra os desafios do dia, mantenha o streak, suba de nível e desbloqueie conquistas.
+          A constância é o que separa quem estuda de quem passa.
         </p>
       </div>
     </div>
@@ -271,4 +471,3 @@
 </section>
 
 {% endblock %}
-```
