@@ -71,8 +71,10 @@ class IniciarPartidaView(APIView):
     guardando exatamente quais questões foram sorteadas. Consome 1 vida
     do usuário no momento da criação — mecânica de "energia": a vida é
     gasta ao entrar na partida, independente de quantos acertos/erros
-    ela tiver. Retorna as questões (sem gabarito) + o partida_id + o
-    número de vidas restantes.
+    ela tiver. A vida sai primeiro do pote do sistema (recarrega à 00h) e,
+    se ele estiver zerado, do pote de vidas extras (compradas/ganhas).
+    Retorna as questões (sem gabarito) + o partida_id + o número TOTAL de
+    vidas restantes.
     """
     permission_classes = [IsAuthenticated]
     QUANTIDADE = 10
@@ -81,10 +83,10 @@ class IniciarPartidaView(APIView):
         checar_regeneracao_vidas(request.user)
         checar_decaimento_streak(request.user)
         sortear_desafios_do_dia(request.user)
-        request.user.refresh_from_db(fields=['vidas'])
+        request.user.refresh_from_db(fields=['vidas', 'vidas_extras'])
 
         # Checagem rápida antes de gastar esforço montando o sorteio
-        if request.user.vidas <= 0:
+        if request.user.vidas_total <= 0:
             return Response(
                 {'detail': 'Você não tem vidas suficientes para iniciar uma partida.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -146,14 +148,12 @@ class IniciarPartidaView(APIView):
         with transaction.atomic():
             usuario = Usuario.objects.select_for_update().get(pk=request.user.pk)
 
-            if usuario.vidas <= 0:
+            if not usuario.gastar_vida():
                 return Response(
                     {'detail': 'Você não tem vidas suficientes para iniciar uma partida.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            usuario.vidas -= 1
-            usuario.save(update_fields=['vidas'])
+            usuario.save(update_fields=['vidas', 'vidas_extras'])
 
             partida = Partida.objects.create(
                 usuario=usuario,
@@ -168,7 +168,7 @@ class IniciarPartidaView(APIView):
             'partida_id': partida.id,
             'total': len(questoes_ordenadas),
             'questoes': serializer.data,
-            'vidas_restantes': usuario.vidas,
+            'vidas_restantes': usuario.vidas_total,
             'streak': usuario.streak,
         })
 

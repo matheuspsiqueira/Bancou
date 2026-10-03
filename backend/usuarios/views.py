@@ -215,7 +215,7 @@ class AnuncioVidaExtraIniciarView(APIView):
 
     def post(self, request):
         usuario = request.user
-        if usuario.vidas > 0:
+        if usuario.vidas_total > 0:
             return Response(
                 {'detail': 'Você ainda tem vidas disponíveis.'},
                 status=status.HTTP_400_BAD_REQUEST,

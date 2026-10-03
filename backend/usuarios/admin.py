@@ -6,8 +6,8 @@ from .models import Usuario
 @admin.register(Usuario)
 class UsuarioAdmin(DjangoUserAdmin):
     model = Usuario
-    list_display = ['email', 'username', 'nome_completo', 'xp', 'moedas', 'vidas', 'streak', 'is_active', 'date_joined']
-    list_editable = ['xp', 'moedas', 'vidas', 'streak']
+    list_display = ['email', 'username', 'nome_completo', 'xp', 'moedas', 'vidas', 'vidas_extras', 'streak', 'is_active', 'date_joined']
+    list_editable = ['xp', 'moedas', 'vidas', 'vidas_extras', 'streak']
     list_filter = ['is_active', 'is_staff', 'is_superuser', 'date_joined']
     search_fields = ['email', 'username', 'nome_completo']
     ordering = ['-date_joined']
@@ -19,7 +19,7 @@ class UsuarioAdmin(DjangoUserAdmin):
         ('Permissões', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Datas importantes', {'fields': ('last_login', 'date_joined')}),
         ('🎮 Economia do jogo', {
-            'fields': ('xp', 'moedas', 'vidas', 'streak', 'data_ultima_partida', 'vidas_atualizadas_em'),
+            'fields': ('xp', 'moedas', 'vidas', 'vidas_extras', 'streak', 'data_ultima_partida', 'vidas_atualizadas_em'),
         }),
         ('Notificações', {
             'fields': ('notificacoes_ativadas', 'expo_push_token'),

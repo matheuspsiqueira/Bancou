@@ -47,7 +47,8 @@ def creditar_compra_iap(usuario, produto: ProdutoIAP, purchase_token: str):
 @transaction.atomic
 def comprar_item_virtual(usuario, codigo_item: str):
     """Compra um item da loja de moedas: buffs consumíveis, buff temporário
-    (xp_dobro) ou vida extra (crédito direto, pode passar do teto de vidas).
+    (xp_dobro) ou vida extra (crédito direto no pote de vidas_extras, que
+    acumula e não é cortado pela recarga diária da 00h).
 
     Levanta ItemLoja.DoesNotExist se o código não existir/estiver
     inativo, e SaldoInsuficienteError se faltar moeda.
@@ -68,10 +69,11 @@ def comprar_item_virtual(usuario, codigo_item: str):
     HistoricoCompraItem.objects.create(usuario=usuario_locked, item=item)
 
     if item.tipo_efeito == 'credito_direto':
-        # vida_extra — passa do teto de VIDAS_MAXIMAS, decisão já validada
-        usuario_locked.vidas += item.quantidade_concedida
-        usuario_locked.save(update_fields=['vidas'])
-        return {'tipo': 'vida_extra', 'vidas_atuais': usuario_locked.vidas}
+        # vida_extra — vai pro pote de vidas_extras (acumula, não é cortada
+        # pela recarga das 00h). vidas_atuais devolve o TOTAL (sistema + extras).
+        usuario_locked.vidas_extras += item.quantidade_concedida
+        usuario_locked.save(update_fields=['vidas_extras'])
+        return {'tipo': 'vida_extra', 'vidas_atuais': usuario_locked.vidas_total}
 
     if item.tipo_efeito == 'temporario':
         ativo = BuffAtivo.objects.create(
@@ -103,7 +105,7 @@ def consumir_protecao_streak(usuario) -> bool:
     Retorna True se consumiu (streak deve ser preservado em vez de resetar),
     False se não havia nenhuma unidade disponível (streak reseta normalmente).
 
-    Chamado de dentro de usuarios/services.py::creditar_resultado_partida,
+    Chamado de dentro de usuarios/services.py::checar_decaimento_streak,
     exatamente no momento em que o streak resetaria por ter pulado um dia.
     """
     try:

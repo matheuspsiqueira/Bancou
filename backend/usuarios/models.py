@@ -13,7 +13,15 @@ class Usuario(AbstractUser):
     # ─── Economia do jogo ───────────────────────────────────────────────
     xp = models.PositiveIntegerField(default=0)
     moedas = models.PositiveIntegerField(default=0)
+    # Duas "bolsas" de vida:
+    #   vidas        -> vidas do SISTEMA: recarregam até VIDAS_MAXIMAS à 00h de
+    #                   Brasília (ver checar_regeneracao_vidas em views.py)
+    #   vidas_extras -> vidas GANHAS/COMPRADAS (loja, anúncio): acumulam e NÃO
+    #                   são afetadas pela recarga diária
+    # O app enxerga só o total (UsuarioSerializer.vidas = vidas_total). Ao gastar,
+    # consome primeiro as do sistema e só depois as extras (ver gastar_vida).
     vidas = models.PositiveSmallIntegerField(default=3)
+    vidas_extras = models.PositiveSmallIntegerField(default=0)
     streak = models.PositiveIntegerField(default=0)
 
     # ─── Controle (uso futuro: regeneração automática de vidas/streak) ──
@@ -64,6 +72,25 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    @property
+    def vidas_total(self):
+        return self.vidas + self.vidas_extras
+
+    def gastar_vida(self):
+        """
+        Consome 1 vida: primeiro a do sistema (que se perde se não for usada
+        antes da recarga), depois as extras (que o usuário ganhou/comprou).
+        Retorna False se não há nenhuma. NÃO salva — quem chama faz
+        save(update_fields=['vidas', 'vidas_extras']) dentro do lock.
+        """
+        if self.vidas > 0:
+            self.vidas -= 1
+            return True
+        if self.vidas_extras > 0:
+            self.vidas_extras -= 1
+            return True
+        return False
 
 
 def _gerar_token_anuncio():

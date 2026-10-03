@@ -102,9 +102,11 @@ def unidade_confere(ad_unit):
 
 def creditar_vida_por_anuncio(token, usuario_id=None, transaction_id=None):
     """
-    Confirma o registro `token` e credita +1 vida. Retorna uma das constantes
-    de resultado acima. `usuario_id` (quando informado) precisa bater com o
-    dono do token. Idempotente: o mesmo token/transaction_id nunca credita 2x.
+    Confirma o registro `token` e credita +1 vida no pote de vidas_extras
+    (acumula e NÃO é cortada pela recarga diária da 00h). Retorna uma das
+    constantes de resultado acima. `usuario_id` (quando informado) precisa
+    bater com o dono do token. Idempotente: o mesmo token/transaction_id
+    nunca credita 2x.
     """
     from .models import AnuncioVidaExtra, Usuario
 
@@ -131,8 +133,8 @@ def creditar_vida_por_anuncio(token, usuario_id=None, transaction_id=None):
             registro.transaction_id = transaction_id or None
             registro.save(update_fields=['confirmado_em', 'transaction_id'])
 
-            usuario.vidas += 1
-            usuario.save(update_fields=['vidas'])
+            usuario.vidas_extras += 1
+            usuario.save(update_fields=['vidas_extras'])
             return OK
     except IntegrityError:
         # transaction_id repetido → o Google reenviou o mesmo callback.

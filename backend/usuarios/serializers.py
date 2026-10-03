@@ -65,6 +65,8 @@ class RegistroSerializer(serializers.ModelSerializer):
 class UsuarioSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
     anuncios_vida_restantes = serializers.SerializerMethodField()
+    # O app enxerga o TOTAL de vidas (sistema + extras), então nada muda no frontend.
+    vidas = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
@@ -77,6 +79,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
             'notificacoes_ativadas',
         )
+
+    def get_vidas(self, obj):
+        return obj.vidas_total
 
     def get_anuncios_vida_restantes(self, obj):
         return AnuncioVidaExtra.restantes_hoje(obj)

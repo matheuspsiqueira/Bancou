@@ -220,9 +220,9 @@ def processar_notificacoes_agendadas():
         if hora == 7:
             if _ja_enviado_hoje(usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, hoje):
                 continue
-            vidas_antes = usuario.vidas
+            vidas_antes = usuario.vidas_total
             checar_regeneracao_vidas(usuario)
-            if vidas_antes == 0 and usuario.vidas > vidas_antes:
+            if vidas_antes == 0 and usuario.vidas_total > vidas_antes:
                 corpo = _escolher_mensagem(NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS)
                 mensagens_para_enviar.append((usuario, NotificacaoEnviada.TIPO_VIDAS_RESTAURADAS, corpo))
             continue
