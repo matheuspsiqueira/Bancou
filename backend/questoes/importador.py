@@ -3,10 +3,12 @@ import json as _json
 import base64
 import json
 import os
+import re
 import pdfplumber
 import tempfile
 from django.db import transaction
 from .models import Concurso, Materia, Questao, Alternativa
+from .texto_formatado import normalizar_texto, destaque_sem_formatacao
 
 PROMPT_EXTRACAO = """Você é um especialista em concursos públicos brasileiros.
 
@@ -168,6 +170,11 @@ def extrair_questoes_via_ia(client, texto_paginas: list[str]) -> list[dict]:
 
 
 def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_gabarito=None):
+    """
+    Importação PDF + IA (só texto). ATENÇÃO: este caminho lê apenas o texto do
+    PDF, então NÃO enxerga sublinhado/negrito/itálico nem imagens/tabelas.
+    Para provas com trechos sublinhados, use a importação por JSON.
+    """
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY não configurada no .env')
@@ -178,6 +185,12 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
     print("Extraindo texto do PDF da prova...")
     paginas_prova = extrair_texto_pdf(pdf_prova)
     print(f"  {len(paginas_prova)} páginas com texto encontradas")
+
+    if not paginas_prova:
+        raise ValueError(
+            'Este PDF não tem texto selecionável (provavelmente é escaneado). '
+            'Use "Importar JSON" com o JSON gerado a partir das imagens das páginas.'
+        )
 
     # Extrai questões via IA em lotes
     print("Enviando para a API do Claude...")
@@ -194,7 +207,122 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
     return _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano)
 
 
-def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
+# ---------------------------------------------------------------------------
+# Helpers de normalização (formatação, imagens, gabarito)
+# ---------------------------------------------------------------------------
+
+# Marcador que a IA coloca no texto onde há figura/tabela: [[IMG:IMG_P07_01]].
+# Hoje a questão tem UM slot de imagem (campo `imagem`), então o marcador sai
+# do texto e a imagem fica descrita em notas_extracao (página + posição) para
+# você recortar e subir. Se um dia houver várias imagens inline, é aqui que
+# o marcador deixa de ser removido.
+RE_MARCADOR_IMG = re.compile(r'[ \t]*\[\[IMG:\s*([^\]\s]+)\s*\]\][ \t]*')
+
+
+def _sem_marcadores(texto, ids_imagem):
+    """Remove [[IMG:id]] do texto, acumulando os ids encontrados."""
+    def _troca(m):
+        ids_imagem.append(m.group(1))
+        return '\n'
+    return RE_MARCADOR_IMG.sub(_troca, texto or '')
+
+
+def _limpar(texto, ids_imagem):
+    """Marcadores de imagem fora + só <u><b><i><sup><sub> + escapes corretos."""
+    return normalizar_texto(_sem_marcadores(texto, ids_imagem))
+
+
+def _letra_gabarito(valor):
+    """'e ' -> 'E'; 'anulada' -> 'ANULADA'; vazio -> ''."""
+    v = str(valor or '').strip().upper()
+    if v.startswith('ANULAD'):
+        return 'ANULADA'
+    return v
+
+
+def _texto_do_base(tb, ids_imagem):
+    """titulo + conteudo + fonte — mesmo desenho do contexto de antes."""
+    partes = []
+    if tb.get('titulo'):
+        partes.append(_limpar(tb['titulo'], ids_imagem))
+    if tb.get('conteudo'):
+        partes.append(_limpar(tb['conteudo'], ids_imagem))
+    if tb.get('fonte'):
+        partes.append(f"Fonte: {_limpar(tb['fonte'], ids_imagem)}")
+    return '\n'.join(p for p in partes if p)
+
+
+def _nota_imagem(id_img, info):
+    if not info:
+        return f'Imagem {id_img} citada no texto, mas não descrita no JSON'
+    nota = f"Imagem {id_img} ({info.get('tipo') or 'figura'})"
+    if info.get('pagina'):
+        nota += f" — pág. {info['pagina']}"
+    if info.get('posicao'):
+        nota += f", {info['posicao']}"
+    if info.get('descricao'):
+        nota += f": {info['descricao']}"
+    if info.get('transcricao'):
+        nota += ' | Transcrição: ' + str(info['transcricao']).replace('\n', ' / ')
+    return nota
+
+
+def parsear_gabarito(texto):
+    """
+    Gabarito oficial digitado/colado, uma letra por questão, na ordem (1, 2, 3…).
+    Aceita com ou sem espaços/vírgulas: "E C C E A…" ou "ECCEA…".
+    X ou * = questão anulada. Retorna {numero: letra}.
+    """
+    bruto = re.sub(r'[\s,;.\-]+', '', str(texto or '')).upper()
+    if not bruto:
+        return {}
+    invalidos = sorted(set(re.findall(r'[^A-EX*]', bruto)))
+    if invalidos:
+        raise ValueError(
+            f'Gabarito oficial: caractere(s) inválido(s) {invalidos}. '
+            f'Use só A, B, C, D, E (X ou * para anulada).'
+        )
+    return {i + 1: ('ANULADA' if c in 'X*' else c) for i, c in enumerate(bruto)}
+
+
+def _validar_questoes(questoes):
+    """Junta TODOS os problemas num erro só, em vez de parar no primeiro."""
+    erros, vistos = [], set()
+    for i, q in enumerate(questoes):
+        if not isinstance(q, dict):
+            erros.append(f'Item {i} de "questoes" não é um objeto.')
+            continue
+        num = q.get('numero_questao')
+        rotulo = f'Questão {num}' if num is not None else f'Item {i}'
+        if num is None:
+            erros.append(f'Item {i} não tem "numero_questao".')
+        elif not isinstance(num, int):
+            erros.append(f'{rotulo}: "numero_questao" deve ser número inteiro.')
+        elif num in vistos:
+            erros.append(f'{rotulo}: número repetido no JSON.')
+        else:
+            vistos.add(num)
+        if not str(q.get('enunciado') or '').strip():
+            erros.append(f'{rotulo}: "enunciado" vazio ou ausente.')
+        for a in q.get('alternativas') or []:
+            if not isinstance(a, dict):
+                erros.append(f'{rotulo}: alternativa inválida.')
+                break
+            letra = a.get('letra') or '?'
+            if not a.get('letra'):
+                erros.append(f'{rotulo}: alternativa sem "letra" (chaves encontradas: {sorted(a)}).')
+                break
+            if a.get('texto') in (None, ''):
+                dica = ' — veio "text" no lugar de "texto"' if a.get('text') else ''
+                erros.append(f'{rotulo}: alternativa {letra} sem "texto"{dica}.')
+                break
+    if erros:
+        extra = f'\n(+{len(erros) - 10} outros)' if len(erros) > 10 else ''
+        raise ValueError('JSON com problemas:\n' + '\n'.join(erros[:10]) + extra)
+
+
+def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
+                     textos_base=None, imagens=None):
     """
     Grava as questões no banco.
 
@@ -209,7 +337,19 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
          queries), não uma por questão.
       3. Questao e Alternativa são gravadas via bulk_create — 2 INSERTs
          no total (em lote), em vez de um por linha.
+
+    Aceita DOIS formatos de JSON:
+      - novo: `textos_base` (lista com id) + `texto_base_ids` em cada questão
+        + `imagens` (lista com id) + marcadores [[IMG:id]] nos textos;
+      - antigo: `texto_base` embutido na 1ª questão do grupo +
+        `questoes_que_compartilham_texto_base`.
+
+    Texto formatado: enunciado, contexto e alternativas passam por
+    texto_formatado.normalizar_texto (só <u><b><i><sup><sub>).
     """
+    textos_por_id = {t['id']: t for t in (textos_base or []) if t.get('id')}
+    imagens_por_id = {i['id']: i for i in (imagens or []) if i.get('id')}
+
     with transaction.atomic():
         concurso, _ = Concurso.objects.get_or_create(
             nome=concurso_nome,
@@ -217,6 +357,19 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
             ano=ano,
             defaults={'cargo': cargo or ''}
         )
+
+        # Reimportar o mesmo JSON duplicaria tudo — barra antes de gravar.
+        numeros = [q['numero_questao'] for q in questoes]
+        ja_existem = sorted(
+            Questao.objects.filter(concurso=concurso, numero__in=numeros)
+            .values_list('numero', flat=True)
+        )
+        if ja_existem:
+            raise ValueError(
+                f'O concurso "{concurso_nome}" já tem as questões {ja_existem[:15]}'
+                f'{"…" if len(ja_existem) > 15 else ""}. Apague as antigas no admin '
+                f'antes de reimportar (ou use outro nome de concurso).'
+            )
 
         # Resolve todas as matérias distintas de uma vez só
         nomes_materias = {
@@ -237,21 +390,13 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
             for m in Materia.objects.filter(nome__in=[m.nome for m in novas_materias]):
                 materias_por_nome[m.nome] = m
 
-        # Mapeia textos base por grupo (igual antes)
-        textos_base = {}
+        # Formato antigo: texto base embutido na questão, agrupado por lista de números
+        textos_legado = {}
         for q in questoes:
             if q.get('texto_base') and q.get('questoes_que_compartilham_texto_base'):
                 grupo = tuple(q['questoes_que_compartilham_texto_base'])
-                if grupo not in textos_base:
-                    tb = q['texto_base']
-                    partes = []
-                    if tb.get('titulo'):
-                        partes.append(tb['titulo'])
-                    if tb.get('conteudo'):
-                        partes.append(tb['conteudo'])
-                    if tb.get('fonte'):
-                        partes.append(f"Fonte: {tb['fonte']}")
-                    textos_base[grupo] = '\n'.join(partes)
+                if grupo not in textos_legado:
+                    textos_legado[grupo] = q['texto_base']
 
         questoes_objs = []
         alternativas_brutas = []  # lista paralela: alternativas de cada questão, na mesma ordem
@@ -259,15 +404,38 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
         for q in questoes:
             nome_materia = q.get('materia', '').strip()
             materia = materias_por_nome.get(nome_materia)
-
-            contexto = ''
             num = q['numero_questao']
-            for grupo, texto in textos_base.items():
-                if num in grupo:
-                    contexto = texto
-                    break
+            notas = []
+            ids_img = list(q.get('imagem_ids') or [])
 
-            letras = [a['letra'] for a in q.get('alternativas', [])]
+            # --- contexto (texto base) ---------------------------------
+            contexto = ''
+            ids_texto = q.get('texto_base_ids') or []
+            if ids_texto:
+                partes = []
+                for tid in ids_texto:
+                    tb = textos_por_id.get(tid)
+                    if tb:
+                        partes.append(_texto_do_base(tb, ids_img))
+                    else:
+                        notas.append(f'Texto-base {tid} não encontrado no JSON')
+                contexto = '\n\n'.join(p for p in partes if p)
+            else:
+                for grupo, tb in textos_legado.items():
+                    if num in grupo:
+                        contexto = _texto_do_base(tb, ids_img)
+                        break
+
+            # --- enunciado e alternativas ------------------------------
+            enunciado = _limpar(q['enunciado'], ids_img)
+            alternativas = []
+            for a in q.get('alternativas', []):
+                alternativas.append({
+                    'letra': str(a['letra']).strip().upper(),
+                    'texto': _limpar(a['texto'], ids_img),
+                })
+
+            letras = [a['letra'] for a in alternativas]
             if set(letras) <= {'C', 'E'}:
                 tipo = 'certo_errado'
             elif letras:
@@ -275,23 +443,61 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
             else:
                 tipo = 'discursiva'
 
-            tem_imagem = q.get('tem_imagem', False)
-            gabarito_letra = gabarito.get(num, q.get('gabarito', ''))
+            # --- imagens -----------------------------------------------
+            ids_unicos = list(dict.fromkeys(ids_img))
+            tem_imagem = bool(ids_unicos) or bool(q.get('tem_imagem', False))
+            if tem_imagem:
+                notas.append('Questão com imagem — faça o upload manualmente')
+            for id_img in ids_unicos:
+                notas.append(_nota_imagem(id_img, imagens_por_id.get(id_img)))
+
+            baixa_confianca = tem_imagem
+
+            # --- revisão pedida pela IA / formatação suspeita ----------
+            if q.get('revisar'):
+                baixa_confianca = True
+                notas.append('Revisar: ' + (q.get('motivo_revisao') or 'marcada pela IA para conferência'))
+
+            tudo = ' '.join([enunciado, contexto] + [a['texto'] for a in alternativas])
+            if destaque_sem_formatacao(enunciado, tudo):
+                baixa_confianca = True
+                notas.append(
+                    'O enunciado cita trecho sublinhado/grifado/destacado, mas a questão '
+                    'está sem formatação — confira na prova e sublinhe no editor'
+                )
+
+            # --- gabarito ------------------------------------------------
+            gabarito_letra = _letra_gabarito(gabarito.get(num, q.get('gabarito', '')))
+            gab_json = _letra_gabarito(q.get('gabarito', ''))
+            if num in gabarito and gab_json and gab_json != gabarito_letra:
+                baixa_confianca = True
+                notas.append(
+                    f'Gabarito do JSON ({gab_json}) diferia do gabarito oficial informado '
+                    f'({gabarito_letra}) — foi usado o oficial'
+                )
+            status = 'pendente'
+            if gabarito_letra == 'ANULADA':
+                status = 'rejeitada'
+                gabarito_letra = ''
+                notas.append('Questão anulada pela banca')
+            elif letras and gabarito_letra not in letras:
+                baixa_confianca = True
+                notas.append('Gabarito ausente ou não bate com as alternativas — conferir')
 
             questoes_objs.append(Questao(
                 concurso=concurso,
                 materia=materia,
                 numero=num,
                 tipo=tipo,
-                enunciado=q['enunciado'],
+                enunciado=enunciado,
                 contexto=contexto,
                 gabarito=gabarito_letra,
                 tem_imagem=tem_imagem,
-                baixa_confianca=tem_imagem,
-                notas_extracao=['Questão com imagem — faça o upload manualmente'] if tem_imagem else [],
-                status='pendente',
+                baixa_confianca=baixa_confianca,
+                notas_extracao=notas,
+                status=status,
             ))
-            alternativas_brutas.append(q.get('alternativas', []))
+            alternativas_brutas.append(alternativas)
 
         questoes_criadas = Questao.objects.bulk_create(questoes_objs)
 
@@ -306,51 +512,63 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano):
         return len(questoes_criadas)
 
 
-def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file):
+def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabarito_texto=''):
     """
     Importa questões a partir de um arquivo JSON já estruturado,
-    sem passar pela extração via IA. Usa o mesmo schema que o
-    PROMPT_EXTRACAO já produz, então um JSON exportado da extração
-    automática (ou editado manualmente) pode ser reimportado direto.
+    sem passar pela extração via IA.
 
-    Schema esperado:
+    Formato NOVO (o do prompt atual — preserva formatação e imagens):
     {
+      "textos_base": [
+        {"id": "TB_Q01", "titulo": "...", "conteudo": "... <u>trecho</u> ...", "fonte": "..." | null}
+      ],
+      "imagens": [
+        {"id": "IMG_P07_01", "tipo": "figura|tabela|grafico|texto_em_imagem",
+         "pagina": 7, "posicao": "...", "descricao": "...", "transcricao": "..." | null}
+      ],
       "questoes": [
         {
           "numero_questao": 1,
-          "enunciado": "...",
-          "texto_base": {"titulo": "...", "conteudo": "...", "fonte": "..."} | null,
-          "texto_base_compartilhado": true | false,
-          "questoes_que_compartilham_texto_base": [1, 2, 3],
-          "alternativas": [{"letra": "A", "texto": "..."}, ...],
-          "gabarito": "A",
-          "materia": "Direito Constitucional",
-          "tem_imagem": false
+          "materia": "Língua Portuguesa",
+          "texto_base_ids": ["TB_Q01"],
+          "enunciado": "... [[IMG:IMG_P07_01]] ...",
+          "alternativas": [{"letra": "A", "texto": "<u>...</u>"}, ...],
+          "gabarito": "A" | "ANULADA",
+          "imagem_ids": ["IMG_P07_01"],
+          "revisar": false,
+          "motivo_revisao": null
         }
       ]
     }
+    Tags aceitas nos textos: <u> <b> <i> <sup> <sub>.
+
+    Formato ANTIGO (continua funcionando): texto_base embutido +
+    questoes_que_compartilham_texto_base + tem_imagem.
     """
     conteudo = json_file.read()
     if isinstance(conteudo, bytes):
-        conteudo = conteudo.decode('utf-8')
+        conteudo = conteudo.decode('utf-8-sig')   # aceita BOM
 
     try:
         dados = _json.loads(conteudo)
     except _json.JSONDecodeError as e:
         raise ValueError(f'JSON inválido: {e}')
 
+    if not isinstance(dados, dict):
+        raise ValueError('O JSON precisa ser um objeto com a chave "questoes".')
+
     questoes = dados.get('questoes')
     if not questoes:
         raise ValueError('O JSON precisa ter uma chave "questoes" com uma lista de questões.')
 
-    # Validação mínima de cada questão antes de salvar
-    for i, q in enumerate(questoes):
-        if 'numero_questao' not in q:
-            raise ValueError(f'Questão no índice {i} não tem "numero_questao".')
-        if 'enunciado' not in q:
-            raise ValueError(f'Questão {q.get("numero_questao", i)} não tem "enunciado".')
+    _validar_questoes(questoes)
 
-    # Reaproveita a mesma função de gravação usada pela extração via IA.
-    # Gabarito já vem embutido em cada questão (campo "gabarito"), então
-    # passamos um dict vazio — a função usa q.get('gabarito', '') como fallback.
-    return _salvar_questoes(questoes, {}, banca, concurso_nome, cargo, ano)
+    # O gabarito do JSON é só um fallback: a IA às vezes "resolve" a questão em
+    # vez de copiar o gabarito. Se o gabarito oficial vier digitado, ele manda
+    # e qualquer divergência fica anotada na questão.
+    gabarito_oficial = parsear_gabarito(gabarito_texto)
+    return _salvar_questoes(
+        questoes, gabarito_oficial, banca, concurso_nome, cargo, ano,
+        textos_base=dados.get('textos_base'),
+        imagens=dados.get('imagens'),
+    )

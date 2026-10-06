@@ -16,6 +16,7 @@ import { tocar } from '../services/somService';
 import { ADS } from '../adsConfig';
 import { assistirAnuncioPremiado } from '../services/adsService';
 import { colors, typography, fontSize, spacing } from '../theme';
+import TextoFormatado from '../components/TextoFormatado';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
@@ -661,12 +662,12 @@ export default function PartidaScreen({ navigation, route }) {
         {/* Contexto (texto-base compartilhado) */}
         {!!questaoAtual.contexto && (
           <View style={styles.contextoBox}>
-            <Text style={styles.contextoTexto}>{questaoAtual.contexto}</Text>
+            <TextoFormatado style={styles.contextoTexto}>{questaoAtual.contexto}</TextoFormatado>
           </View>
         )}
 
         {/* Enunciado */}
-        <Text style={styles.enunciado}>{questaoAtual.enunciado}</Text>
+        <TextoFormatado style={styles.enunciado}>{questaoAtual.enunciado}</TextoFormatado>
 
         {/* Imagem da questão (quando houver) */}
         {questaoAtual.imagem && (
@@ -741,9 +742,9 @@ export default function PartidaScreen({ navigation, route }) {
                     {alt.letra}
                   </Text>
                 </View>
-                <Text style={[styles.altTexto, eliminada && styles.altTextoEliminado]}>
+                <TextoFormatado style={[styles.altTexto, eliminada && styles.altTextoEliminado]}>
                   {alt.texto}
-                </Text>
+                </TextoFormatado>
               </TouchableOpacity>
             );
           })}

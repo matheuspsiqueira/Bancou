@@ -8,6 +8,7 @@ import json
 
 from .models import Banca, Concurso, Materia, Questao, Alternativa
 from .importador import importar_questoes_do_pdf, importar_questoes_de_json
+from .campos import CampoTextoFormatado
 
 
 # ---------------------------------------------------------------------------
@@ -38,8 +39,40 @@ class ImportarJsonForm(forms.Form):
     ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
     arquivo_json = forms.FileField(
         label='Arquivo JSON',
-        help_text='JSON já estruturado no formato de extração (sem passar pela IA).',
+        help_text='JSON já estruturado (sem passar pela IA). Aceita as tags <u> <b> <i> <sup> <sub> nos textos.',
     )
+    gabarito_oficial = forms.CharField(
+        label='Gabarito oficial (recomendado)',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 3, 'cols': 80}),
+        help_text='Cole as letras do gabarito na ordem das questões (1, 2, 3…), ex.: E C C E A E C D… '
+                  'Se preenchido, vale mais que o gabarito do JSON (X ou * = anulada). '
+                  'Evita gabarito errado vindo da IA.',
+    )
+
+
+# ---------------------------------------------------------------------------
+# Forms com editor de texto formatado (negrito, itálico, sublinhado...)
+# ---------------------------------------------------------------------------
+
+class QuestaoAdminForm(forms.ModelForm):
+    enunciado = CampoTextoFormatado(label='Enunciado', altura='grande')
+    contexto = CampoTextoFormatado(
+        label='Contexto (texto base)', altura='grande', required=False,
+        help_text='Texto de apoio compartilhado. Cole da prova: o sublinhado, negrito e itálico são mantidos.',
+    )
+
+    class Meta:
+        model = Questao
+        fields = '__all__'
+
+
+class AlternativaInlineForm(forms.ModelForm):
+    texto = CampoTextoFormatado(label='Texto', altura='compacta')
+
+    class Meta:
+        model = Alternativa
+        fields = '__all__'
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +81,7 @@ class ImportarJsonForm(forms.Form):
 
 class AlternativaInline(admin.TabularInline):
     model = Alternativa
+    form = AlternativaInlineForm
     extra = 0
     fields = ['letra', 'texto']
 
@@ -82,6 +116,7 @@ class AtencaoFilter(admin.SimpleListFilter):
             ('imagem', '🖼️ Com imagem'),
             ('baixa', '⚠️ Baixa confiança'),
             ('sem_materia', '📚 Sem matéria'),
+            ('sem_gabarito', '❓ Sem gabarito'),
         ]
 
     def queryset(self, request, queryset):
@@ -91,6 +126,8 @@ class AtencaoFilter(admin.SimpleListFilter):
             return queryset.filter(baixa_confianca=True)
         if self.value() == 'sem_materia':
             return queryset.filter(materia__isnull=True)
+        if self.value() == 'sem_gabarito':
+            return queryset.filter(gabarito='')
         return queryset
 
 
@@ -100,6 +137,7 @@ class AtencaoFilter(admin.SimpleListFilter):
 
 @admin.register(Questao)
 class QuestaoAdmin(admin.ModelAdmin):
+    form = QuestaoAdminForm
     list_display = [
         'numero', 'concurso', 'materia', 'tipo',
         'flags_display', 'status_display', 'criada_em'
@@ -130,7 +168,7 @@ class QuestaoAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ['aprovar_questoes', 'rejeitar_questoes']
+    actions = ['aprovar_questoes', 'rejeitar_questoes', 'marcar_como_revisadas']
 
     def get_urls(self):
         urls = super().get_urls()
@@ -193,8 +231,13 @@ class QuestaoAdmin(admin.ModelAdmin):
                         cargo=form.cleaned_data['cargo'],
                         ano=form.cleaned_data['ano'],
                         json_file=request.FILES['arquivo_json'],
+                        gabarito_texto=form.cleaned_data['gabarito_oficial'],
                     )
-                    messages.success(request, f'✅ {total} questões importadas (via JSON) para a fila de revisão!')
+                    messages.success(
+                        request,
+                        f'✅ {total} questões importadas (via JSON) para a fila de revisão! '
+                        f'Use o filtro "⚠️ Baixa confiança" para conferir formatação e imagens.'
+                    )
                     return redirect('../')
                 except Exception as e:
                     messages.error(request, f'❌ Erro ao processar: {e}')
@@ -223,6 +266,8 @@ class QuestaoAdmin(admin.ModelAdmin):
             flags.append('⚠️')
         if not obj.materia:
             flags.append('📚')
+        if not obj.gabarito:
+            flags.append('❓')
         resultado = ' '.join(flags) if flags else '✓'
         return mark_safe(f'<span>{resultado}</span>')
     flags_display.short_description = 'Flags'
@@ -259,13 +304,43 @@ class QuestaoAdmin(admin.ModelAdmin):
                 level=messages.ERROR
             )
             return
+
+        # Gabarito vazio/inválido faria TODA resposta contar como erro no jogo.
+        problemas = []
+        for q in queryset.prefetch_related('alternativas'):
+            letras = {a.letra.strip().upper() for a in q.alternativas.all()}
+            gab = (q.gabarito or '').strip().upper()
+            if not gab or (letras and gab not in letras):
+                problemas.append(f'{q.concurso} nº {q.numero}')
+        if problemas:
+            lista = ', '.join(problemas[:8]) + ('…' if len(problemas) > 8 else '')
+            self.message_user(
+                request,
+                f'❌ {len(problemas)} questão(ões) com gabarito vazio ou fora das alternativas: {lista}. '
+                f'Corrija antes de aprovar.',
+                level=messages.ERROR
+            )
+            return
+
+        ainda_com_alerta = queryset.filter(baixa_confianca=True).count()
         total = queryset.update(status='aprovada')
         self.message_user(request, f'✅ {total} questão(ões) aprovada(s).')
+        if ainda_com_alerta:
+            self.message_user(
+                request,
+                f'⚠️ {ainda_com_alerta} delas ainda estão com o alerta de baixa confiança.',
+                level=messages.WARNING
+            )
 
     @admin.action(description='❌ Rejeitar questões selecionadas')
     def rejeitar_questoes(self, request, queryset):
         total = queryset.update(status='rejeitada')
         self.message_user(request, f'❌ {total} questão(ões) rejeitada(s).')
+
+    @admin.action(description='🧹 Marcar como revisadas (limpar alerta ⚠️)')
+    def marcar_como_revisadas(self, request, queryset):
+        total = queryset.update(baixa_confianca=False)
+        self.message_user(request, f'🧹 Alerta removido de {total} questão(ões).')
 
 
 # ---------------------------------------------------------------------------
