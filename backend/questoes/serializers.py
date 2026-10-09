@@ -17,10 +17,11 @@ class MateriaSerializer(serializers.ModelSerializer):
 
 class ConcursoSerializer(serializers.ModelSerializer):
     banca_nome = serializers.CharField(source='banca.nome', read_only=True)
+    orgao_nome = serializers.CharField(source='orgao.nome', read_only=True, default=None)
 
     class Meta:
         model = Concurso
-        fields = ['id', 'nome', 'cargo', 'ano', 'banca', 'banca_nome']
+        fields = ['id', 'nome', 'cargo', 'ano', 'banca', 'banca_nome', 'orgao', 'orgao_nome', 'nivel']
 
 
 class AlternativaSerializer(serializers.ModelSerializer):

@@ -1,5 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+
+from .taxonomia import UF_CHOICES
 
 
 class Banca(models.Model):
@@ -14,11 +17,74 @@ class Banca(models.Model):
         return self.nome
 
 
+class Categoria(models.Model):
+    """
+    Tipo de carreira/segmento (ex.: Tribunais, MP e Defensoria; Polícias e
+    Segurança Pública; Vestibulares e ENEM). Cadastrável no admin — novas
+    categorias não exigem código.
+    """
+    nome = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = 'Categoria'
+        verbose_name_plural = 'Categorias'
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+
+class Orgao(models.Model):
+    """
+    Órgão/instituição que realiza o concurso ou vestibular (TJRJ, PRF, UERJ…).
+    Guarda categoria, esfera e UF uma vez só; cada prova (Concurso) liga a um órgão.
+    """
+
+    class Esfera(models.TextChoices):
+        FEDERAL = 'federal', 'Nacional (federal)'
+        ESTADUAL = 'estadual', 'Estadual'
+        MUNICIPAL = 'municipal', 'Municipal'
+
+    nome = models.CharField(max_length=150, unique=True, help_text='Nome curto, exibido no app (ex.: TJRJ)')
+    nome_completo = models.CharField(max_length=250, blank=True)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='orgaos')
+    esfera = models.CharField(max_length=10, choices=Esfera.choices)
+    uf = models.CharField(
+        max_length=2, blank=True, choices=UF_CHOICES,
+        help_text='Obrigatório para órgãos estaduais e municipais',
+    )
+
+    class Meta:
+        verbose_name = 'Órgão'
+        verbose_name_plural = 'Órgãos'
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+    def clean(self):
+        if self.esfera in (self.Esfera.ESTADUAL, self.Esfera.MUNICIPAL) and not self.uf:
+            raise ValidationError({'uf': 'Informe o estado (UF) para órgãos estaduais e municipais.'})
+        if self.esfera == self.Esfera.FEDERAL:
+            self.uf = ''
+
+
 class Concurso(models.Model):
+
+    class Nivel(models.TextChoices):
+        FUNDAMENTAL = 'fundamental', 'Ensino fundamental'
+        MEDIO = 'medio', 'Ensino médio'
+        SUPERIOR = 'superior', 'Ensino superior'
+
     banca = models.ForeignKey(Banca, on_delete=models.PROTECT, related_name='concursos')
+    orgao = models.ForeignKey(
+        Orgao, on_delete=models.PROTECT, related_name='concursos', null=True, blank=True,
+        help_text='Concursos antigos podem ficar sem órgão, mas só aparecem nos filtros por categoria/esfera/estado depois de ligados a um.',
+    )
     nome = models.CharField(max_length=200)
     cargo = models.CharField(max_length=200, blank=True)
     ano = models.IntegerField()
+    nivel = models.CharField(max_length=12, choices=Nivel.choices, blank=True)
 
     class Meta:
         verbose_name = 'Concurso'
@@ -31,6 +97,11 @@ class Concurso(models.Model):
 
 class Materia(models.Model):
     nome = models.CharField(max_length=100, unique=True)
+    aliases = models.TextField(
+        blank=True,
+        help_text='Outros nomes desta matéria nas provas, um por linha (ex.: "Noções de Direito Penal"). '
+                  'O importador usa isso para unificar sozinho.',
+    )
 
     class Meta:
         verbose_name = 'Matéria'
@@ -39,6 +110,9 @@ class Materia(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def lista_aliases(self):
+        return [linha.strip() for linha in self.aliases.splitlines() if linha.strip()]
 
 
 class Questao(models.Model):

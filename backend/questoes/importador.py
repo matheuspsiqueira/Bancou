@@ -7,8 +7,9 @@ import re
 import pdfplumber
 import tempfile
 from django.db import transaction
-from .models import Concurso, Materia, Questao, Alternativa
+from .models import Concurso, Questao, Alternativa
 from .texto_formatado import normalizar_texto, destaque_sem_formatacao
+from .taxonomia import resolver_materias
 
 PROMPT_EXTRACAO = """Você é um especialista em concursos públicos brasileiros.
 
@@ -169,7 +170,8 @@ def extrair_questoes_via_ia(client, texto_paginas: list[str]) -> list[dict]:
     return todas_questoes
 
 
-def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_gabarito=None):
+def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_gabarito=None,
+                             orgao=None, nivel=''):
     """
     Importação PDF + IA (só texto). ATENÇÃO: este caminho lê apenas o texto do
     PDF, então NÃO enxerga sublinhado/negrito/itálico nem imagens/tabelas.
@@ -204,7 +206,8 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
         gabarito = extrair_gabarito_via_ia(client, pdf_gabarito)
         print(f"  {len(gabarito)} respostas encontradas no gabarito")
 
-    return _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano)
+    return _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
+                            orgao=orgao, nivel=nivel)
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +325,7 @@ def _validar_questoes(questoes):
 
 
 def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
-                     textos_base=None, imagens=None):
+                     textos_base=None, imagens=None, orgao=None, nivel=''):
     """
     Grava as questões no banco.
 
@@ -346,17 +349,34 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
 
     Texto formatado: enunciado, contexto e alternativas passam por
     texto_formatado.normalizar_texto (só <u><b><i><sup><sub>).
+
+    Organização: o concurso é identificado por órgão + banca + ano + cargo
+    (sem órgão, cai no critério antigo: nome + banca + ano). As matérias são
+    unificadas por nome oficial/apelidos (taxonomia.resolver_materias).
+
+    Retorna {'total', 'materias_novas', 'materias_unificadas'}.
     """
     textos_por_id = {t['id']: t for t in (textos_base or []) if t.get('id')}
     imagens_por_id = {i['id']: i for i in (imagens or []) if i.get('id')}
 
     with transaction.atomic():
-        concurso, _ = Concurso.objects.get_or_create(
-            nome=concurso_nome,
-            banca=banca,
-            ano=ano,
-            defaults={'cargo': cargo or ''}
-        )
+        if orgao is not None:
+            nome_automatico = f'{orgao.nome} – {cargo}' if cargo else orgao.nome
+            concurso, _ = Concurso.objects.get_or_create(
+                orgao=orgao,
+                banca=banca,
+                ano=ano,
+                cargo=cargo or '',
+                defaults={'nome': (concurso_nome or '').strip() or nome_automatico, 'nivel': nivel or ''},
+            )
+            concurso_nome = concurso.nome
+        else:
+            concurso, _ = Concurso.objects.get_or_create(
+                nome=concurso_nome,
+                banca=banca,
+                ano=ano,
+                defaults={'cargo': cargo or '', 'nivel': nivel or ''}
+            )
 
         # Reimportar o mesmo JSON duplicaria tudo — barra antes de gravar.
         numeros = [q['numero_questao'] for q in questoes]
@@ -371,24 +391,10 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
                 f'antes de reimportar (ou use outro nome de concurso).'
             )
 
-        # Resolve todas as matérias distintas de uma vez só
-        nomes_materias = {
-            q.get('materia', '').strip()
-            for q in questoes
-            if q.get('materia', '').strip()
-        }
-        materias_por_nome = {
-            m.nome: m for m in Materia.objects.filter(nome__in=nomes_materias)
-        }
-        novas_materias = [
-            Materia(nome=nome) for nome in nomes_materias if nome not in materias_por_nome
-        ]
-        if novas_materias:
-            Materia.objects.bulk_create(novas_materias)
-            # bulk_create não garante pk populado em todas as versões/backends
-            # antigas — recarrega pra ter certeza de que os ids existem
-            for m in Materia.objects.filter(nome__in=[m.nome for m in novas_materias]):
-                materias_por_nome[m.nome] = m
+        # Resolve as matérias (nome oficial + apelidos); o que não reconhece vira matéria nova
+        materias_por_nome, materias_novas, materias_unificadas = resolver_materias(
+            q.get('materia', '') for q in questoes
+        )
 
         # Formato antigo: texto base embutido na questão, agrupado por lista de números
         textos_legado = {}
@@ -402,8 +408,7 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
         alternativas_brutas = []  # lista paralela: alternativas de cada questão, na mesma ordem
 
         for q in questoes:
-            nome_materia = q.get('materia', '').strip()
-            materia = materias_por_nome.get(nome_materia)
+            materia = materias_por_nome.get((q.get('materia') or '').strip())
             num = q['numero_questao']
             notas = []
             ids_img = list(q.get('imagem_ids') or [])
@@ -509,10 +514,15 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
         if alternativas_objs:
             Alternativa.objects.bulk_create(alternativas_objs)
 
-        return len(questoes_criadas)
+        return {
+            'total': len(questoes_criadas),
+            'materias_novas': materias_novas,
+            'materias_unificadas': materias_unificadas,
+        }
 
 
-def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabarito_texto=''):
+def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabarito_texto='',
+                              orgao=None, nivel=''):
     """
     Importa questões a partir de um arquivo JSON já estruturado,
     sem passar pela extração via IA.
@@ -571,4 +581,6 @@ def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabar
         questoes, gabarito_oficial, banca, concurso_nome, cargo, ano,
         textos_base=dados.get('textos_base'),
         imagens=dados.get('imagens'),
+        orgao=orgao,
+        nivel=nivel,
     )

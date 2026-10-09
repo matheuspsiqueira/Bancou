@@ -6,37 +6,51 @@ from django.contrib import messages
 from django import forms
 import json
 
-from .models import Banca, Concurso, Materia, Questao, Alternativa
+from django.db import models as dj_models
+from django.db.models import Count
+from django.template.response import TemplateResponse
+
+from .models import Banca, Categoria, Orgao, Concurso, Materia, Questao, Alternativa
 from .importador import importar_questoes_do_pdf, importar_questoes_de_json
 from .campos import CampoTextoFormatado
+from .taxonomia import mesclar_materias
 
 
 # ---------------------------------------------------------------------------
 # Forms de upload
 # ---------------------------------------------------------------------------
 
-class ImportarProvaForm(forms.Form):
+class DadosDaProvaForm(forms.Form):
+    """Campos que identificam a prova — iguais na importação por PDF e por JSON."""
+    orgao = forms.ModelChoiceField(
+        queryset=Orgao.objects.select_related('categoria'),
+        label='Órgão',
+        help_text='Ex.: TJRJ. Categoria, esfera e estado vêm do órgão. '
+                  '<a href="/admin/questoes/orgao/add/" target="_blank">Cadastrar novo órgão</a>',
+    )
     banca = forms.ModelChoiceField(
         queryset=Banca.objects.all(),
         label='Banca',
         help_text='Selecione ou <a href="/admin/questoes/banca/add/" target="_blank">cadastre uma nova banca</a>',
     )
-    concurso_nome = forms.CharField(max_length=200, label='Nome do concurso')
     cargo = forms.CharField(max_length=200, label='Cargo', required=False)
     ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
+    nivel = forms.ChoiceField(
+        choices=[('', '---------')] + list(Concurso.Nivel.choices),
+        label='Nível de escolaridade', required=False,
+    )
+    concurso_nome = forms.CharField(
+        max_length=200, label='Nome do concurso (opcional)', required=False,
+        help_text='Deixe em branco para gerar automaticamente (ex.: "TJRJ – Assistente Administrativo").',
+    )
+
+
+class ImportarProvaForm(DadosDaProvaForm):
     pdf_prova = forms.FileField(label='PDF da Prova')
     pdf_gabarito = forms.FileField(label='PDF do Gabarito', required=False)
 
 
-class ImportarJsonForm(forms.Form):
-    banca = forms.ModelChoiceField(
-        queryset=Banca.objects.all(),
-        label='Banca',
-        help_text='Selecione ou <a href="/admin/questoes/banca/add/" target="_blank">cadastre uma nova banca</a>',
-    )
-    concurso_nome = forms.CharField(max_length=200, label='Nome do concurso')
-    cargo = forms.CharField(max_length=200, label='Cargo', required=False)
-    ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
+class ImportarJsonForm(DadosDaProvaForm):
     arquivo_json = forms.FileField(
         label='Arquivo JSON',
         help_text='JSON já estruturado (sem passar pela IA). Aceita as tags <u> <b> <i> <sup> <sub> nos textos.',
@@ -117,6 +131,7 @@ class AtencaoFilter(admin.SimpleListFilter):
             ('baixa', '⚠️ Baixa confiança'),
             ('sem_materia', '📚 Sem matéria'),
             ('sem_gabarito', '❓ Sem gabarito'),
+            ('sem_orgao', '🏛️ Concurso sem órgão'),
         ]
 
     def queryset(self, request, queryset):
@@ -128,6 +143,8 @@ class AtencaoFilter(admin.SimpleListFilter):
             return queryset.filter(materia__isnull=True)
         if self.value() == 'sem_gabarito':
             return queryset.filter(gabarito='')
+        if self.value() == 'sem_orgao':
+            return queryset.filter(concurso__orgao__isnull=True)
         return queryset
 
 
@@ -142,7 +159,10 @@ class QuestaoAdmin(admin.ModelAdmin):
         'numero', 'concurso', 'materia', 'tipo',
         'flags_display', 'status_display', 'criada_em'
     ]
-    list_filter = [StatusFilter, AtencaoFilter, 'tipo', 'concurso__banca', 'concurso']
+    list_filter = [
+        StatusFilter, AtencaoFilter, 'tipo', 'concurso__orgao__categoria',
+        'concurso__banca', 'concurso__orgao', 'concurso', 'materia',
+    ]
     search_fields = ['enunciado', 'numero']
     readonly_fields = ['tem_imagem', 'baixa_confianca', 'notas_extracao', 'pagina_pdf', 'criada_em', 'atualizada_em']
     inlines = [AlternativaInline]
@@ -184,6 +204,18 @@ class QuestaoAdmin(admin.ModelAdmin):
         extra_context['importar_json_url'] = 'importar-json/'
         return super().changelist_view(request, extra_context=extra_context)
 
+    def _avisos_de_materias(self, request, resultado):
+        if resultado['materias_unificadas']:
+            pares = '; '.join(f'"{a}" → "{b}"' for a, b in resultado['materias_unificadas'])
+            messages.info(request, f'🔗 Matérias unificadas automaticamente: {pares}')
+        if resultado['materias_novas']:
+            nomes = ', '.join(f'"{n}"' for n in resultado['materias_novas'])
+            messages.warning(
+                request,
+                f'🆕 Matérias novas criadas: {nomes}. Se alguma for a mesma de outra que já existe, '
+                f'use "Mesclar matérias" na lista de matérias.'
+            )
+
     # ------------------------------------------------------------------
     # View de importação via PDF (com IA)
     # ------------------------------------------------------------------
@@ -193,15 +225,18 @@ class QuestaoAdmin(admin.ModelAdmin):
             form = ImportarProvaForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
-                    total = importar_questoes_do_pdf(
+                    resultado = importar_questoes_do_pdf(
                         banca=form.cleaned_data['banca'],
                         concurso_nome=form.cleaned_data['concurso_nome'],
                         cargo=form.cleaned_data['cargo'],
                         ano=form.cleaned_data['ano'],
                         pdf_prova=request.FILES['pdf_prova'],
                         pdf_gabarito=request.FILES.get('pdf_gabarito'),
+                        orgao=form.cleaned_data['orgao'],
+                        nivel=form.cleaned_data['nivel'],
                     )
-                    messages.success(request, f'✅ {total} questões importadas para a fila de revisão!')
+                    messages.success(request, f"✅ {resultado['total']} questões importadas para a fila de revisão!")
+                    self._avisos_de_materias(request, resultado)
                     return redirect('../')
                 except Exception as e:
                     messages.error(request, f'❌ Erro ao processar: {e}')
@@ -225,19 +260,22 @@ class QuestaoAdmin(admin.ModelAdmin):
             form = ImportarJsonForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
-                    total = importar_questoes_de_json(
+                    resultado = importar_questoes_de_json(
                         banca=form.cleaned_data['banca'],
                         concurso_nome=form.cleaned_data['concurso_nome'],
                         cargo=form.cleaned_data['cargo'],
                         ano=form.cleaned_data['ano'],
                         json_file=request.FILES['arquivo_json'],
                         gabarito_texto=form.cleaned_data['gabarito_oficial'],
+                        orgao=form.cleaned_data['orgao'],
+                        nivel=form.cleaned_data['nivel'],
                     )
                     messages.success(
                         request,
-                        f'✅ {total} questões importadas (via JSON) para a fila de revisão! '
+                        f"✅ {resultado['total']} questões importadas (via JSON) para a fila de revisão! "
                         f'Use o filtro "⚠️ Baixa confiança" para conferir formatação e imagens.'
                     )
+                    self._avisos_de_materias(request, resultado)
                     return redirect('../')
                 except Exception as e:
                     messages.error(request, f'❌ Erro ao processar: {e}')
@@ -353,14 +391,94 @@ class BancaAdmin(admin.ModelAdmin):
     search_fields = ['nome']
 
 
+@admin.register(Categoria)
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ['nome', 'total_orgaos']
+    search_fields = ['nome']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_orgaos=Count('orgaos'))
+
+    @admin.display(description='Órgãos', ordering='_orgaos')
+    def total_orgaos(self, obj):
+        return obj._orgaos
+
+
+@admin.register(Orgao)
+class OrgaoAdmin(admin.ModelAdmin):
+    list_display = ['nome', 'categoria', 'esfera', 'uf']
+    list_filter = ['categoria', 'esfera', 'uf']
+    search_fields = ['nome', 'nome_completo']
+
+
 @admin.register(Concurso)
 class ConcursoAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'banca', 'cargo', 'ano']
-    list_filter = ['banca', 'ano']
-    search_fields = ['nome', 'cargo']
+    list_display = ['nome', 'orgao', 'banca', 'cargo', 'ano', 'nivel']
+    list_filter = ['orgao__categoria', 'orgao', 'banca', 'ano', 'nivel']
+    search_fields = ['nome', 'cargo', 'orgao__nome']
+
+
+class MesclarMateriasForm(forms.Form):
+    destino = forms.ModelChoiceField(
+        queryset=Materia.objects.none(),
+        label='Manter esta matéria',
+        widget=forms.RadioSelect,
+        empty_label=None,
+        help_text='As outras serão apagadas: as questões delas passam para esta, e os nomes '
+                  'antigos viram apelidos (a próxima importação já une sozinha).',
+    )
+
+    def __init__(self, *args, materias=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['destino'].queryset = materias
 
 
 @admin.register(Materia)
 class MateriaAdmin(admin.ModelAdmin):
-    list_display = ['nome']
-    search_fields = ['nome']
+    list_display = ['nome', 'total_questoes', 'aliases_resumo']
+    search_fields = ['nome', 'aliases']
+    actions = ['mesclar']
+    formfield_overrides = {
+        dj_models.TextField: {'widget': forms.Textarea(attrs={'rows': 4, 'cols': 60})},
+    }
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_questoes=Count('questoes'))
+
+    @admin.display(description='Questões', ordering='_questoes')
+    def total_questoes(self, obj):
+        return obj._questoes
+
+    @admin.display(description='Apelidos')
+    def aliases_resumo(self, obj):
+        return ' | '.join(obj.lista_aliases())
+
+    @admin.action(description='🔀 Mesclar matérias selecionadas…')
+    def mesclar(self, request, queryset):
+        if queryset.count() < 2:
+            self.message_user(request, 'Selecione ao menos 2 matérias para mesclar.', level=messages.ERROR)
+            return None
+
+        if 'confirmar' in request.POST:
+            form = MesclarMateriasForm(request.POST, materias=queryset)
+            if form.is_valid():
+                destino = form.cleaned_data['destino']
+                origens = list(queryset.exclude(pk=destino.pk))
+                movidas = mesclar_materias(destino, origens)
+                self.message_user(
+                    request,
+                    f'🔀 {len(origens)} matéria(s) mesclada(s) em "{destino.nome}" ({movidas} questão(ões) movida(s)).'
+                )
+                return None
+        else:
+            form = MesclarMateriasForm(materias=queryset)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Mesclar matérias',
+            'opts': self.model._meta,
+            'form': form,
+            'materias': queryset,
+            'selecionadas': request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME),
+        }
+        return TemplateResponse(request, 'admin/questoes/mesclar_materias.html', context)

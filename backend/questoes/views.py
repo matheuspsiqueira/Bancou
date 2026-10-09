@@ -23,18 +23,25 @@ from .serializers import (
     BancaSerializer, MateriaSerializer, ConcursoSerializer,
     QuestaoPartidaSerializer,
 )
+from .filtros import ler_filtros, base_questoes, aplicar_filtros
+from .taxonomia import chave_ordenacao
 from desafios.services import sortear_desafios_do_dia, avaliar_desafios
 
 
 # ─── Listas para popular o modal "Iniciar Partida" dinamicamente ──────────
+# (mantidas para as versões antigas do app; a tela nova usa /filtros/)
+# Só entram opções com ao menos 1 questão aprovada de múltipla escolha —
+# Certo/Errado ganha modo próprio na fase 2.
 
 class BancasDisponiveisView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         bancas = Banca.objects.filter(
-            concursos__questoes__status=Questao.Status.APROVADA
+            concursos__questoes__status=Questao.Status.APROVADA,
+            concursos__questoes__tipo=Questao.Tipo.MULTIPLA_ESCOLHA,
         ).distinct()
+        bancas = sorted(bancas, key=lambda b: chave_ordenacao(b.nome))
         return Response(BancaSerializer(bancas, many=True).data)
 
 
@@ -43,8 +50,10 @@ class MateriasDisponiveisView(APIView):
 
     def get(self, request):
         materias = Materia.objects.filter(
-            questoes__status=Questao.Status.APROVADA
+            questoes__status=Questao.Status.APROVADA,
+            questoes__tipo=Questao.Tipo.MULTIPLA_ESCOLHA,
         ).distinct()
+        materias = sorted(materias, key=lambda m: chave_ordenacao(m.nome))
         return Response(MateriaSerializer(materias, many=True).data)
 
 
@@ -53,8 +62,10 @@ class ConcursosDisponiveisView(APIView):
 
     def get(self, request):
         concursos = Concurso.objects.filter(
-            questoes__status=Questao.Status.APROVADA
-        ).distinct().select_related('banca')
+            questoes__status=Questao.Status.APROVADA,
+            questoes__tipo=Questao.Tipo.MULTIPLA_ESCOLHA,
+        ).distinct().select_related('banca', 'orgao')
+        concursos = sorted(concursos, key=lambda c: (chave_ordenacao(c.nome), -c.ano))
         return Response(ConcursoSerializer(concursos, many=True).data)
 
 
@@ -63,11 +74,14 @@ class ConcursosDisponiveisView(APIView):
 class IniciarPartidaView(APIView):
     """
     GET /api/questoes/iniciar-partida/
-    GET /api/questoes/iniciar-partida/?tipo=banca&id=3
-    GET /api/questoes/iniciar-partida/?tipo=materia&id=7
-    GET /api/questoes/iniciar-partida/?tipo=concurso&id=12&com_tempo=1
+    GET /api/questoes/iniciar-partida/?banca=3,5&materia=7&uf=RJ&com_tempo=1
+    GET /api/questoes/iniciar-partida/?tipo=banca&id=3        (app antigo)
 
-    Sorteia até 10 questões aprovadas e cria uma Partida no banco,
+    Filtros combináveis (ver questoes/filtros.py): categoria, esfera, uf,
+    banca, orgao, concurso, materia, nivel. Só sorteia questões aprovadas de
+    múltipla escolha.
+
+    Sorteia até 10 questões e cria uma Partida no banco,
     guardando exatamente quais questões foram sorteadas. Consome 1 vida
     do usuário no momento da criação — mecânica de "energia": a vida é
     gasta ao entrar na partida, independente de quantos acertos/erros
@@ -92,44 +106,22 @@ class IniciarPartidaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tipo = request.query_params.get('tipo')
-        filtro_id = request.query_params.get('id')
         com_tempo = request.query_params.get('com_tempo') == '1'
 
-        questoes = Questao.objects.filter(
-            status=Questao.Status.APROVADA,
-        ).exclude(
-            tipo=Questao.Tipo.DISCURSIVA
-        ).select_related(
-            'concurso', 'concurso__banca', 'materia'
-        ).prefetch_related('alternativas')
+        try:
+            filtros = ler_filtros(request.query_params)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if com_tempo:
-            # No modo com tempo, evita questões com contexto longo ou com
-            # imagem — exigem mais tempo de leitura do que o timer permite.
-            questoes = questoes.exclude(contexto__gt='').exclude(tem_imagem=True)
+        questoes = aplicar_filtros(base_questoes(com_tempo), filtros)
 
-        if tipo and filtro_id:
-            if tipo == 'banca':
-                questoes = questoes.filter(concurso__banca_id=filtro_id)
-            elif tipo == 'materia':
-                questoes = questoes.filter(materia_id=filtro_id)
-            elif tipo == 'concurso':
-                questoes = questoes.filter(concurso_id=filtro_id)
-            else:
-                return Response(
-                    {'detail': 'Tipo de filtro inválido. Use banca, materia ou concurso.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        total_disponivel = questoes.count()
-        if total_disponivel == 0:
+        ids = list(questoes.values_list('id', flat=True))
+        if not ids:
             return Response(
                 {'detail': 'Nenhuma questão disponível para este filtro.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        ids = list(questoes.values_list('id', flat=True))
         random.shuffle(ids)
         ids_selecionados = ids[:self.QUANTIDADE]
 

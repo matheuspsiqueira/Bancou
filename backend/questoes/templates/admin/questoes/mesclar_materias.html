@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<h1>🔀 Mesclar matérias</h1>
+
+<p>Escolha qual matéria fica. As demais serão apagadas e todas as questões delas passam para a escolhida.</p>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="mesclar">
+  <input type="hidden" name="confirmar" value="1">
+  {% for pk in selecionadas %}
+    <input type="hidden" name="_selected_action" value="{{ pk }}">
+  {% endfor %}
+
+  <table>
+    <thead><tr><th></th><th>Matéria</th><th>Questões</th><th>Apelidos</th></tr></thead>
+    <tbody>
+    {% for m in materias %}
+      <tr>
+        <td><input type="radio" name="destino" value="{{ m.pk }}" id="m{{ m.pk }}" required></td>
+        <td><label for="m{{ m.pk }}">{{ m.nome }}</label></td>
+        <td>{{ m.questoes.count }}</td>
+        <td>{{ m.aliases|linebreaksbr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if form.destino.errors %}<p class="errornote">{{ form.destino.errors }}</p>{% endif %}
+  <p class="help">{{ form.destino.help_text }}</p>
+
+  <div class="submit-row">
+    <input type="submit" value="Mesclar" class="default">
+    <a href="../" class="button">Cancelar</a>
+  </div>
+</form>
+
+{% endblock %}

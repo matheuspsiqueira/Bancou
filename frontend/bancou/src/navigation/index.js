@@ -13,6 +13,7 @@ import RecuperarSenhaScreen from '../screens/RecuperarSenhaScreen';
 import DemoScreen      from '../screens/DemoScreen';
 import DemoScoreScreen from '../screens/DemoScoreScreen';
 import PartidaScreen from '../screens/PartidaScreen';
+import FiltrosPartidaScreen from '../screens/FiltrosPartidaScreen';
 import ScoreScreen   from '../screens/ScoreScreen';
 import TabNavigator from './TabNavigator';
 
@@ -35,6 +36,7 @@ function RootNavigator() {
         // ── Stack autenticado ──────────────────────────────────────────
         <>
           <Stack.Screen name="Home"    component={TabNavigator} />
+          <Stack.Screen name="FiltrosPartida" component={FiltrosPartidaScreen} />
           <Stack.Screen name="Partida" component={PartidaScreen} />
           <Stack.Screen name="Score"   component={ScoreScreen} />
         </>

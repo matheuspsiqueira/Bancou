@@ -1,6 +1,6 @@
 // src/config.js
 
-const DEV_URL = 'https://terrain-pension-grammar-awards.trycloudflare.com';
+const DEV_URL = 'https://findings-muze-lip-refresh.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
 export const API_URL = PROD_URL;

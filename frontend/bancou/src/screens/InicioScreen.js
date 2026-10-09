@@ -91,6 +91,12 @@ export default function InicioScreen({ navigation }) {
     navigation.navigate('Partida', { filtro });
   };
 
+  // "Filtrar por tema": tela cheia com filtros combináveis (também fica na Stack pai)
+  const handleFiltrar = (comTempo) => {
+    setModalPartida(false);
+    navigation.navigate('FiltrosPartida', { comTempo });
+  };
+
   return (
     <TelaComHeader>
       <ScrollView
@@ -167,6 +173,7 @@ export default function InicioScreen({ navigation }) {
         visible={modalPartida}
         onClose={() => setModalPartida(false)}
         onIniciar={handleIniciarPartida}
+        onFiltrar={handleFiltrar}
       />
     </TelaComHeader>
   );
