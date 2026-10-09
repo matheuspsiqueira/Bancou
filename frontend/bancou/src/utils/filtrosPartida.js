@@ -10,7 +10,7 @@ export const FILTROS = [
   { chave: 'uf',        titulo: 'Estado',    lista: 'ufs',        busca: true  },
   { chave: 'orgao',     titulo: 'Órgão',     lista: 'orgaos',     busca: true  },
   { chave: 'banca',     titulo: 'Banca',     lista: 'bancas',     busca: true  },
-  { chave: 'concurso',  titulo: 'Concurso',  lista: 'concursos',  busca: true  },
+  { chave: 'concurso',  titulo: 'Cargo',     lista: 'concursos',  busca: true  },
   { chave: 'materia',   titulo: 'Matéria',   lista: 'materias',   busca: true  },
   { chave: 'nivel',     titulo: 'Nível',     lista: 'niveis',     busca: false },
 ];
@@ -43,6 +43,21 @@ export function alternarValor(selecao, chave, id) {
   return { ...selecao, [chave]: proximo };
 }
 
+/**
+ * Texto de uma opção do seletor. Concurso: o cargo é o título e embaixo vai
+ * "órgão · banca · ano" (concursos antigos sem cargo usam o nome como título).
+ */
+export function rotuloOpcao(chave, item) {
+  if (chave === 'concurso') {
+    const cargo = String(item.cargo ?? '').trim();
+    return {
+      titulo: cargo || item.nome,
+      detalhe: [item.orgao_nome, item.banca_nome, item.ano].filter(Boolean).join(' · '),
+    };
+  }
+  return { titulo: item.nome, detalhe: '' };
+}
+
 /** "Todos", "TJRJ", "TJRJ, PRF" ou "3 selecionados". */
 export function resumoSelecao(valores, nomes) {
   if (!valores || valores.length === 0) return 'Todos';
@@ -59,22 +74,35 @@ export function normalizarBusca(texto) {
 }
 
 /**
- * Itens do seletor: opções vindas da API + as já escolhidas que sumiram do
- * recorte atual (aparecem com 0 para o aluno conseguir desmarcar), filtradas
- * pela busca. A ordem alfabética vem do servidor.
+ * Itens do seletor: opções vindas da API (já com `titulo` e `detalhe` prontos
+ * para exibir) + as já escolhidas que sumiram do recorte atual (aparecem com 0
+ * para o aluno conseguir desmarcar), filtradas pela busca. A ordem alfabética
+ * vem do servidor; só a lista de cargos é reordenada aqui, porque o que
+ * aparece como título (o cargo) não é o campo pelo qual o servidor ordena.
  */
-export function itensDoSeletor(opcoes, selecionados, nomes, busca) {
-  const lista = opcoes ?? [];
+export function itensDoSeletor(opcoes, selecionados, nomes, busca, chave) {
+  const lista = (opcoes ?? []).map((o) => ({ ...o, ...rotuloOpcao(chave, o) }));
+  if (chave === 'concurso') {
+    lista.sort((a, b) =>
+      chaveTexto(a.titulo).localeCompare(chaveTexto(b.titulo), 'en') ||
+      chaveTexto(a.orgao_nome).localeCompare(chaveTexto(b.orgao_nome), 'en') ||
+      (b.ano ?? 0) - (a.ano ?? 0)
+    );
+  }
   const presentes = new Set(lista.map((o) => String(o.id)));
   const faltando = (selecionados ?? [])
     .filter((id) => !presentes.has(String(id)))
-    .map((id) => ({ id, nome: nomes?.[id] ?? String(id), total: 0 }));
+    .map((id) => ({ id, nome: nomes?.[id] ?? String(id), titulo: nomes?.[id] ?? String(id), detalhe: '', total: 0 }));
   const termo = normalizarBusca(busca);
   const todos = [...faltando, ...lista];
   if (!termo) return todos;
   return todos.filter((o) =>
-    normalizarBusca(`${o.nome} ${o.orgao_nome ?? ''} ${o.banca_nome ?? ''} ${o.ano ?? ''}`).includes(termo)
+    normalizarBusca(`${o.titulo} ${o.nome} ${o.cargo ?? ''} ${o.orgao_nome ?? ''} ${o.banca_nome ?? ''} ${o.ano ?? ''}`).includes(termo)
   );
+}
+
+function chaveTexto(t) {
+  return normalizarBusca(t);
 }
 
 /** Guarda id -> nome de cada opção que a API já mostrou (para o resumo das linhas). */
@@ -83,7 +111,8 @@ export function atualizarNomes(nomes, resposta) {
   FILTROS.forEach(({ chave, lista }) => {
     proximo[chave] = { ...(proximo[chave] ?? {}) };
     (resposta?.[lista] ?? []).forEach((o) => {
-      proximo[chave][o.id] = o.nome;
+      const { titulo } = rotuloOpcao(chave, o);
+      proximo[chave][o.id] = chave === 'concurso' && o.orgao_nome ? `${titulo} · ${o.orgao_nome}` : titulo;
     });
   });
   return proximo;

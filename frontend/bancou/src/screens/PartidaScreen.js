@@ -17,6 +17,7 @@ import { ADS } from '../adsConfig';
 import { assistirAnuncioPremiado } from '../services/adsService';
 import { colors, typography, fontSize, spacing } from '../theme';
 import TextoFormatado from '../components/TextoFormatado';
+import { anexarFiltros } from '../utils/filtrosPartida';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
@@ -231,6 +232,10 @@ export default function PartidaScreen({ navigation, route }) {
       if (filtro?.tipo && filtro?.id) {
         params.append('tipo', filtro.tipo);
         params.append('id', filtro.id);
+      }
+      // filtros combináveis da tela cheia (categoria, esfera, uf, órgão, banca, concurso, matéria, nível)
+      if (filtro?.filtros) {
+        anexarFiltros(params, filtro.filtros);
       }
       if (comTempo) {
         params.append('com_tempo', '1');

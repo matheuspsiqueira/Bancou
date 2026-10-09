@@ -126,14 +126,13 @@ export default function FiltrosPartidaScreen({ navigation, route }) {
   const definicao = aberto ? FILTROS.find((f) => f.chave === aberto) : null;
   const itens = useMemo(
     () => (definicao
-      ? itensDoSeletor(dados?.[definicao.lista], selecao[aberto], nomes[aberto], busca)
+      ? itensDoSeletor(dados?.[definicao.lista], selecao[aberto], nomes[aberto], busca, aberto)
       : []),
     [definicao, dados, selecao, nomes, aberto, busca]
   );
 
   const renderItem = useCallback(({ item }) => {
     const marcado = (selecao[aberto] ?? []).some((v) => String(v) === String(item.id));
-    const detalhes = [item.ano, item.banca_nome].filter(Boolean).join(' · ');
     return (
       <TouchableOpacity
         style={styles.itemLinha}
@@ -144,8 +143,8 @@ export default function FiltrosPartidaScreen({ navigation, route }) {
           {marcado && <Text style={styles.caixaCheck}>✓</Text>}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.itemNome, item.total === 0 && styles.itemNomeVazio]}>{item.nome}</Text>
-          {!!detalhes && <Text style={styles.itemDetalhe}>{detalhes}</Text>}
+          <Text style={[styles.itemNome, item.total === 0 && styles.itemNomeVazio]}>{item.titulo}</Text>
+          {!!item.detalhe && <Text style={styles.itemDetalhe}>{item.detalhe}</Text>}
         </View>
         <Text style={[styles.itemTotal, item.total === 0 && styles.itemNomeVazio]}>{item.total}</Text>
       </TouchableOpacity>
