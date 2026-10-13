@@ -175,8 +175,8 @@ class QuestaoAdmin(admin.ModelAdmin):
             'fields': ('contexto', 'enunciado', 'gabarito')
         }),
         ('🖼️ Imagem', {
-            'fields': ('tem_imagem', 'imagem'),
-            'description': 'Se a questão referencia uma imagem, faça o upload aqui.'
+            'fields': ('tem_imagem', 'imagem', 'posicao_imagem'),
+            'description': 'Se a questão referencia uma imagem, faça o upload aqui e escolha se ela fica acima ou abaixo do enunciado.'
         }),
         ('⚠️ Flags', {
             'fields': ('baixa_confianca', 'notas_extracao', 'pagina_pdf'),

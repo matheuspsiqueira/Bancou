@@ -45,7 +45,7 @@ class QuestaoPartidaSerializer(serializers.ModelSerializer):
         model = Questao
         fields = [
             'id', 'numero', 'tipo', 'enunciado', 'contexto',
-            'tem_imagem', 'imagem',
+            'tem_imagem', 'imagem', 'posicao_imagem',
             'materia_nome', 'concurso_nome', 'banca_nome',
             'alternativas',
         ]

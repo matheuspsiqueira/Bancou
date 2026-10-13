@@ -37,6 +37,95 @@ _SIMBOLOS = [
     (8652, 'equilibrio reversivel'), (8593, 'seta cima'), (8595, 'seta baixo'), (8592, 'seta esquerda'), (197, 'angstrom'),
 ]
 
+# Botões "Fração" e "Raiz": o django-tinymce só aceita função em `setup` como texto
+# (ele faz eval no navegador), então o código fica aqui, como string.
+# Gravam <frac><num>…</num><den>…</den></frac> e √<rad>…</rad>; o app desenha empilhado.
+_SETUP_FORMULAS = r"""function (editor) {
+  function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').trim(); }
+  // Atalhos de digitação nas janelas: x^2 e x^{n+1} viram sobrescrito, a_n e a_{10} viram subscrito, * vira ·
+  function fmt(t) {
+    return esc(t)
+      .replace(/\^(\{[^}]*\}|[+\-\u2212]?[A-Za-z0-9]+)/g, function (m, g) { return '<sup>' + g.replace(/^\{|\}$/g, '') + '</sup>'; })
+      .replace(/_(\{[^}]*\}|[A-Za-z0-9]+)/g, function (m, g) { return '<sub>' + g.replace(/^\{|\}$/g, '') + '</sub>'; })
+      .replace(/\*/g, '\u00b7');
+  }
+  function semParenteses(t) {
+    t = String(t || '').trim();
+    if (t.charAt(0) !== '(' || t.charAt(t.length - 1) !== ')') return t;
+    var prof = 0;
+    for (var i = 0; i < t.length; i++) {
+      if (t.charAt(i) === '(') prof++;
+      if (t.charAt(i) === ')') prof--;
+      if (prof === 0 && i < t.length - 1) return t;
+    }
+    return t.slice(1, -1).trim();
+  }
+  function montarFracao(num, den) {
+    num = semParenteses(num); den = semParenteses(den);
+    if (!num || !den) return '';
+    return '<frac><num>' + fmt(num) + '</num><den>' + fmt(den) + '</den></frac>';
+  }
+  function barraSimples(t) {
+    var prof = 0, pos = -1;
+    for (var i = 0; i < t.length; i++) {
+      var c = t.charAt(i);
+      if (c === '(') prof++;
+      else if (c === ')') prof--;
+      else if (c === '/' && prof === 0) { if (pos !== -1) return -1; pos = i; }
+    }
+    return pos;
+  }
+  function montarRaiz(indice, radicando) {
+    radicando = String(radicando || '').trim();
+    if (!radicando) return '';
+    var pos = barraSimples(radicando);
+    var dentro = pos > 0 ? montarFracao(radicando.slice(0, pos), radicando.slice(pos + 1)) : '';
+    if (!dentro) dentro = fmt(radicando);
+    var idx = String(indice || '').trim();
+    return (idx ? '<sup>' + fmt(idx) + '</sup>' : '') + '\u221a<rad>' + dentro + '</rad>';
+  }
+  function abrir(titulo, campos, montar) {
+    editor.windowManager.open({
+      title: titulo,
+      body: { type: 'panel', items: campos },
+      buttons: [{ type: 'cancel', text: 'Cancelar' }, { type: 'submit', text: 'Inserir', buttonType: 'primary' }],
+      initialData: {},
+      onSubmit: function (api) {
+        var html = montar(api.getData());
+        if (html) { editor.insertContent(html + '&nbsp;'); }
+        api.close();
+      }
+    });
+  }
+  editor.ui.registry.addButton('fracao', {
+    text: 'a\u2044b', tooltip: 'Fração (numerador sobre denominador)',
+    onAction: function () {
+      abrir('Inserir fração', [
+        { type: 'input', name: 'num', label: 'Numerador' },
+        { type: 'input', name: 'den', label: 'Denominador' }
+      ], function (d) { return montarFracao(d.num, d.den); });
+    }
+  });
+  editor.ui.registry.addButton('raiz', {
+    text: '\u221ax', tooltip: 'Raiz (com traço sobre o radicando)',
+    onAction: function () {
+      abrir('Inserir raiz', [
+        { type: 'input', name: 'indice', label: 'Índice (vazio = raiz quadrada)' },
+        { type: 'input', name: 'radicando', label: 'Radicando (use / para fração: R³ / (G · M))' }
+      ], function (d) { return montarRaiz(d.indice, d.radicando); });
+    }
+  });
+}"""
+
+# Como a fórmula aparece DENTRO do editor (empilhada, como no app)
+_CSS_EDITOR = (
+    'body{font-family:Arial,sans-serif;font-size:15px;line-height:1.5}'
+    'frac{display:inline-block;vertical-align:middle;text-align:center;margin:0 3px}'
+    'frac>num{display:block;border-bottom:1.5px solid currentColor;padding:0 4px}'
+    'frac>den{display:block;padding:0 4px}'
+    'rad{display:inline-block;vertical-align:middle;border-top:1.5px solid currentColor;padding:2px 2px 0}'
+)
+
 # license_key 'gpl' é obrigatório no TinyMCE 7 self-hosted (sem ele o editor
 # fica somente leitura). Sem menus: só o que a prova realmente usa.
 _BASE = {
@@ -48,11 +137,14 @@ _BASE = {
     'promotion': False,
     'plugins': 'charmap',
     'charmap': [[codigo, nome] for codigo, nome in _SIMBOLOS],
-    'toolbar': 'bold italic underline superscript subscript | charmap | removeformat | undo redo',
+    'toolbar': 'bold italic underline superscript subscript | fracao raiz charmap | removeformat | undo redo',
     'toolbar_mode': 'wrap',
     'browser_spellcheck': True,
-    'content_style': 'body{font-family:Arial,sans-serif;font-size:15px;line-height:1.5}',
-    'extended_valid_elements': 'u,sup,sub',
+    'content_style': _CSS_EDITOR,
+    'entity_encoding': 'raw',
+    'custom_elements': '~frac,~num,~den,~rad',
+    'extended_valid_elements': 'u,sup,sub,frac,num,den,rad',
+    'setup': _SETUP_FORMULAS,
 }
 
 

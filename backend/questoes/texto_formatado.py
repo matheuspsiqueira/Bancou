@@ -5,6 +5,8 @@ FORMATO DE ARMAZENAMENTO (o que fica no banco)
 ----------------------------------------------
 Texto simples com marcação mínima:
   - tags permitidas: <u> <b> <i> <sup> <sub>
+  - fórmulas: <frac><num>…</num><den>…</den></frac> (fração empilhada) e
+    √<rad>…</rad> (radicando com traço em cima) — podem ficar uma dentro da outra
   - quebra de linha = "\n" (parágrafo = "\n\n")
   - os caracteres &, < e > aparecem escapados (&amp; &lt; &gt;)
 
@@ -28,6 +30,8 @@ _TAG_PARA_FORMATO = {
     'i': 'i', 'em': 'i', 'cite': 'i',
     'sup': 'sup', 'sub': 'sub',
 }
+# Estrutura matemática (aninhável, sem atributos)
+_ESTRUTURA = {'frac', 'num', 'den', 'rad'}
 _BLOCOS = {'p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'tr'}
 _IGNORAR_CONTEUDO = {'script', 'style', 'head', 'title'}
 
@@ -74,6 +78,7 @@ class _Conversor(HTMLParser):
         self.saida = []          # pedaços finais
         self.abertos = []        # tags de formatação atualmente abertas
         self.pilha = []          # (nome_elemento, [formatos que ele abriu])
+        self.estrutura = []      # (tag matemática aberta, nº de formatos abertos antes dela)
         self.ignorando = 0
 
     # -- helpers --------------------------------------------------------
@@ -94,6 +99,14 @@ class _Conversor(HTMLParser):
             reabrir.append(topo)
         for t in reversed(reabrir):
             self._abrir(t)
+
+    def _fechar_estrutura(self, indice):
+        """Fecha a tag matemática da posição `indice` (e as que estiverem abertas dentro dela)."""
+        while len(self.estrutura) > indice:
+            nome, marca = self.estrutura.pop()
+            while len(self.abertos) > marca:      # formatos abertos lá dentro fecham antes
+                self.saida.append(f'</{self.abertos.pop()}>')
+            self.saida.append(f'</{nome}>')
 
     def _quebra(self, n):
         """Garante ao menos n quebras no fim (sem acumular)."""
@@ -119,6 +132,10 @@ class _Conversor(HTMLParser):
         if tag == 'br':
             self.saida.append('\n')
             return
+        if tag in _ESTRUTURA:
+            self.saida.append(f'<{tag}>')
+            self.estrutura.append((tag, len(self.abertos)))
+            return
         formatos = []
         fmt = _TAG_PARA_FORMATO.get(tag)
         if fmt:
@@ -139,11 +156,18 @@ class _Conversor(HTMLParser):
     def handle_startendtag(self, tag, attrs):
         if tag.lower() == 'br':
             self.saida.append('\n')
+        # <frac/> e afins vazios não fazem sentido: ignorados
 
     def handle_endtag(self, tag):
         tag = tag.lower()
         if tag in _IGNORAR_CONTEUDO:
             self.ignorando = max(0, self.ignorando - 1)
+            return
+        if tag in _ESTRUTURA:
+            for i in range(len(self.estrutura) - 1, -1, -1):
+                if self.estrutura[i][0] == tag:
+                    self._fechar_estrutura(i)
+                    break
             return
         # procura o elemento correspondente na pilha
         for i in range(len(self.pilha) - 1, -1, -1):
@@ -173,6 +197,7 @@ class _Conversor(HTMLParser):
         self.saida.append(html.escape(data, quote=False))
 
     def resultado(self):
+        self._fechar_estrutura(0)
         for f in list(reversed(self.abertos)):
             self._fechar(f)
         texto = ''.join(self.saida)
@@ -192,6 +217,19 @@ def _limpar_bordas(texto):
     return texto.strip()
 
 
+# Só estes "<" são tags de verdade; qualquer outro é o símbolo matemático "menor que"
+# (ex.: "a<b e c>d" não pode virar uma tag <b> e engolir o texto).
+#  - u, b, i, sup, sub, br, strong, em: sem atributos (b/i/u também são variáveis em provas de lógica/matemática)
+#  - tags HTML comuns de colagem (span, p, div, font, a, listas, tabelas…): podem ter atributos
+_MENOR_QUE_NAO_TAG = re.compile(
+    r'<(?!'
+    r'/?(?:u|b|i|sup|sub|br|strong|em|frac|num|den|rad)\s*/?>'
+    r'|/?(?:span|p|div|a|font|ul|ol|li|h[1-6]|table|thead|tbody|tr|td|th|ins|cite|script|style|head|title)(?:\s[^<>]*)?/?>'
+    r')',
+    re.I,
+)
+
+
 def normalizar_texto(texto):
     """
     Entrada: texto puro com tags (JSON da IA, texto já armazenado, legado).
@@ -201,7 +239,7 @@ def normalizar_texto(texto):
     if not texto:
         return ''
     c = _Conversor(modo_html=False)
-    c.feed(str(texto))
+    c.feed(_MENOR_QUE_NAO_TAG.sub('&lt;', str(texto)))
     c.close()
     return _limpar_bordas(c.resultado())
 

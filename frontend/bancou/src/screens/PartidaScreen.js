@@ -671,11 +671,16 @@ export default function PartidaScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* Imagem acima do enunciado (quando a questão pede: "A imagem acima...") */}
+        {questaoAtual.imagem && questaoAtual.posicao_imagem === 'acima' && (
+          <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
+        )}
+
         {/* Enunciado */}
         <TextoFormatado style={styles.enunciado}>{questaoAtual.enunciado}</TextoFormatado>
 
-        {/* Imagem da questão (quando houver) */}
-        {questaoAtual.imagem && (
+        {/* Imagem abaixo do enunciado (padrão; "...veja a imagem abaixo") */}
+        {questaoAtual.imagem && questaoAtual.posicao_imagem !== 'acima' && (
           <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
         )}
 

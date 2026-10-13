@@ -122,6 +122,10 @@ class Questao(models.Model):
         APROVADA = 'aprovada', 'Aprovada'
         REJEITADA = 'rejeitada', 'Rejeitada'
 
+    class PosicaoImagem(models.TextChoices):
+        ACIMA = 'acima', 'Acima do enunciado'
+        ABAIXO = 'abaixo', 'Abaixo do enunciado'
+
     class Tipo(models.TextChoices):
         MULTIPLA_ESCOLHA = 'multipla_escolha', 'Múltipla Escolha'
         CERTO_ERRADO = 'certo_errado', 'Certo/Errado'
@@ -141,6 +145,11 @@ class Questao(models.Model):
     # Imagem
     tem_imagem = models.BooleanField(default=False, help_text='Script detectou referência a imagem/figura')
     imagem = models.ImageField(upload_to='questoes/imagens/', null=True, blank=True)
+    posicao_imagem = models.CharField(
+        max_length=10, choices=PosicaoImagem.choices, default=PosicaoImagem.ABAIXO,
+        help_text='Onde a imagem aparece no app em relação ao enunciado '
+                  '("...veja a imagem abaixo" → abaixo; "A imagem acima representa..." → acima).',
+    )
 
     # Flags de qualidade
     baixa_confianca = models.BooleanField(default=False, help_text='Extração com possíveis problemas')
