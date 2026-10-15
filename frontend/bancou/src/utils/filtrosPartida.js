@@ -10,6 +10,7 @@ export const FILTROS = [
   { chave: 'uf',        titulo: 'Estado',    lista: 'ufs',        busca: true  },
   { chave: 'orgao',     titulo: 'Órgão',     lista: 'orgaos',     busca: true  },
   { chave: 'banca',     titulo: 'Banca',     lista: 'bancas',     busca: true  },
+  { chave: 'ano',       titulo: 'Ano',       lista: 'anos',       busca: false },
   { chave: 'concurso',  titulo: 'Cargo',     lista: 'concursos',  busca: true  },
   { chave: 'materia',   titulo: 'Matéria',   lista: 'materias',   busca: true  },
   { chave: 'nivel',     titulo: 'Nível',     lista: 'niveis',     busca: false },

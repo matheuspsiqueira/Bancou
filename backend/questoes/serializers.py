@@ -21,7 +21,7 @@ class ConcursoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Concurso
-        fields = ['id', 'nome', 'cargo', 'ano', 'banca', 'banca_nome', 'orgao', 'orgao_nome', 'nivel']
+        fields = ['id', 'nome', 'cargo', 'ano', 'banca', 'banca_nome', 'orgao', 'orgao_nome', 'uf', 'nivel']
 
 
 class AlternativaSerializer(serializers.ModelSerializer):

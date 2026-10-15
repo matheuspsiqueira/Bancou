@@ -6,8 +6,9 @@ Parâmetros aceitos (valores separados por vírgula = "qualquer um destes";
 filtros diferentes se combinam com E):
 
   categoria, banca, orgao, concurso, materia  -> ids
+  ano     -> 2024, 2025…
   esfera  -> federal | estadual | municipal
-  uf      -> RJ, SP…
+  uf      -> RJ, SP… (estado do concurso; o órgão é genérico: TJ, PM, MP…)
   nivel   -> fundamental | medio | superior
 
 Compatibilidade: o app antigo manda ?tipo=banca|materia|concurso&id=N — continua valendo.
@@ -28,10 +29,11 @@ CAMPOS_ID = {
     'orgao': 'concurso__orgao_id',
     'concurso': 'concurso_id',
     'materia': 'materia_id',
+    'ano': 'concurso__ano',
 }
 CAMPOS_TEXTO = {
     'esfera': 'concurso__orgao__esfera',
-    'uf': 'concurso__orgao__uf',
+    'uf': 'concurso__uf',
     'nivel': 'concurso__nivel',
 }
 CAMPOS = {**CAMPOS_ID, **CAMPOS_TEXTO}
@@ -157,9 +159,13 @@ class FiltrosDisponiveisView(APIView):
         materias = _alfabetico(_agrupar(sem('materia'), 'materia_id', 'materia__nome'))
         concursos = _alfabetico(_agrupar(
             sem('concurso'), 'concurso_id', 'concurso__nome',
-            ano='concurso__ano', cargo='concurso__cargo',
+            ano='concurso__ano', cargo='concurso__cargo', uf='concurso__uf',
             banca_nome='concurso__banca__nome', orgao_nome='concurso__orgao__nome',
         ))
+        for c in concursos:
+            # órgão é genérico (TJ): na lista, mostra "TJ-RJ" para distinguir os estados
+            if c.get('uf') and c.get('orgao_nome'):
+                c['orgao_nome'] = f"{c['orgao_nome']}-{c['uf']}"
         concursos.sort(key=lambda c: (chave_ordenacao(c['nome']), -(c['ano'] or 0)))
 
         esferas_por_valor = {
@@ -172,8 +178,13 @@ class FiltrosDisponiveisView(APIView):
         ]
         ufs = _alfabetico([
             {'id': o['id'], 'nome': UF_NOMES.get(o['id'], o['id']), 'total': o['total']}
-            for o in _agrupar(sem('uf'), 'concurso__orgao__uf', 'concurso__orgao__uf')
+            for o in _agrupar(sem('uf'), 'concurso__uf', 'concurso__uf')
         ])
+        anos = sorted(
+            ({'id': o['id'], 'nome': str(o['id']), 'total': o['total']}
+             for o in _agrupar(sem('ano'), 'concurso__ano', 'concurso__ano')),
+            key=lambda o: -o['id'],
+        )
         niveis_por_valor = {
             o['id']: o['total']
             for o in _agrupar(sem('nivel'), 'concurso__nivel', 'concurso__nivel')
@@ -193,4 +204,5 @@ class FiltrosDisponiveisView(APIView):
             'concursos': concursos,
             'materias': materias,
             'niveis': niveis,
+            'anos': anos,
         })

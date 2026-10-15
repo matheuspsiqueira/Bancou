@@ -13,7 +13,7 @@ from django.template.response import TemplateResponse
 from .models import Banca, Categoria, Orgao, Concurso, Materia, Questao, Alternativa
 from .importador import importar_questoes_do_pdf, importar_questoes_de_json
 from .campos import CampoTextoFormatado
-from .taxonomia import mesclar_materias
+from .taxonomia import mesclar_materias, mesclar_orgaos, UF_CHOICES
 
 
 # ---------------------------------------------------------------------------
@@ -25,13 +25,18 @@ class DadosDaProvaForm(forms.Form):
     orgao = forms.ModelChoiceField(
         queryset=Orgao.objects.select_related('categoria'),
         label='Órgão',
-        help_text='Ex.: TJRJ. Categoria, esfera e estado vêm do órgão. '
+        help_text='Ex.: TJ. Categoria e esfera vêm do órgão; o estado você informa abaixo. '
                   '<a href="/admin/questoes/orgao/add/" target="_blank">Cadastrar novo órgão</a>',
     )
     banca = forms.ModelChoiceField(
         queryset=Banca.objects.all(),
         label='Banca',
         help_text='Selecione ou <a href="/admin/questoes/banca/add/" target="_blank">cadastre uma nova banca</a>',
+    )
+    uf = forms.ChoiceField(
+        choices=[('', '---------')] + list(UF_CHOICES),
+        label='Estado (UF)', required=False,
+        help_text='Obrigatório para órgãos estaduais e municipais; deixe vazio em provas nacionais (federais).',
     )
     cargo = forms.CharField(max_length=200, label='Cargo', required=False)
     ano = forms.IntegerField(label='Ano', min_value=1990, max_value=2100)
@@ -41,8 +46,24 @@ class DadosDaProvaForm(forms.Form):
     )
     concurso_nome = forms.CharField(
         max_length=200, label='Nome do concurso (opcional)', required=False,
-        help_text='Deixe em branco para gerar automaticamente (ex.: "TJRJ – Assistente Administrativo").',
+        help_text='Deixe em branco para gerar automaticamente (ex.: "TJ-RJ – Assistente Administrativo").',
     )
+    caderno = forms.CharField(
+        max_length=60, label='Caderno / Dia (opcional)', required=False,
+        help_text='Ex.: "Dia 1". Use quando a prova é dividida em dias/cadernos com numeração própria. '
+                  'Se o concurso (órgão + banca + ano + cargo + UF) já existe, as questões são '
+                  'acrescentadas a ele; o número só não pode repetir dentro do mesmo caderno.',
+    )
+
+    def clean(self):
+        dados = super().clean()
+        orgao = dados.get('orgao')
+        if orgao:
+            if orgao.esfera == Orgao.Esfera.FEDERAL:
+                dados['uf'] = ''
+            elif not dados.get('uf'):
+                self.add_error('uf', 'Informe o estado (UF) para órgãos estaduais e municipais.')
+        return dados
 
 
 class ImportarProvaForm(DadosDaProvaForm):
@@ -156,7 +177,7 @@ class AtencaoFilter(admin.SimpleListFilter):
 class QuestaoAdmin(admin.ModelAdmin):
     form = QuestaoAdminForm
     list_display = [
-        'numero', 'concurso', 'materia', 'tipo',
+        'numero', 'caderno', 'concurso', 'materia', 'tipo',
         'flags_display', 'status_display', 'criada_em'
     ]
     list_filter = [
@@ -169,7 +190,7 @@ class QuestaoAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('📋 Identificação', {
-            'fields': ('concurso', 'materia', 'numero', 'tipo', 'status')
+            'fields': ('concurso', 'materia', 'caderno', 'numero', 'tipo', 'status')
         }),
         ('📝 Conteúdo', {
             'fields': ('contexto', 'enunciado', 'gabarito')
@@ -234,6 +255,8 @@ class QuestaoAdmin(admin.ModelAdmin):
                         pdf_gabarito=request.FILES.get('pdf_gabarito'),
                         orgao=form.cleaned_data['orgao'],
                         nivel=form.cleaned_data['nivel'],
+                        uf=form.cleaned_data['uf'],
+                        caderno=form.cleaned_data['caderno'],
                     )
                     messages.success(request, f"✅ {resultado['total']} questões importadas para a fila de revisão!")
                     self._avisos_de_materias(request, resultado)
@@ -269,6 +292,8 @@ class QuestaoAdmin(admin.ModelAdmin):
                         gabarito_texto=form.cleaned_data['gabarito_oficial'],
                         orgao=form.cleaned_data['orgao'],
                         nivel=form.cleaned_data['nivel'],
+                        uf=form.cleaned_data['uf'],
+                        caderno=form.cleaned_data['caderno'],
                     )
                     messages.success(
                         request,
@@ -404,17 +429,101 @@ class CategoriaAdmin(admin.ModelAdmin):
         return obj._orgaos
 
 
+class MesclarOrgaosForm(forms.Form):
+    destino = forms.ModelChoiceField(
+        queryset=Orgao.objects.none(),
+        label='Manter este órgão',
+        widget=forms.RadioSelect,
+        empty_label=None,
+        help_text='Os concursos dos outros passam para este (levando o estado de cada um) e os outros são apagados.',
+    )
+    novo_nome = forms.CharField(
+        max_length=150, required=False, label='Novo nome (opcional)',
+        help_text='Ex.: "TJ". Deixe vazio para manter o nome do órgão escolhido acima.',
+    )
+    novo_nome_completo = forms.CharField(
+        max_length=250, required=False, label='Novo nome completo (opcional)',
+        help_text='Só vale se você informar um novo nome. Ex.: "Tribunal de Justiça".',
+    )
+
+    def __init__(self, *args, orgaos=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['destino'].queryset = orgaos
+        self._pks = list(orgaos.values_list('pk', flat=True))
+
+    def clean_novo_nome(self):
+        nome = self.cleaned_data['novo_nome'].strip()
+        if nome and Orgao.objects.filter(nome__iexact=nome).exclude(pk__in=self._pks).exists():
+            raise forms.ValidationError(f'Já existe outro órgão chamado "{nome}".')
+        return nome
+
+
 @admin.register(Orgao)
 class OrgaoAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'categoria', 'esfera', 'uf']
-    list_filter = ['categoria', 'esfera', 'uf']
+    list_display = ['nome', 'categoria', 'esfera', 'total_concursos']
+    list_filter = ['categoria', 'esfera']
     search_fields = ['nome', 'nome_completo']
+    actions = ['mesclar']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_concursos=Count('concursos'))
+
+    @admin.display(description='Concursos', ordering='_concursos')
+    def total_concursos(self, obj):
+        return obj._concursos
+
+    @admin.action(description='🔀 Mesclar órgãos selecionados…')
+    def mesclar(self, request, queryset):
+        if queryset.count() < 2:
+            self.message_user(request, 'Selecione ao menos 2 órgãos para mesclar.', level=messages.ERROR)
+            return None
+        if queryset.values('esfera').distinct().count() > 1:
+            self.message_user(
+                request, 'Só dá para mesclar órgãos da mesma esfera (federal, estadual ou municipal).',
+                level=messages.ERROR,
+            )
+            return None
+
+        if 'confirmar' in request.POST:
+            form = MesclarOrgaosForm(request.POST, orgaos=queryset)
+            if form.is_valid():
+                destino = form.cleaned_data['destino']
+                origens = list(queryset.exclude(pk=destino.pk))
+                categorias_diferentes = queryset.values('categoria').distinct().count() > 1
+                movidos = mesclar_orgaos(
+                    destino, origens,
+                    novo_nome=form.cleaned_data['novo_nome'],
+                    novo_nome_completo=form.cleaned_data['novo_nome_completo'],
+                )
+                self.message_user(
+                    request,
+                    f'🔀 {len(origens)} órgão(s) mesclado(s) em "{destino.nome}" ({movidos} concurso(s) movido(s)).'
+                )
+                if categorias_diferentes:
+                    self.message_user(
+                        request,
+                        f'⚠️ Os órgãos tinham categorias diferentes; ficou a categoria de "{destino.nome}".',
+                        level=messages.WARNING,
+                    )
+                return None
+        else:
+            form = MesclarOrgaosForm(orgaos=queryset)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Mesclar órgãos',
+            'opts': self.model._meta,
+            'form': form,
+            'orgaos': queryset,
+            'selecionadas': request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME),
+        }
+        return TemplateResponse(request, 'admin/questoes/mesclar_orgaos.html', context)
 
 
 @admin.register(Concurso)
 class ConcursoAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'orgao', 'banca', 'cargo', 'ano', 'nivel']
-    list_filter = ['orgao__categoria', 'orgao', 'banca', 'ano', 'nivel']
+    list_display = ['nome', 'orgao', 'uf', 'banca', 'cargo', 'ano', 'nivel']
+    list_filter = ['orgao__categoria', 'orgao', 'uf', 'banca', 'ano', 'nivel']
     search_fields = ['nome', 'cargo', 'orgao__nome']
 
 

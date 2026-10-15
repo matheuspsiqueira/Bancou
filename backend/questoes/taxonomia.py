@@ -111,3 +111,29 @@ def mesclar_materias(destino, origens):
         destino.save(update_fields=['aliases'])
         Materia.objects.filter(pk__in=[o.pk for o in origens]).delete()
     return movidas
+
+
+def mesclar_orgaos(destino, origens, novo_nome='', novo_nome_completo=''):
+    """
+    Junta órgãos (ex.: TJRJ + TJSC -> TJ). Antes de mover, garante que cada concurso
+    leve consigo o estado do órgão de onde veio (Concurso.uf, só preenchido se estiver
+    vazio); depois move os concursos para `destino`, apaga as origens e, se pedido,
+    renomeia o destino. Retorna quantos concursos foram movidos.
+    """
+    from django.db import transaction
+    from .models import Concurso, Orgao
+
+    origens = [o for o in origens if o.pk != destino.pk]
+    if not origens:
+        return 0
+    with transaction.atomic():
+        for orgao in [destino] + origens:
+            if orgao.uf:
+                Concurso.objects.filter(orgao=orgao, uf='').update(uf=orgao.uf)
+        movidos = Concurso.objects.filter(orgao__in=origens).update(orgao=destino)
+        Orgao.objects.filter(pk__in=[o.pk for o in origens]).delete()
+        if novo_nome:
+            destino.nome = novo_nome
+            destino.nome_completo = novo_nome_completo or ''
+            destino.save(update_fields=['nome', 'nome_completo'])
+    return movidos

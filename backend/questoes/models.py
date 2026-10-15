@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
 
 from .taxonomia import UF_CHOICES
 
@@ -45,13 +47,16 @@ class Orgao(models.Model):
         ESTADUAL = 'estadual', 'Estadual'
         MUNICIPAL = 'municipal', 'Municipal'
 
-    nome = models.CharField(max_length=150, unique=True, help_text='Nome curto, exibido no app (ex.: TJRJ)')
+    nome = models.CharField(
+        max_length=150, unique=True,
+        help_text='Nome genérico, exibido no app (ex.: TJ, PM, MP). O estado fica em cada Concurso.',
+    )
     nome_completo = models.CharField(max_length=250, blank=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='orgaos')
     esfera = models.CharField(max_length=10, choices=Esfera.choices)
     uf = models.CharField(
-        max_length=2, blank=True, choices=UF_CHOICES,
-        help_text='Obrigatório para órgãos estaduais e municipais',
+        max_length=2, blank=True, choices=UF_CHOICES, editable=False,
+        help_text='LEGADO: o estado agora fica em cada Concurso. Só existe para a migração de dados.',
     )
 
     class Meta:
@@ -61,12 +66,6 @@ class Orgao(models.Model):
 
     def __str__(self):
         return self.nome
-
-    def clean(self):
-        if self.esfera in (self.Esfera.ESTADUAL, self.Esfera.MUNICIPAL) and not self.uf:
-            raise ValidationError({'uf': 'Informe o estado (UF) para órgãos estaduais e municipais.'})
-        if self.esfera == self.Esfera.FEDERAL:
-            self.uf = ''
 
 
 class Concurso(models.Model):
@@ -85,6 +84,10 @@ class Concurso(models.Model):
     cargo = models.CharField(max_length=200, blank=True)
     ano = models.IntegerField()
     nivel = models.CharField(max_length=12, choices=Nivel.choices, blank=True)
+    uf = models.CharField(
+        max_length=2, blank=True, choices=UF_CHOICES,
+        help_text='Estado da prova. Obrigatório para órgãos estaduais e municipais; vazio em provas nacionais (federais).',
+    )
 
     class Meta:
         verbose_name = 'Concurso'
@@ -93,6 +96,13 @@ class Concurso(models.Model):
 
     def __str__(self):
         return f'{self.nome} ({self.ano}) — {self.banca}'
+
+    def clean(self):
+        if self.orgao_id:
+            if self.orgao.esfera == Orgao.Esfera.FEDERAL:
+                self.uf = ''
+            elif not self.uf:
+                raise ValidationError({'uf': 'Informe o estado (UF) para concursos de órgãos estaduais e municipais.'})
 
 
 class Materia(models.Model):
@@ -136,6 +146,11 @@ class Questao(models.Model):
     materia = models.ForeignKey(Materia, on_delete=models.PROTECT, related_name='questoes', null=True, blank=True)
 
     # Conteúdo
+    caderno = models.CharField(
+        max_length=60, blank=True,
+        help_text='Dia/caderno da prova (ex.: "Dia 1", "Dia 2"). Vazio quando a prova é uma só. '
+                  'O número da questão só precisa ser único dentro do mesmo caderno.',
+    )
     numero = models.IntegerField()
     tipo = models.CharField(max_length=20, choices=Tipo.choices)
     enunciado = models.TextField()
@@ -166,10 +181,11 @@ class Questao(models.Model):
     class Meta:
         verbose_name = 'Questão'
         verbose_name_plural = 'Questões'
-        ordering = ['concurso', 'numero']
+        ordering = ['concurso', 'caderno', 'numero']
 
     def __str__(self):
-        return f'Q{self.numero} — {self.concurso}'
+        prefixo = f'{self.caderno} · ' if self.caderno else ''
+        return f'{prefixo}Q{self.numero} — {self.concurso}'
     
     def save(self, *args, **kwargs):
         if self.imagem and self.tem_imagem:
@@ -247,3 +263,18 @@ class RespostaUsuario(models.Model):
     def __str__(self):
         resultado = '✅' if self.correta else '❌'
         return f'{self.usuario} — Q{self.questao.numero} {resultado}'
+
+
+@receiver(post_migrate)
+def copiar_uf_do_orgao_legado(sender, **kwargs):
+    """
+    Migração de dados automática (o deploy não tem terminal): a UF que antes ficava no
+    Orgao passa para os Concursos dele e o campo legado é zerado. Roda a cada `migrate`,
+    mas é idempotente — depois da 1ª vez não encontra mais nada para copiar.
+    """
+    if getattr(sender, 'label', None) != 'questoes':
+        return
+    banco = kwargs.get('using', 'default')
+    for orgao in Orgao.objects.using(banco).exclude(uf=''):
+        Concurso.objects.using(banco).filter(orgao=orgao, uf='').update(uf=orgao.uf)
+    Orgao.objects.using(banco).exclude(uf='').update(uf='')

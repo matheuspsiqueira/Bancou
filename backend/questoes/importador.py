@@ -171,7 +171,7 @@ def extrair_questoes_via_ia(client, texto_paginas: list[str]) -> list[dict]:
 
 
 def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_gabarito=None,
-                             orgao=None, nivel=''):
+                             orgao=None, nivel='', uf='', caderno=''):
     """
     Importação PDF + IA (só texto). ATENÇÃO: este caminho lê apenas o texto do
     PDF, então NÃO enxerga sublinhado/negrito/itálico nem imagens/tabelas.
@@ -207,7 +207,7 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
         print(f"  {len(gabarito)} respostas encontradas no gabarito")
 
     return _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
-                            orgao=orgao, nivel=nivel)
+                            orgao=orgao, nivel=nivel, uf=uf, caderno=caderno)
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ def _validar_questoes(questoes):
 
 
 def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
-                     textos_base=None, imagens=None, orgao=None, nivel=''):
+                     textos_base=None, imagens=None, orgao=None, nivel='', uf='', caderno=''):
     """
     Grava as questões no banco.
 
@@ -350,8 +350,11 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
     Texto formatado: enunciado, contexto e alternativas passam por
     texto_formatado.normalizar_texto (só <u><b><i><sup><sub>).
 
-    Organização: o concurso é identificado por órgão + banca + ano + cargo
-    (sem órgão, cai no critério antigo: nome + banca + ano). As matérias são
+    Organização: o concurso é identificado por órgão + banca + ano + cargo + UF
+    (sem órgão, cai no critério antigo: nome + banca + ano). Se o concurso já
+    existe, as questões são ACRESCENTADAS a ele. Provas em vários dias usam
+    `caderno` ("Dia 1", "Dia 2"): o número da questão só não pode se repetir
+    dentro do mesmo caderno. As matérias são
     unificadas por nome oficial/apelidos (taxonomia.resolver_materias).
 
     Retorna {'total', 'materias_novas', 'materias_unificadas'}.
@@ -359,14 +362,19 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
     textos_por_id = {t['id']: t for t in (textos_base or []) if t.get('id')}
     imagens_por_id = {i['id']: i for i in (imagens or []) if i.get('id')}
 
+    uf = (uf or '').strip().upper()
+    caderno = (caderno or '').strip()
+
     with transaction.atomic():
         if orgao is not None:
-            nome_automatico = f'{orgao.nome} – {cargo}' if cargo else orgao.nome
+            base = f'{orgao.nome}-{uf}' if uf else orgao.nome
+            nome_automatico = f'{base} – {cargo}' if cargo else base
             concurso, _ = Concurso.objects.get_or_create(
                 orgao=orgao,
                 banca=banca,
                 ano=ano,
                 cargo=cargo or '',
+                uf=uf,
                 defaults={'nome': (concurso_nome or '').strip() or nome_automatico, 'nivel': nivel or ''},
             )
             concurso_nome = concurso.nome
@@ -375,20 +383,23 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
                 nome=concurso_nome,
                 banca=banca,
                 ano=ano,
-                defaults={'cargo': cargo or '', 'nivel': nivel or ''}
+                defaults={'cargo': cargo or '', 'nivel': nivel or '', 'uf': uf}
             )
 
         # Reimportar o mesmo JSON duplicaria tudo — barra antes de gravar.
+        # A trava é por concurso + caderno + número: o mesmo número em outro
+        # caderno/dia (ex.: Dia 2 da EsPCEx) é outra questão e passa.
         numeros = [q['numero_questao'] for q in questoes]
         ja_existem = sorted(
-            Questao.objects.filter(concurso=concurso, numero__in=numeros)
+            Questao.objects.filter(concurso=concurso, caderno=caderno, numero__in=numeros)
             .values_list('numero', flat=True)
         )
         if ja_existem:
+            onde = f'no caderno "{caderno}" do concurso' if caderno else 'no concurso'
             raise ValueError(
-                f'O concurso "{concurso_nome}" já tem as questões {ja_existem[:15]}'
+                f'Já existem {onde} "{concurso_nome}" as questões {ja_existem[:15]}'
                 f'{"…" if len(ja_existem) > 15 else ""}. Apague as antigas no admin '
-                f'antes de reimportar (ou use outro nome de concurso).'
+                f'antes de reimportar, ou informe outro caderno/dia (ex.: "Dia 2").'
             )
 
         # Resolve as matérias (nome oficial + apelidos); o que não reconhece vira matéria nova
@@ -492,6 +503,7 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
             questoes_objs.append(Questao(
                 concurso=concurso,
                 materia=materia,
+                caderno=caderno,
                 numero=num,
                 tipo=tipo,
                 enunciado=enunciado,
@@ -522,7 +534,7 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
 
 
 def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabarito_texto='',
-                              orgao=None, nivel=''):
+                              orgao=None, nivel='', uf='', caderno=''):
     """
     Importa questões a partir de um arquivo JSON já estruturado,
     sem passar pela extração via IA.
@@ -583,4 +595,6 @@ def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabar
         imagens=dados.get('imagens'),
         orgao=orgao,
         nivel=nivel,
+        uf=uf,
+        caderno=caderno,
     )
