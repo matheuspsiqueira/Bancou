@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'loja',
     'conquistas',
     'desafios',
+    'suporte',
 ]
 
 MIDDLEWARE = [
@@ -145,6 +146,7 @@ REST_FRAMEWORK = {
         'excluir-conta-solicitar' : '5/hour',
         'excluir-conta-confirmar' : '10/hour',
         'anuncio-vida-iniciar': '20/hour',
+        'relato-bug': '10/hour',
     },
 }
 
@@ -171,6 +173,11 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'Bancou <naoresponda@bancou.app.br>'
+
+# Para onde vão os avisos de novos relatos de bug (app `suporte`).
+EMAIL_SUPORTE = config('EMAIL_SUPORTE', default='suporte@bancou.app.br')
+# Base dos links que aparecem nesses e-mails (ex.: atalho pro admin).
+SITE_BASE_URL = config('SITE_BASE_URL', default='https://bancou.app.br').rstrip('/')
 
 
 

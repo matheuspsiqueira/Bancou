@@ -18,6 +18,7 @@ import { assistirAnuncioPremiado } from '../services/adsService';
 import { colors, typography, fontSize, spacing } from '../theme';
 import TextoFormatado from '../components/TextoFormatado';
 import { anexarFiltros } from '../utils/filtrosPartida';
+import ModalRelatarBug from '../components/modals/ModalRelatarBug';
 
 const TEMPO_POR_QUESTAO = 60;   // segundos
 const PAUSA_FEEDBACK_MS = 1500; // ms que o feedback fica visível antes de avançar (só no timer/buff)
@@ -112,6 +113,9 @@ export default function PartidaScreen({ navigation, route }) {
   // Mensagem da tela de loading durante o fluxo do anúncio de vida extra (null = padrão)
   const [statusAd, setStatusAd] = useState(null);
   const [alternativasEliminadas, setAlternativasEliminadas] = useState([]);
+
+  // ── Relatar bug (modal) — enquanto aberto, o timer fica pausado ─────────
+  const [relatoVisivel, setRelatoVisivel] = useState(false);
 
   // ── Timer ───────────────────────────────────────────────────────────────
   const comTempo     = filtro?.comTempo ?? false;
@@ -293,13 +297,20 @@ export default function PartidaScreen({ navigation, route }) {
     });
   };
 
-  // ── Timer: inicia/reinicia a cada nova questão ──────────────────────────
+  // ── Timer: reinicia a cada nova questão ─────────────────────────────────
+  // O reset fica separado do intervalo pra que pausar/retomar (modal de
+  // relato aberto) não devolva os 60s inteiros.
+  useEffect(() => {
+    if (!comTempo || carregando || questoes.length === 0) return;
+    setTempo(TEMPO_POR_QUESTAO);
+    expiradoRef.current = false;
+  }, [indice, comTempo, carregando, questoes.length]);
+
+  // ── Timer: roda o intervalo (pausa quando confirmou ou relato aberto) ───
   useEffect(() => {
     if (!comTempo || carregando || questoes.length === 0) return;
     if (confirmada) return; // para o timer quando já confirmou
-
-    setTempo(TEMPO_POR_QUESTAO);
-    expiradoRef.current = false;
+    if (relatoVisivel) return; // pausado enquanto o usuário relata um problema
 
     timerRef.current = setInterval(() => {
       setTempo((t) => {
@@ -316,7 +327,7 @@ export default function PartidaScreen({ navigation, route }) {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [indice, comTempo, carregando, questoes.length, confirmada]);
+  }, [indice, comTempo, carregando, questoes.length, confirmada, relatoVisivel]);
 
   const handleTempoEsgotado = useCallback(() => {
     const questaoAtual = questoes[indice];
@@ -603,6 +614,16 @@ export default function PartidaScreen({ navigation, route }) {
           <Text style={styles.btnSairTexto}>✕</Text>
         </TouchableOpacity>
 
+        {/* Relatar problema nesta questão */}
+        <TouchableOpacity
+          style={styles.btnBug}
+          onPress={() => setRelatoVisivel(true)}
+          activeOpacity={0.7}
+          accessibilityLabel="Relatar um problema"
+        >
+          <Image source={require('../assets/icons/bug.png')} style={styles.btnBugIcone} resizeMode="contain" />
+        </TouchableOpacity>
+
         {/* Barra de progresso — 10 segmentos, pinta verde/vermelho por resposta */}
         <View style={styles.progressoContainer}>
           <View style={styles.progressoSegmentosRow}>
@@ -822,6 +843,12 @@ export default function PartidaScreen({ navigation, route }) {
           )
         )}
       </View>
+
+      <ModalRelatarBug
+        visivel={relatoVisivel}
+        questaoId={questaoAtual.id}
+        onFechar={() => setRelatoVisivel(false)}
+      />
     </View>
   );
 }
@@ -865,6 +892,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center',
   },
   btnSairTexto: { fontFamily: typography.bold, fontSize: 14, color: colors.textSecondary },
+  btnBug: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center',
+  },
+  btnBugIcone: { width: 18, height: 18 },
 
   progressoContainer: { flex: 1, gap: 4 },
   // Barra segmentada — um segmento por questão, cor muda conforme resposta

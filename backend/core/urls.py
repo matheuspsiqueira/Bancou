@@ -28,5 +28,6 @@ urlpatterns = [
     path('api/loja/', include('loja.urls')),
     path('api/conquistas/', include('conquistas.urls')),
     path('api/desafios/', include('desafios.urls')),
+    path('api/suporte/', include('suporte.urls')),
     path('', include('landing.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
