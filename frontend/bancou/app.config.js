@@ -1,14 +1,8 @@
 // app.config.js
 //
-// Substitui o antigo app.json (arquivo estático) porque o nome do pacote
-// Android precisa MUDAR conforme o profile do build:
-//   - development → "br.com.bancou.app.dev" (app separado, convive no
-//     celular com o app de produção instalado via EAS)
-//   - preview / production → "br.com.bancou.app" (o de sempre)
-//
-// O EAS injeta a variável de ambiente EAS_BUILD_PROFILE durante o build
-// (não existe localmente com `expo start`, então o fallback abaixo cobre
-// o dia a dia comum, que continua sendo o mesmo pacote de sempre).
+// Substitui o antigo app.json porque o pacote Android muda conforme o profile:
+//   - development → "br.com.bancou.app.dev"
+//   - preview / production → "br.com.bancou.app"
 const profile = process.env.EAS_BUILD_PROFILE;
 const isDev = profile === 'development';
 
@@ -32,17 +26,14 @@ export default {
         foregroundImage: './src/assets/adaptative-icon.png',
         backgroundColor: '#1a1a2e',
       },
-      permissions: [
-        'android.permission.RECORD_AUDIO',
-        'android.permission.MODIFY_AUDIO_SETTINGS',
-      ],
+      permissions: ['android.permission.MODIFY_AUDIO_SETTINGS'],
     },
     web: {
       favicon: './src/assets/kou-animado1.png',
     },
     plugins: [
       'expo-font',
-      'expo-audio',
+      ['expo-audio', { recordAudioAndroid: false }],
       'expo-asset',
       [
         'react-native-google-mobile-ads',
@@ -50,14 +41,18 @@ export default {
           androidAppId: 'ca-app-pub-5823717618050092~2442548622',
         },
       ],
-      // expo-notifications: sem icon/color customizado por enquanto —
-      // o Android usa um ícone padrão nas notificações até vocês
-      // desenharem um ícone monocromático próprio (silhueta branca em
-      // fundo transparente, exigência do próprio Android pra esse tipo
-      // de ícone). Funciona normalmente sem isso, só fica visualmente
-      // genérico — dá pra customizar depois sem precisar de novo build
-      // imediato, é só trocar aqui e gerar o próximo build.
+      // expo-notifications: sem ícone customizado por enquanto (padrão do Android)
       'expo-notifications',
+      [
+        'expo-build-properties',
+        {
+          android: {
+            enableMinifyInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+          },
+        },
+      ],
+      './plugins/semServicosDeAudio',
     ],
     extra: {
       eas: {
