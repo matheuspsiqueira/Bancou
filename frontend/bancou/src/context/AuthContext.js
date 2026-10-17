@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { registrarTokenNotificacao } from '../services/notificacaoService';
+import { identificarUsuario, registrarEvento } from '../analytics';
 
 
 const AuthContext = createContext();
@@ -18,6 +19,9 @@ export function AuthProvider({ children }) {
   // sem precisar recriar o listener a cada mudança de autenticado/usuario.
   const autenticadoRef = useRef(autenticado);
   const appStateRef     = useRef(AppState.currentState);
+  // Último ID enviado ao Analytics — evita reenviar o mesmo ID a cada
+  // recarga de perfil (abertura do app, volta do background etc.).
+  const analyticsIdRef  = useRef(null);
 
   useEffect(() => {
     autenticadoRef.current = autenticado;
@@ -27,6 +31,8 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     await AsyncStorage.removeItem('access_token');
     await AsyncStorage.removeItem('refresh_token');
+    analyticsIdRef.current = null;
+    identificarUsuario(null);
     setUsuario(null);
     setAutenticado(false);
   }, []);
@@ -79,6 +85,13 @@ export function AuthProvider({ children }) {
       if (resp.ok) {
         const data = await resp.json();
         setUsuario(data); // substitui por completo — evita mesclar dados velhos com novos
+
+        // Analytics: associa os eventos ao ID numérico do usuário (nunca
+        // e-mail ou nome). Só reenvia se o ID mudou.
+        if (data?.id != null && analyticsIdRef.current !== data.id) {
+          analyticsIdRef.current = data.id;
+          identificarUsuario(data.id);
+        }
       }
       // se não for ok (401 mesmo após tentativa de refresh), authFetch já
       // chamou signOut() internamente — nada mais a fazer aqui.
@@ -137,6 +150,7 @@ export function AuthProvider({ children }) {
     await AsyncStorage.setItem('refresh_token', refresh);
     setAutenticado(true);
     await carregarPerfil();
+    registrarEvento('login');
     // Mesmo pedido de permissão/registro de token, agora no momento do
     // login (cobre quem está logando pela primeira vez nesse aparelho).
     registrarTokenNotificacao(authFetch);

@@ -1,10 +1,11 @@
 // src/navigation/index.js
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { registrarTela } from '../analytics';
 
 import SplashScreen    from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -18,6 +19,7 @@ import ScoreScreen   from '../screens/ScoreScreen';
 import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 function RootNavigator() {
   const { autenticado, checando } = useAuth();
@@ -56,9 +58,26 @@ function RootNavigator() {
 }
 
 export default function Navigation() {
+  // Última tela enviada ao Analytics — evita screen_view duplicado quando
+  // o estado de navegação muda sem trocar de tela (params, por exemplo).
+  const rotaAtual = useRef(null);
+
   return (
     <AuthProvider>
-      <NavigationContainer>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={() => {
+          rotaAtual.current = navigationRef.getCurrentRoute()?.name ?? null;
+          registrarTela(rotaAtual.current);
+        }}
+        onStateChange={() => {
+          // getCurrentRoute devolve a rota mais interna em foco, então as
+          // abas do TabNavigator aparecem pelo próprio nome.
+          const atual = navigationRef.getCurrentRoute()?.name ?? null;
+          if (atual && atual !== rotaAtual.current) registrarTela(atual);
+          rotaAtual.current = atual;
+        }}
+      >
         <RootNavigator />
       </NavigationContainer>
     </AuthProvider>

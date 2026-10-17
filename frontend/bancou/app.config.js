@@ -12,7 +12,7 @@ export default {
   expo: {
     name: isDev ? 'Bancou (dev)' : 'Bancou',
     slug: 'bancou',
-    version: '1.0.0',
+    version: '1.0.2',
     orientation: 'portrait',
     icon: './src/assets/adaptative-icon.png',
     userInterfaceStyle: 'dark',
@@ -32,6 +32,8 @@ export default {
       favicon: './src/assets/kou-animado1.png',
     },
     plugins: [
+      '@react-native-firebase/app',
+      '@react-native-firebase/analytics',
       'expo-font',
       ['expo-audio', { recordAudioAndroid: false }],
       'expo-asset',
