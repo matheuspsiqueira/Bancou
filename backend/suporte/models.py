@@ -1,11 +1,13 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 
 class RelatoBug(models.Model):
     """
-    Relato de problema enviado pelo usuário dentro do app (hoje, a partir da
-    PartidaScreen). Triagem 100% pelo Django admin.
+    Relato de problema enviado pelo usuário dentro do app (PartidaScreen ou
+    PerfilScreen). Triagem 100% pelo Django admin.
 
     Os dados do usuário NÃO vêm do app: a view pega do token, então ninguém
     consegue relatar em nome de outra pessoa.
@@ -31,6 +33,11 @@ class RelatoBug(models.Model):
         help_text='Identificação da questão no momento do relato (sobrevive se a questão for apagada).',
     )
     descricao = models.TextField()
+    # Print opcional enviado pelo usuário (máx. 1, validado no serializer).
+    anexo = models.ImageField(
+        upload_to='relatos_bug/', null=True, blank=True,
+        help_text='Print opcional enviado pelo usuário.',
+    )
     tela_contexto = models.CharField(max_length=50, default='partida')
     versao_app = models.CharField(max_length=30, blank=True)
     modelo_aparelho = models.CharField(max_length=120, blank=True)
@@ -48,3 +55,17 @@ class RelatoBug(models.Model):
 
     def __str__(self):
         return f'Relato #{self.pk} — {self.usuario} ({self.get_status_display()})'
+
+
+@receiver(post_delete, sender=RelatoBug)
+def apagar_anexo_do_relato(sender, instance, **kwargs):
+    """
+    Apaga o arquivo do print do armazenamento quando o relato some (inclusive
+    na exclusão de conta, que apaga os relatos em cascata). Falha aqui nunca
+    pode travar a exclusão.
+    """
+    if instance.anexo:
+        try:
+            instance.anexo.delete(save=False)
+        except Exception:
+            pass

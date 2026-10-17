@@ -71,11 +71,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = (
-            'id', 'email', 'username', 'nome_completo', 'avatar_url',
+            'id', 'email', 'username', 'nome_completo', 'avatar_url', 'borda_avatar',
             'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
             'notificacoes_ativadas',
         )
+        # borda_avatar é benefício liberado só pelo admin: o usuário não altera.
         read_only_fields = (
+            'borda_avatar',
             'xp', 'moedas', 'vidas', 'streak', 'anuncios_vida_restantes',
             'notificacoes_ativadas',
         )

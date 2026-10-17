@@ -6,9 +6,12 @@ from .models import Usuario
 @admin.register(Usuario)
 class UsuarioAdmin(DjangoUserAdmin):
     model = Usuario
-    list_display = ['email', 'username', 'nome_completo', 'xp', 'moedas', 'vidas', 'vidas_extras', 'streak', 'is_active', 'date_joined']
-    list_editable = ['xp', 'moedas', 'vidas', 'vidas_extras', 'streak']
-    list_filter = ['is_active', 'is_staff', 'is_superuser', 'date_joined']
+    list_display = [
+        'email', 'username', 'nome_completo', 'borda_avatar',
+        'xp', 'moedas', 'vidas', 'vidas_extras', 'streak', 'is_active', 'date_joined',
+    ]
+    list_editable = ['borda_avatar', 'xp', 'moedas', 'vidas', 'vidas_extras', 'streak']
+    list_filter = ['borda_avatar', 'is_active', 'is_staff', 'is_superuser', 'date_joined']
     search_fields = ['email', 'username', 'nome_completo']
     ordering = ['-date_joined']
     readonly_fields = ['date_joined', 'last_login']
@@ -20,6 +23,9 @@ class UsuarioAdmin(DjangoUserAdmin):
         ('Datas importantes', {'fields': ('last_login', 'date_joined')}),
         ('🎮 Economia do jogo', {
             'fields': ('xp', 'moedas', 'vidas', 'vidas_extras', 'streak', 'data_ultima_partida', 'vidas_atualizadas_em'),
+        }),
+        ('🏅 Benefícios', {
+            'fields': ('borda_avatar',),
         }),
         ('Notificações', {
             'fields': ('notificacoes_ativadas', 'expo_push_token'),

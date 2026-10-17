@@ -6,6 +6,7 @@ from django.core.mail import EmailMessage
 from django.utils import timezone
 from django.utils.html import strip_tags
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -17,6 +18,19 @@ from .models import RelatoBug
 from .serializers import RelatoBugSerializer
 
 logger = logging.getLogger(__name__)
+
+
+def _url_anexo(relato):
+    """URL do print (ou None). Nunca levanta: o e-mail sai mesmo sem ela."""
+    if not relato.anexo:
+        return None
+    try:
+        url = relato.anexo.url
+    except Exception:
+        return None
+    if url.startswith('/'):
+        url = f'{settings.SITE_BASE_URL}{url}'
+    return url
 
 
 def _montar_email(relato, questao):
@@ -53,6 +67,7 @@ def _montar_email(relato, questao):
         f'Aparelho: {relato.modelo_aparelho or "—"}',
         f'Sistema: {relato.versao_so or "—"}',
         f'Versão do app: {relato.versao_app or "—"}',
+        f'Print: {_url_anexo(relato) or "não anexado"}',
         '',
         'Descrição:',
         relato.descricao,
@@ -86,9 +101,11 @@ def _avisar_suporte(relato, questao):
 class RelatarBugView(APIView):
     """
     POST /api/suporte/relatar-bug/
+    Aceita JSON (sem print) ou multipart (com print opcional em `anexo`).
     Cria o RelatoBug, avisa o suporte por e-mail e responde 201.
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'relato-bug'
 
@@ -114,6 +131,7 @@ class RelatarBugView(APIView):
             # str(questao) já traz caderno, número, concurso, ano e banca.
             questao_referencia=str(questao)[:300] if questao else '',
             descricao=dados['descricao'],
+            anexo=dados.get('anexo'),
             tela_contexto=dados.get('tela_contexto') or 'partida',
             versao_app=dados.get('versao_app', ''),
             modelo_aparelho=dados.get('modelo_aparelho', ''),

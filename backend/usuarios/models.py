@@ -10,6 +10,18 @@ class Usuario(AbstractUser):
     nome_completo = models.CharField(max_length=255)
     avatar = models.ImageField(upload_to='avatares/', null=True, blank=True)
 
+    # ─── Benefícios manuais (liberados só pelo Django admin) ─────────────
+    # Borda do avatar no Perfil. O usuário NÃO consegue alterar: o campo
+    # é somente leitura no serializer. Pra criar uma borda nova, adicione
+    # a opção aqui e o estilo em src/utils/bordasAvatar.js no app.
+    class BordaAvatar(models.TextChoices):
+        NENHUMA = '', 'Nenhuma'
+        PIONEIRO = 'pioneiro', 'Pioneiro (lista de espera)'
+
+    borda_avatar = models.CharField(
+        max_length=20, choices=BordaAvatar.choices, blank=True, default='',
+    )
+
     # ─── Economia do jogo ───────────────────────────────────────────────
     xp = models.PositiveIntegerField(default=0)
     moedas = models.PositiveIntegerField(default=0)

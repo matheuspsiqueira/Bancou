@@ -3,6 +3,9 @@ from rest_framework import serializers
 
 class RelatoBugSerializer(serializers.Serializer):
     """Só valida a entrada. Quem relata, e quando, vem do token — não do app."""
+    ANEXO_MAX_MB = 5
+    ANEXO_TIPOS = ('image/jpeg', 'image/png', 'image/webp')
+
     questao_id = serializers.IntegerField(required=False, allow_null=True)
     descricao = serializers.CharField(
         min_length=10, max_length=1000, trim_whitespace=True,
@@ -13,7 +16,21 @@ class RelatoBugSerializer(serializers.Serializer):
             'max_length': 'A descrição é longa demais (máximo de 1000 caracteres).',
         },
     )
+    anexo = serializers.ImageField(
+        required=False, allow_null=True,
+        error_messages={'invalid_image': 'O arquivo enviado não é uma imagem válida.'},
+    )
     tela_contexto = serializers.CharField(max_length=50, required=False, allow_blank=True, default='partida')
     versao_app = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
     modelo_aparelho = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
     versao_so = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+
+    def validate_anexo(self, value):
+        if value:
+            if value.size > self.ANEXO_MAX_MB * 1024 * 1024:
+                raise serializers.ValidationError(
+                    f'O print deve ter no máximo {self.ANEXO_MAX_MB}MB.'
+                )
+            if getattr(value, 'content_type', None) not in self.ANEXO_TIPOS:
+                raise serializers.ValidationError('Formato de imagem inválido. Use JPEG, PNG ou WEBP.')
+        return value

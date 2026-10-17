@@ -21,9 +21,22 @@ def _selo_status(obj):
     )
 
 
+def _url_anexo(obj):
+    """URL do print (ou None). Nunca levanta, pra não derrubar a tela do admin."""
+    if not obj.anexo:
+        return None
+    try:
+        return obj.anexo.url
+    except Exception:
+        return None
+
+
 @admin.register(RelatoBug)
 class RelatoBugAdmin(admin.ModelAdmin):
-    list_display = ('id', 'criado_em', 'usuario', 'questao_referencia', 'tela_contexto', 'status_colorido', 'email_enviado')
+    list_display = (
+        'id', 'criado_em', 'usuario', 'questao_referencia', 'tela_contexto',
+        'tem_print', 'status_colorido', 'email_enviado',
+    )
     list_display_links = ('id', 'criado_em')
     list_filter = ('status', 'email_enviado', 'criado_em')
     search_fields = (
@@ -37,12 +50,12 @@ class RelatoBugAdmin(admin.ModelAdmin):
     # Tudo que veio do app é só leitura; o admin só mexe no status.
     readonly_fields = (
         'usuario', 'criado_em', 'questao_link', 'questao_referencia', 'descricao',
-        'tela_contexto', 'versao_app', 'modelo_aparelho', 'versao_so', 'email_enviado',
-        'status_colorido',
+        'print_preview', 'tela_contexto', 'versao_app', 'modelo_aparelho', 'versao_so',
+        'email_enviado', 'status_colorido',
     )
     fieldsets = (
         ('Triagem', {'fields': ('status_colorido', 'status', 'criado_em', 'usuario')}),
-        ('Relato', {'fields': ('descricao', 'tela_contexto')}),
+        ('Relato', {'fields': ('descricao', 'print_preview', 'tela_contexto')}),
         ('Questão', {'fields': ('questao_link', 'questao_referencia')}),
         ('Aparelho', {'fields': ('modelo_aparelho', 'versao_so', 'versao_app')}),
         ('Aviso', {'fields': ('email_enviado',)}),
@@ -54,6 +67,23 @@ class RelatoBugAdmin(admin.ModelAdmin):
     @admin.display(description='Status', ordering='status')
     def status_colorido(self, obj):
         return _selo_status(obj)
+
+    @admin.display(description='Print')
+    def tem_print(self, obj):
+        return '📎' if obj.anexo else '—'
+
+    @admin.display(description='Print anexado')
+    def print_preview(self, obj):
+        url = _url_anexo(obj)
+        if not url:
+            return 'Sem print.'
+        return format_html(
+            '<a href="{0}" target="_blank" rel="noopener">'
+            '<img src="{0}" style="max-width:320px;max-height:480px;border-radius:8px;'
+            'border:1px solid #888;" alt="Print do relato">'
+            '</a><br><a href="{0}" target="_blank" rel="noopener">Abrir em tamanho real</a>',
+            url,
+        )
 
     @admin.display(description='Questão (abrir no admin)')
     def questao_link(self, obj):

@@ -29,7 +29,12 @@
 // backend, pedindo permissão do SO na primeira vez que liga), Política
 // de Privacidade e Termos de uso (viraram itens clicáveis com chevron,
 // saem do texto corrido de antes) e Versão do app (não clicável, só
-// informativo). O botão de Relatar Bug entra em Sistema futuramente.
+// informativo).
+//
+// 17/10/2026 — "Relatar um problema" (bug.png) entra em Sistema e abre o
+// ModalRelatarBug sem questão, com tela_contexto 'perfil'. A borda do
+// avatar passa a refletir usuario.borda_avatar (benefício liberado pelo
+// admin, ex.: lista de espera) — mapeamento em utils/bordasAvatar.js.
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -41,8 +46,10 @@ import ConquistaCard from '../components/ConquistaCard';
 import ModalConquista from '../components/modals/ModalConquista';
 import ModalAlterarSenha from '../components/modals/ModalAlterarSenha';
 import ModalEditarPerfil from '../components/modals/ModalEditarPerfil';
+import ModalRelatarBug from '../components/modals/ModalRelatarBug';
 import { getTituloNivel, getXpProximoNivel } from '../utils/niveis';
 import { getLigaImagem, getLigaNome } from '../utils/ligas';
+import { getBordaAvatar } from '../utils/bordasAvatar';
 import { tocar, useSomHabilitado } from '../services/somService';
 import { pedirPermissaoEObterToken } from '../services/notificacaoService';
 import { colors, typography, fontSize, spacing, borderRadius } from '../theme';
@@ -59,6 +66,7 @@ export default function PerfilScreen() {
   const { alertar } = useKouAlert();
   const [modalSenha, setModalSenha] = useState(false);
   const [modalPerfil, setModalPerfil] = useState(false);
+  const [modalBug, setModalBug] = useState(false);
   const [somHabilitado, alternarSom] = useSomHabilitado();
   const [alternandoNotificacoes, setAlternandoNotificacoes] = useState(false);
 
@@ -101,6 +109,9 @@ export default function PerfilScreen() {
     : `${xp.toLocaleString()} XP — Nível máximo`;
 
   const username = usuario?.username ?? '…';
+
+  // Borda de avatar liberada pelo admin (null = borda padrão do app).
+  const bordaAvatar = getBordaAvatar(usuario?.borda_avatar);
 
   // `usuario.trofeus` ainda não existe no backend (sistema de Ligas não
   // implementado) — undefined cai automaticamente em "Não rankeado".
@@ -181,7 +192,12 @@ export default function PerfilScreen() {
 
         {/* ===== Seção 1 — Cabeçalho (visível a qualquer visitante) ===== */}
         <View style={styles.headerCard}>
-          <View style={styles.avatar}>
+          <View
+            style={[
+              styles.avatar,
+              bordaAvatar && { borderColor: bordaAvatar.cor, borderWidth: bordaAvatar.largura },
+            ]}
+          >
             <Image
               source={usuario?.avatar_url ? { uri: usuario.avatar_url } : require('../assets/kou-foco.png')}
               style={styles.avatarImg}
@@ -318,6 +334,14 @@ export default function PerfilScreen() {
               />
             </View>
 
+            <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalBug(true)} activeOpacity={0.7}>
+              <View style={styles.opcaoTextRow}>
+                <Image source={require('../assets/icons/bug.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+                <Text style={styles.opcaoText}> Relatar um problema</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.opcaoItem} onPress={() => abrirLink(URL_PRIVACIDADE)} activeOpacity={0.7}>
               <View style={styles.opcaoTextRow}>
                 <Text style={styles.opcaoText}>Política de privacidade</Text>
@@ -345,6 +369,12 @@ export default function PerfilScreen() {
 
             <ModalAlterarSenha visible={modalSenha} onClose={() => setModalSenha(false)} />
             <ModalEditarPerfil visible={modalPerfil} onClose={() => setModalPerfil(false)} />
+            <ModalRelatarBug
+              visivel={modalBug}
+              questaoId={null}
+              telaContexto="perfil"
+              onFechar={() => setModalBug(false)}
+            />
           </>
         )}
 
