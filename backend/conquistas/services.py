@@ -25,6 +25,12 @@ from django.utils import timezone
 # EXISTENTE não precisa de código nenhum — vira trabalho 100% de admin.
 # ---------------------------------------------------------------------------
 
+# Quantidade de questões de uma partida "cheia" (igual a
+# IniciarPartidaView.QUANTIDADE em questoes/views.py). Se um dia mudar o
+# tamanho da partida, atualize aqui também.
+QUESTOES_PARA_GABARITAR = 10
+
+
 def _eval_total_acertos(usuario, conquista):
     from questoes.models import Partida
     total = Partida.objects.filter(
@@ -36,6 +42,23 @@ def _eval_total_acertos(usuario, conquista):
 def _eval_partidas_jogadas(usuario, conquista):
     from questoes.models import Partida
     return Partida.objects.filter(usuario=usuario, finalizada=True).count()
+
+
+def _eval_partidas_gabaritadas(usuario, conquista):
+    """
+    Partidas finalizadas, não abandonadas, com 10 acertos e 0 erros.
+    Como a partida tem no máximo 10 questões, acertos == 10 já garante
+    que ela era cheia e que todas foram acertadas — partidas curtas
+    (poucas questões no filtro) nunca contam.
+    """
+    from questoes.models import Partida
+    return Partida.objects.filter(
+        usuario=usuario,
+        finalizada=True,
+        abandonada=False,
+        acertos=QUESTOES_PARA_GABARITAR,
+        erros=0,
+    ).count()
 
 
 def _eval_streak_dias(usuario, conquista):
@@ -63,6 +86,7 @@ def _eval_acertos_por_materia(usuario, conquista):
 CATALOGO_CONDICOES = {
     'total_acertos': _eval_total_acertos,
     'partidas_jogadas': _eval_partidas_jogadas,
+    'partidas_gabaritadas': _eval_partidas_gabaritadas,
     'streak_dias': _eval_streak_dias,
     'acertos_por_banca': _eval_acertos_por_banca,
     'acertos_por_materia': _eval_acertos_por_materia,

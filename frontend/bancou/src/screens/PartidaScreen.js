@@ -102,6 +102,8 @@ export default function PartidaScreen({ navigation, route }) {
   const errosRef      = useRef(0);
   const partidaIdRef  = useRef(null);
   const streakAnteriorRef = useRef(0);
+  const finalizandoRef = useRef(false);
+  const [finalizando, setFinalizando] = useState(false); 
 
   // ── Vida consumida na entrada (fixa durante a partida inteira) ─────────
   const [vidasAtual, setVidasAtual] = useState(usuario?.vidas ?? 3);
@@ -491,6 +493,10 @@ export default function PartidaScreen({ navigation, route }) {
 
   // ── Finalizar partida ───────────────────────────────────────────────────
   const finalizarPartida = async (abandonada = false) => {
+    if (finalizandoRef.current) return;
+    finalizandoRef.current = true;
+    setFinalizando(true);
+
     const acertos = acertosRef.current;
     const erros   = errosRef.current;
 
@@ -826,7 +832,7 @@ export default function PartidaScreen({ navigation, route }) {
           // nos demais casos mostra o botão manual.
           !tempoEsgotado && (
             <TouchableOpacity
-              style={styles.botao}
+              style={[styles.botao, finalizando && styles.botaoDisabled]}
               onPress={() => {
                 if (isUltima) {
                   finalizarPartida(false);
@@ -834,11 +840,16 @@ export default function PartidaScreen({ navigation, route }) {
                   avancarQuestao();
                 }
               }}
+              disabled={finalizando}
               activeOpacity={0.85}
             >
-              <Text style={styles.botaoTexto}>
-                {isUltima ? 'Ver resultado' : 'Próxima →'}
-              </Text>
+              {finalizando ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={styles.botaoTexto}>
+                  {isUltima ? 'Ver resultado' : 'Próxima →'}
+                </Text>
+              )}
             </TouchableOpacity>
           )
         )}
