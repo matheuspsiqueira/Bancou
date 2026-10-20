@@ -6,6 +6,10 @@ class IndexView(TemplateView):
     template_name = 'landing/index.html'
 
 
+class QuemSomosView(TemplateView):
+    template_name = 'landing/quem_somos.html'
+
+
 class TermosView(TemplateView):
     template_name = 'landing/termos.html'
 

@@ -1,19 +1,35 @@
 {% load static %}<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-P43EJPF686"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-P43EJPF686');
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+{% with url_canonica="https://bancou.app.br"|add:request.path %}
 
 <title>{% block title %}Bancou: app de questões de concurso com XP e streak{% endblock %}</title>
 
 <meta name="description" content="{% block description %}Bancou é o app gamificado de questões de concurso público: questões, XP, streak e desafios diários. Conheça o app e comece a estudar.{% endblock %}">
 
+<link rel="canonical" href="{{ url_canonica }}">
+
 <meta property="og:title" content="{% block og_title %}Bancou: app de questões de concurso com XP e streak{% endblock %}">
 <meta property="og:description" content="{% block og_description %}Bancou é o app gamificado de questões de concurso público: questões, XP, streak e desafios diários. Conheça o app e comece a estudar.{% endblock %}">
 <meta property="og:image" content="https://bancou.app.br/static/landing/img/kou-animado.png">
-<meta property="og:url" content="https://bancou.app.br/">
+<meta property="og:url" content="{{ url_canonica }}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bancou">
+
+{% endwith %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Bancou: app de questões de concurso com XP e streak">
@@ -31,10 +47,19 @@
 </head>
 <body>
 
-<nav class="nav">
+<nav class="nav" aria-label="Navegação principal">
   <div class="nav-inner">
     <a href="{% url 'landing:index' %}" class="nav-logo">Bancou<span>.</span></a>
-    <button class="nav-cta" disabled>Baixar · Em breve</button>
+
+    <div class="nav-direita">
+      <ul class="nav-links">
+        <li><a href="{% url 'landing:index' %}#como-funciona">Como funciona</a></li>
+        <li><a href="{% url 'landing:quem_somos' %}">Quem somos</a></li>
+        <li><a href="{% url 'landing:index' %}#faq">Perguntas</a></li>
+      </ul>
+
+      <button class="nav-cta" disabled>Baixar · Em breve</button>
+    </div>
   </div>
 </nav>
 

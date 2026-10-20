@@ -1,0 +1,155 @@
+{% extends 'landing/base.html' %}
+{% load static %}
+
+{% block title %}Quem somos: o Bancou, app de questões de concurso{% endblock %}
+{% block description %}Conheça o Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito, com partidas de 10 questões, XP e streak.{% endblock %}
+{% block og_title %}Quem somos: o Bancou, app de questões de concurso{% endblock %}
+{% block og_description %}Conheça o Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito, com partidas de 10 questões, XP e streak.{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "Quem somos | Bancou",
+  "url": "https://bancou.app.br/quem-somos/",
+  "mainEntity": {
+    "@type": "Organization",
+    "name": "Bancou",
+    "url": "https://bancou.app.br/",
+    "logo": "https://bancou.app.br/static/landing/img/kou-animado.png",
+    "email": "suporte@bancou.app.br",
+    "description": "Aplicativo brasileiro de questões de concurso público com partidas rápidas, XP e streak.",
+    "sameAs": [
+      "https://www.instagram.com/bancou.app",
+      "https://www.tiktok.com/@bancou.app"
+    ]
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<section class="qs-hero">
+  <p class="section-label">Quem somos</p>
+
+  <h1 class="section-title qs-titulo">
+    Um app brasileiro feito para transformar estudo em hábito
+  </h1>
+
+  <p class="section-sub">
+    O Bancou é um aplicativo de questões de concurso público criado para tornar a preparação
+    mais leve, dinâmica e menos solitária. A gente acredita que constância vale mais do que
+    maratona: algumas horas ou minutos por dia, todo dia. Por isso, transformamos a rotina
+    de estudo em partidas de 10 questões, com XP e streak.
+  </p>
+
+  <img
+    class="destaque-kou"
+    src="{% static 'landing/img/kou-base.png' %}"
+    alt="Kou, o mascote do Bancou"
+    >
+</section>
+
+<section id="valores">
+  <p class="section-label">Nossos valores</p>
+
+  <h2 class="section-title">O que guia o Bancou</h2>
+
+  <div class="features-grid features-grid--tres">
+    <div class="feat-card feat-card--valor">
+      <img
+        src="{% static 'landing/img/kou-foco.png' %}"
+        alt="Kou representando o foco"
+        class="valor-kou"
+        width="110" height="110" loading="lazy">
+      <h3>Foco</h3>
+      <p>Estudar bem é praticar o que importa.</p>
+    </div>
+
+    <div class="feat-card feat-card--valor">
+      <img
+        src="{% static 'landing/img/kou-constancia.png' %}"
+        alt="Kou representando a constância"
+        class="valor-kou"
+        width="110" height="110" loading="lazy">
+      <h3>Constância</h3>
+      <p>Pouco todo dia vale mais do que muito de vez em quando.</p>
+    </div>
+
+    <div class="feat-card feat-card--valor">
+      <img
+        src="{% static 'landing/img/kou-evolucao.png' %}"
+        alt="Kou representando a evolução"
+        class="valor-kou"
+        width="110" height="110" loading="lazy">
+      <h3>Evolução</h3>
+      <p>Ver o progresso ajuda a continuar quando o caminho é longo.</p>
+    </div>
+  </div>
+
+  <p class="qs-aviso">
+    O Bancou é independente e não tem vínculo com as bancas organizadoras nem com os órgãos
+    que aplicam os concursos. Não prometemos aprovação: prometemos ajudar você a estudar
+    um pouco todo dia.
+  </p>
+</section>
+
+<section id="questoes">
+  <p class="section-label">Questões</p>
+
+  <h2 class="section-title">Como cuidamos das questões</h2>
+
+  <div class="qs-texto">
+    <p>
+      As questões vêm de provas anteriores de concursos públicos e são organizadas por banca,
+      matéria e concurso.
+    </p>
+  </div>
+</section>
+
+<section id="dados">
+  <p class="section-label">Privacidade</p>
+
+  <h2 class="section-title">Como cuidamos dos seus dados</h2>
+
+  <div class="qs-texto">
+    <p>
+      Você pode testar com 10 questões sem criar conta. Se criar uma conta, você pode
+      excluí-la a qualquer momento pela
+      <a href="{% url 'landing:excluir_conta' %}" class="faq-link">Página de Exclusão</a>,
+      e explicamos tudo na nossa
+      <a href="{% url 'landing:privacidade' %}" class="faq-link">Política de Privacidade</a>,
+      conforme a LGPD.
+    </p>
+  </div>
+</section>
+
+<section id="independencia">
+  <p class="section-label">Transparência</p>
+
+  <h2 class="section-title">Independência</h2>
+
+  <div class="qs-texto">
+    <p>
+      O Bancou é independente e não tem vínculo com as bancas organizadoras nem com os órgãos
+      que aplicam os concursos. Os nomes de bancas e concursos pertencem aos seus respectivos
+      titulares.
+    </p>
+  </div>
+</section>
+
+<section id="contato">
+  <p class="section-label">Contato</p>
+
+  <h2 class="section-title">Fale com a gente</h2>
+
+  <div class="chips-row qs-contato">
+    <a class="chip" href="mailto:contato@bancou.app.br">contato@bancou.app.br</a>
+    <a class="chip" href="https://www.instagram.com/bancou.app" target="_blank" rel="noopener">Instagram @bancou.app</a>
+    <a class="chip" href="https://www.tiktok.com/@bancou.app" target="_blank" rel="noopener">TikTok @bancou.app</a>
+  </div>
+</section>
+
+{% endblock %}
