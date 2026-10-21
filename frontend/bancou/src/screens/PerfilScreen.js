@@ -35,7 +35,13 @@
 // ModalRelatarBug sem questão, com tela_contexto 'perfil'. A borda do
 // avatar passa a refletir usuario.borda_avatar (benefício liberado pelo
 // admin, ex.: lista de espera) — mapeamento em utils/bordasAvatar.js.
-import React, { useState, useCallback } from 'react';
+//
+// 21/10/2026 — Performance do scroll: conquistaRecente em useMemo (antes
+// rodava filter+sort a cada render), setConquistas só troca o array se
+// os dados mudaram de fato (evita re-render de todos os cards ao voltar
+// pra tela), handler abrirConquista estável (necessário pro React.memo
+// do ConquistaCard funcionar) e removeClippedSubviews no ScrollView.
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
@@ -79,13 +85,20 @@ export default function PerfilScreen() {
   const [carregandoConquistas, setCarregandoConquistas] = useState(true);
   const [conquistaSelecionada, setConquistaSelecionada] = useState(null);
 
+  // Handler estável — o ConquistaCard (React.memo) chama onPress(conquista).
+  const abrirConquista = useCallback((c) => setConquistaSelecionada(c), []);
+
   const carregarConquistas = useCallback(async () => {
     if (!usuario?.id) return;
     try {
       const resp = await authFetch(`/api/conquistas/usuario/${usuario.id}/`);
       if (resp.ok) {
         const data = await resp.json();
-        setConquistas(data);
+        // Só troca o array se mudou de verdade — evita re-render de todos
+        // os cards toda vez que a tela ganha foco.
+        setConquistas((anterior) =>
+          JSON.stringify(anterior) === JSON.stringify(data) ? anterior : data
+        );
       }
     } catch {
       // silencioso — falha de rede, mantém o que já estava carregado
@@ -120,11 +133,20 @@ export default function PerfilScreen() {
   const ligaLabel = getLigaNome(trofeus);
 
   // Conquista mais recente pro cabeçalho — só entre as já completadas,
-  // ordenada pela data de conclusão. null enquanto carrega ou se ainda
-  // não tiver nenhuma.
-  const conquistaRecente = conquistas
-    .filter((c) => c.completada && c.completada_em)
-    .sort((a, b) => new Date(b.completada_em) - new Date(a.completada_em))[0] || null;
+  // pela data de conclusão. null enquanto carrega ou se ainda não tiver
+  // nenhuma. Recalculada só quando `conquistas` muda.
+  const conquistaRecente = useMemo(() => {
+    let recente = null;
+    for (const c of conquistas) {
+      if (
+        c.completada && c.completada_em &&
+        (!recente || new Date(c.completada_em) > new Date(recente.completada_em))
+      ) {
+        recente = c;
+      }
+    }
+    return recente;
+  }, [conquistas]);
 
   const handleLogout = () => {
     tocar('pop');
@@ -188,7 +210,11 @@ export default function PerfilScreen() {
 
   return (
     <TelaComHeader>
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        removeClippedSubviews
+      >
 
         {/* ===== Seção 1 — Cabeçalho (visível a qualquer visitante) ===== */}
         <View style={styles.headerCard}>
@@ -275,7 +301,7 @@ export default function PerfilScreen() {
         ) : (
           <View style={styles.conquistasGrid}>
             {conquistas.map((c) => (
-              <ConquistaCard key={c.id} conquista={c} onPress={() => setConquistaSelecionada(c)} />
+              <ConquistaCard key={c.id} conquista={c} onPress={abrirConquista} />
             ))}
           </View>
         )}
