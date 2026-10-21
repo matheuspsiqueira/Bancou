@@ -1,10 +1,10 @@
 {% extends 'landing/base.html' %}
 {% load static %}
 
-{% block title %}Quem somos: o Bancou, app de questões de concurso{% endblock %}
-{% block description %}Conheça o Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito, com partidas de 10 questões, XP e streak.{% endblock %}
-{% block og_title %}Quem somos: o Bancou, app de questões de concurso{% endblock %}
-{% block og_description %}Conheça o Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito, com partidas de 10 questões, XP e streak.{% endblock %}
+{% block title %}Quem somos: a história do Bancou, app de questões de concurso{% endblock %}
+{% block description %}Conheça a história do Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito: por que o nome, de onde veio o Kou e quem está por trás.{% endblock %}
+{% block og_title %}Quem somos: a história do Bancou, app de questões de concurso{% endblock %}
+{% block og_description %}Conheça a história do Bancou, app brasileiro de questões de concurso público que transforma estudo em hábito: por que o nome, de onde veio o Kou e quem está por trás.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -49,7 +49,112 @@
     class="destaque-kou"
     src="{% static 'landing/img/kou-base.png' %}"
     alt="Kou, o mascote do Bancou"
-    >
+    width="200">
+</section>
+
+<section id="historia">
+  <p class="section-label">Nossa história</p>
+
+  <h2 class="section-title">Tudo começou com uma conversa</h2>
+
+  <div class="qs-texto">
+    <p>
+      O Bancou nasceu de conversas com gente do meio dos concursos, muitos já concursados e
+      servidores públicos há anos. Perguntamos o que mais tinha ajudado na preparação, e a
+      resposta foi quase unânime: resolver questões todos os dias ajuda demais.
+    </p>
+    <p>
+      Mas também ouvimos o outro lado. Ficar diante de uma folha em branco, ou da tela do
+      celular e do computador, lendo, marcando e anotando qual alternativa parece a certa,
+      cansa e é solitário.
+    </p>
+    <p>
+      Ao mesmo tempo, percebemos que muita gente ocupa as pausas do dia com joguinhos no
+      celular. Por que não juntar as duas coisas? Não para tirar o lazer de ninguém, e sim
+      para tornar a resolução de questões algo prazeroso. Quando estudar parece um jogo, e
+      dá para disputar por diversão com outros concurseiros, a pessoa estuda sem perceber e
+      entende a questão se divertindo.
+    </p>
+  </div>
+</section>
+
+<section id="nome">
+  <p class="section-label">O nome</p>
+
+  <h2 class="section-title">Por que Bancou?</h2>
+
+  <div class="features-grid features-grid--dois">
+    <div class="feat-card feat-card--texto">
+      <h3>Banca</h3>
+      <p>
+        Uma referência à banca examinadora, a quem elabora a prova que você vai encarar.
+      </p>
+    </div>
+
+    <div class="feat-card feat-card--texto">
+      <h3>Bancar</h3>
+      <p>
+        Na gíria, bancar é resolver, dar conta. É o "deixa que eu resolvo", dito de frente
+        para a prova.
+      </p>
+    </div>
+  </div>
+
+  <p class="qs-destaque">
+    Bancou: a banca de um lado, e você dando conta dela do outro.
+  </p>
+</section>
+
+<section id="kou">
+  <p class="section-label">O mascote</p>
+
+  <h2 class="section-title">De onde veio o Kou</h2>
+
+  <div class="qs-lado">
+    <img
+      class="qs-lado-img"
+      src="{% static 'landing/img/kou-animado.png' %}"
+      alt="Kou padrão"
+      width="200" height="200" loading="lazy"
+      onerror="this.style.display='none'">
+
+    <div class="qs-lado-texto">
+      <p>
+        O Kou nasceu justamente da ideia de que estudar é solitário. Ele é um amigo concurseiro
+        e estudante como você, que está ali comemorando, torcendo e ajudando. Com ele, você estuda acompanhado e tudo fica mais divertido.
+      </p>
+      <p>
+        O Kou é um personagem fictício,
+        mais ou menos humanoide, jovem, estudioso e descolado, para qualquer pessoa se
+        enxergar nele.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="comunidade">
+  <div class="cta-final">
+    <p class="section-label">Comunidade</p>
+
+    <h2>Mais do que um app, um time</h2>
+
+    <p>
+      Não queremos ser mais uma empresa nascendo igual às outras. Queremos que o Bancou seja
+      um lugar acolhedor, com uma comunidade que se ajuda e se impulsiona até o objetivo final:
+      passar no concurso e realizar esse sonho.
+    </p>
+
+    <p>
+      E você faz parte disso. Ideias, elogios e críticas são bem-vindos, porque é com o
+      feedback de quem estuda que o Bancou melhora.
+    </p>
+
+    <a
+      href="mailto:suporte@bancou.app.br?subject=Ideia%20ou%20feedback%20para%20o%20Bancou"
+      class="btn-saiba-mais">
+      Mandar uma ideia ou feedback
+    </a>
+  </div>
 </section>
 
 <section id="valores">
@@ -118,7 +223,7 @@
     <p>
       Você pode testar com 10 questões sem criar conta. Se criar uma conta, você pode
       excluí-la a qualquer momento pela
-      <a href="{% url 'landing:excluir_conta' %}" class="faq-link">Página de Exclusão</a>,
+      <a href="{% url 'landing:excluir_conta' %}" class="faq-link">página de exclusão</a>,
       e explicamos tudo na nossa
       <a href="{% url 'landing:privacidade' %}" class="faq-link">Política de Privacidade</a>,
       conforme a LGPD.
@@ -146,7 +251,7 @@
   <h2 class="section-title">Fale com a gente</h2>
 
   <div class="chips-row qs-contato">
-    <a class="chip" href="mailto:contato@bancou.app.br">contato@bancou.app.br</a>
+    <a class="chip" href="mailto:suporte@bancou.app.br">suporte@bancou.app.br</a>
     <a class="chip" href="https://www.instagram.com/bancou.app" target="_blank" rel="noopener">Instagram @bancou.app</a>
     <a class="chip" href="https://www.tiktok.com/@bancou.app" target="_blank" rel="noopener">TikTok @bancou.app</a>
   </div>
