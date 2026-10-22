@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+{% with play_url="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_topo%26utm_campaign%3Dlancamento" play_url_final="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_final%26utm_campaign%3Dlancamento" %}
 
 <section class="hero">
   <p class="hero-tag">Estude para concursos públicos com questões em partidas rápidas</p>
@@ -41,15 +42,15 @@
   <p style="margin-bottom: 15px; color: #9090B0;">Grátis na Google Play · Onde e como quiser · Feito pra virar hábito</p>
 
   <div class="hero-actions">
-    <button class="btn-primario" disabled>
-      Baixar o app <span class="badge-em-breve">Em breve</span>
-    </button>
+    <a href="{{ play_url }}" class="btn-primario" rel="noopener">
+      Baixar o app
+    </a>
 
     <a href="#como-funciona" class="btn-secundario">Ver como funciona</a>
   </div>
 
   <p class="hero-nota">
-    Chegando em breve para Android, gratuito na Google Play.
+    Disponível para Android, gratuito na Google Play.
   </p>
 
   <div class="chips-row">
@@ -548,13 +549,13 @@
     <h2>Seu hábito de estudo começa com uma partida</h2>
 
     <p>
-      O Bancou está a caminho da Google Play. Fique de olho — em breve você pode começar
-      a estudar jogando.
+      O Bancou já está na Google Play. Baixe, jogue sua primeira partida
+      e comece hoje a estudar jogando.
     </p>
 
-    <button class="btn-primario" disabled>
-      Baixar o app <span class="badge-em-breve">Em breve</span>
-    </button>
+    <a href="{{ play_url_final }}" class="btn-primario" rel="noopener">
+      Baixar o app
+    </a>
   </div>
 </section>
 
@@ -623,4 +624,5 @@
   </div>
 </section>
 
+{% endwith %}
 {% endblock %}

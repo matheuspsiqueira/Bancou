@@ -204,8 +204,13 @@ img {
   padding: 10px 20px;
   border-radius: var(--r-full);
   border: none;
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 0.75;
+}
+
+.nav-cta:hover{
+  background: var(--roxo-escuro);
+  transition: ease-in-out 0.3s;
 }
 
 /* Celular: logo e botão na primeira linha, links na segunda */
@@ -351,9 +356,14 @@ section {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 0.8;
   position: relative;
+}
+
+.btn-primario:hover{
+  background: var(--roxo-escuro);
+  transition: ease-in-out 0.3s;
 }
 
 .btn-primario .badge-em-breve {
