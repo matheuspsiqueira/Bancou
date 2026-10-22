@@ -19,10 +19,40 @@
   "publisher": { "@id": "https://bancou.app.br/#organization" }
 }
 </script>
+{% if campanha %}
+<style>
+  .pioneiros-barra{display:block;text-align:center;padding:10px 16px;font-size:.9rem;
+    background:linear-gradient(90deg,#F5B82E,#FFD76A);color:#1a1a2e;text-decoration:none}
+  .pioneiros-barra strong{text-decoration:underline;margin-left:6px}
+  .pioneiros{padding:var(--lg,40px) 16px}
+  .pioneiros-card{max-width:520px;margin:0 auto;padding:28px 22px;border-radius:20px;
+    background:var(--card,#1B1B2F);border:2px solid #F5B82E;box-shadow:0 0 28px rgba(245,184,46,.18)}
+  .pioneiros-card h2{margin:6px 0 10px}
+  .pioneiros-beneficios{list-style:none;padding:0;margin:14px 0 20px;color:#C8C8E0}
+  .pioneiros-beneficios li{margin-bottom:8px}
+  .pioneiros-form input[type=text],.pioneiros-form input[type=email],.pioneiros-form select{
+  width:100%;box-sizing:border-box;margin-bottom:12px;padding:13px 14px;font-size:1rem;
+  border-radius:12px;border:1px solid #3A3A5C;background:#12121F;color:#fff}
+  .pioneiros-check{display:flex;gap:8px;align-items:flex-start;font-size:.82rem;
+    color:#9090B0;margin:4px 0 16px}
+  .pioneiros-check a{color:#F5B82E}
+  .pioneiros-form .btn-primario{width:100%;border:0;cursor:pointer}
+  .pioneiros-erro{color:#FF8A8A;font-size:.9rem;margin-top:10px;min-height:1.2em}
+  .pioneiros-ok{text-align:center}
+  .pioneiros-ok[hidden],.pioneiros-form[hidden]{display:none}
+  .pioneiros-hp{position:absolute;left:-9999px;opacity:0}
+</style>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 {% with play_url="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_topo%26utm_campaign%3Dlancamento" play_url_final="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_final%26utm_campaign%3Dlancamento" %}
+
+{% if campanha %}
+<a href="#pioneiros" class="pioneiros-barra">
+  🎁 Planner de estudos grátis + borda dourada exclusiva <strong>Quero receber →</strong>
+</a>
+{% endif %}
 
 <section class="hero">
   <p class="hero-tag">Estude para concursos públicos com questões em partidas rápidas</p>
@@ -95,6 +125,85 @@
     </span>
   </div>
 </section>
+
+{% if campanha %}
+<section id="pioneiros" class="pioneiros">
+  <div class="pioneiros-card">
+    <p class="section-label">Lista de pioneiros</p>
+    <h2 class="section-title">Ganhe um planner de estudos grátis</h2>
+    <p class="section-sub">Deixe seu e-mail e receba na hora. É só para quem chega primeiro.</p>
+
+    <ul class="pioneiros-beneficios">
+      <li>📅 Planner e cronograma de estudos para concursos, grátis no seu e-mail</li>
+      <li>✨ Borda de avatar dourada exclusiva ao baixar o app e se cadastrar com o mesmo e-mail</li>
+    </ul>
+
+    <form id="pioneiros-form" class="pioneiros-form" method="post"
+          action="{% url 'landing:pioneiros' %}" novalidate>
+      {% csrf_token %}
+      <input type="text" name="nome" placeholder="Seu nome" maxlength="80" autocomplete="given-name" required>
+      <input type="email" name="email" placeholder="Seu melhor e-mail" maxlength="254" autocomplete="email" required>
+      <select name="concurso" required>
+        <option value="" disabled selected>Para qual concurso você estuda?</option>
+        {% for c in concursos %}
+        <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+
+      <input type="text" name="site" class="pioneiros-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <input type="hidden" name="origem" id="pioneiros-origem">
+
+      <label class="pioneiros-check">
+        <input type="checkbox" name="consentimento" value="1">
+        <span>Quero receber o planner e novidades do Bancou por e-mail. Veja a
+          <a href="{% url 'landing:privacidade' %}">Política de Privacidade</a>.</span>
+      </label>
+
+      <button type="submit" class="btn-primario">Quero meu planner</button>
+      <p id="pioneiros-msg" class="pioneiros-erro" role="status"></p>
+    </form>
+
+    <div id="pioneiros-ok" class="pioneiros-ok" hidden>
+      <h3>Pronto! Confira seu e-mail 📬</h3>
+      <p>Enviamos o planner. Se não achar, olhe o spam. Para ganhar a <strong>borda dourada</strong>,
+        baixe o app e cadastre com o mesmo e-mail.</p>
+      <a href="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dpioneiros%26utm_campaign%3Dlancamento"
+         class="btn-primario" rel="noopener">Baixar o app</a>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var form = document.getElementById('pioneiros-form');
+    if (!form) return;
+    var msg = document.getElementById('pioneiros-msg');
+    var ok = document.getElementById('pioneiros-ok');
+    var btn = form.querySelector('button[type=submit]');
+    var p = new URLSearchParams(location.search);
+    var origem = [p.get('utm_source'), p.get('utm_medium'), p.get('utm_campaign')]
+      .filter(Boolean).join('|');
+    document.getElementById('pioneiros-origem').value = origem || 'direto';
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Enviando...';
+      fetch(form.action, { method: 'POST', body: new FormData(form) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) { form.hidden = true; ok.hidden = false; return; }
+          msg.textContent = d.erro || 'Não foi possível enviar. Tente de novo.';
+          btn.disabled = false; btn.textContent = 'Quero meu planner';
+        })
+        .catch(function () {
+          msg.textContent = 'Sem conexão. Tente de novo.';
+          btn.disabled = false; btn.textContent = 'Quero meu planner';
+        });
+    });
+  })();
+  </script>
+</section>
+{% endif %}
 
 <section id="ideia">
   <p class="section-label">O problema</p>

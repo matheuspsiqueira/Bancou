@@ -5,6 +5,7 @@ app_name = 'landing'
 
 urlpatterns = [
     path('', views.IndexView.as_view(), name='index'),
+    path('pioneiros/', views.PioneiroCadastroView.as_view(), name='pioneiros'),
     path('quem-somos/', views.QuemSomosView.as_view(), name='quem_somos'),
     path('termos/', views.TermosView.as_view(), name='termos'),
     path('privacidade/', views.PrivacidadeView.as_view(), name='privacidade'),
