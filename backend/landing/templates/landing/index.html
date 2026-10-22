@@ -1,6 +1,26 @@
 {% extends 'landing/base.html' %}
 {% load static %}
 
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Bancou: Questões de Concurso",
+  "alternateName": "Bancou",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Android",
+  "inLanguage": "pt-BR",
+  "description": "Bancou é um app gamificado de questões de concurso público, com partidas de 10 questões, XP, streak e desafios diários.",
+  "url": "https://bancou.app.br/",
+  "installUrl": "https://play.google.com/store/apps/details?id=br.com.bancou.app",
+  "downloadUrl": "https://play.google.com/store/apps/details?id=br.com.bancou.app",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
+  "publisher": { "@id": "https://bancou.app.br/#organization" }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 {% with play_url="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_topo%26utm_campaign%3Dlancamento" play_url_final="https://play.google.com/store/apps/details?id=br.com.bancou.app&amp;referrer=utm_source%3Dsite%26utm_medium%3Dbotao_final%26utm_campaign%3Dlancamento" %}
 
@@ -399,7 +419,7 @@
       <div>
         <h4>Baixe e experimente sem cadastro</h4>
         <p>
-          Assim que o app for lançado, você já consegue jogar 10 questões de demonstração
+          Você já consegue jogar 10 questões de demonstração
           antes mesmo de criar uma conta.
         </p>
       </div>
