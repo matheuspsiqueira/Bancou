@@ -252,14 +252,8 @@ class AnuncioSSVView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        query = request.META.get('QUERY_STRING', '')
-        logger.info(
-            'SSV: chamada recebida (UA=%s, tamanho_query=%s, campos=%s).',
-            request.META.get('HTTP_USER_AGENT', '-')[:80],
-            len(query),
-            sorted(request.query_params.keys()),
-        )
-        if not anuncios.verificar_assinatura_ssv(query):
+        if not anuncios.verificar_assinatura_ssv(request.META.get('QUERY_STRING', '')):
+            logger.warning('SSV: assinatura inválida.')
             return Response({'detail': 'Assinatura inválida.'}, status=status.HTTP_403_FORBIDDEN)
 
         params = request.query_params
