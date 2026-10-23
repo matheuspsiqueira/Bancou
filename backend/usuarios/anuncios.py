@@ -14,7 +14,7 @@ import logging
 import time
 from datetime import timedelta
 from urllib.parse import parse_qs
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -43,7 +43,8 @@ _cache = {'chaves': {}, 'buscado_em': 0.0}
 
 
 def _buscar_chaves_google():
-    with urlopen(URL_CHAVES_GOOGLE, timeout=5) as resp:
+    req = Request(URL_CHAVES_GOOGLE, headers={'User-Agent': 'Bancou-SSV/1.0'})
+    with urlopen(req, timeout=5) as resp:
         dados = json.loads(resp.read().decode('utf-8'))
     return {str(k['keyId']): k['pem'] for k in dados['keys']}
 
@@ -58,6 +59,8 @@ def _chave_publica_pem(key_id):
         try:
             _cache['chaves'] = _buscar_chaves_google()
             _cache['buscado_em'] = agora
+            logger.info('SSV: chaves do Google carregadas (%s): %s',
+                        len(_cache['chaves']), sorted(_cache['chaves'].keys()))
         except Exception:
             logger.exception('SSV: falha ao buscar as chaves públicas do Google.')
     return _cache['chaves'].get(str(key_id))
@@ -71,23 +74,30 @@ def verificar_assinatura_ssv(query_string):
     """
     mensagem, separador, resto = query_string.partition('&signature=')
     if not separador:
+        logger.warning('SSV: sem "&signature=" na query (tamanho=%s).', len(query_string))
         return False
     params = parse_qs('signature=' + resto)
     try:
         assinatura = params['signature'][0]
         key_id = params['key_id'][0]
     except (KeyError, IndexError):
+        logger.warning('SSV: signature/key_id ausentes (campos=%s).', sorted(params.keys()))
         return False
 
     try:
         pem = _chave_publica_pem(key_id)
         if not pem:
+            logger.warning('SSV: key_id %s não encontrado nas chaves do Google.', key_id)
             return False
         assinatura_bytes = base64.urlsafe_b64decode(assinatura + '=' * (-len(assinatura) % 4))
         chave = load_pem_public_key(pem.encode('utf-8'))
         chave.verify(assinatura_bytes, mensagem.encode('utf-8'), ec.ECDSA(hashes.SHA256()))
         return True
-    except (InvalidSignature, ValueError):
+    except InvalidSignature:
+        logger.warning('SSV: assinatura não confere com a chave %s.', key_id)
+        return False
+    except ValueError as e:
+        logger.warning('SSV: erro ao decodificar assinatura/chave (%s).', e)
         return False
     except Exception:
         logger.exception('SSV: erro inesperado ao verificar a assinatura.')
