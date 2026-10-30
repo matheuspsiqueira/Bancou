@@ -49,3 +49,14 @@ class QuestaoPartidaSerializer(serializers.ModelSerializer):
             'materia_nome', 'concurso_nome', 'banca_nome',
             'alternativas',
         ]
+
+
+class QuestaoHistoricoSerializer(QuestaoPartidaSerializer):
+    """
+    Serializer do histórico: igual ao da partida, MAS com o `gabarito`.
+    Só é usado em respostas que o próprio usuário já deu (ver historico.py),
+    então não entrega a resposta de uma questão que ele ainda vai jogar.
+    """
+
+    class Meta(QuestaoPartidaSerializer.Meta):
+        fields = QuestaoPartidaSerializer.Meta.fields + ['gabarito']

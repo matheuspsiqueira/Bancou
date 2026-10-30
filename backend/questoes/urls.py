@@ -10,6 +10,7 @@ from .views import (
     FinalizarPartidaView,
 )
 from .filtros import FiltrosDisponiveisView
+from .historico import HistoricoView, HistoricoQuestaoView
 
 urlpatterns = [
     path('bancas/', BancasDisponiveisView.as_view(), name='bancas-disponiveis'),
@@ -20,4 +21,6 @@ urlpatterns = [
     path('corrigir/', CorrigirRespostaView.as_view(), name='corrigir-resposta'),
     path('usar-buff/', UsarBuffView.as_view(), name='usar-buff'),
     path('finalizar-partida/<int:partida_id>/', FinalizarPartidaView.as_view(), name='finalizar-partida'),
+    path('historico/', HistoricoView.as_view(), name='historico'),
+    path('historico/<int:resposta_id>/', HistoricoQuestaoView.as_view(), name='historico-questao'),
 ]

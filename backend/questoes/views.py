@@ -237,8 +237,13 @@ class CorrigirRespostaView(APIView):
             partida.erros += 1
         partida.save(update_fields=['respondidas_ids', 'acertos', 'erros'])
 
+        # Letra marcada, guardada pro histórico ('_' = tempo esgotado). O campo
+        # comporta 1 caractere; qualquer valor maior (inválido) vira vazio.
+        escolhida = letra if len(letra) == 1 else ''
+
         RespostaUsuario.objects.create(
             usuario=request.user, partida=partida, questao=questao, correta=correta,
+            alternativa_escolhida=escolhida,
         )
 
         return Response({
@@ -351,6 +356,7 @@ class UsarBuffView(APIView):
 
                 RespostaUsuario.objects.create(
                     usuario=request.user, partida=partida, questao=questao, correta=True,
+                    pulada=True,
                 )
 
                 return Response({

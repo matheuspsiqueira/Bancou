@@ -16,6 +16,8 @@ import DemoScoreScreen from '../screens/DemoScoreScreen';
 import PartidaScreen from '../screens/PartidaScreen';
 import FiltrosPartidaScreen from '../screens/FiltrosPartidaScreen';
 import ScoreScreen   from '../screens/ScoreScreen';
+import HistoricoScreen from '../screens/HistoricoScreen';
+import HistoricoQuestaoScreen from '../screens/HistoricoQuestaoScreen';
 import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -41,6 +43,8 @@ function RootNavigator() {
           <Stack.Screen name="FiltrosPartida" component={FiltrosPartidaScreen} />
           <Stack.Screen name="Partida" component={PartidaScreen} />
           <Stack.Screen name="Score"   component={ScoreScreen} />
+          <Stack.Screen name="Historico" component={HistoricoScreen} />
+          <Stack.Screen name="HistoricoQuestao" component={HistoricoQuestaoScreen} />
         </>
       ) : (
         // ── Stack não autenticado ──────────────────────────────────────

@@ -41,9 +41,12 @@
 // os dados mudaram de fato (evita re-render de todos os cards ao voltar
 // pra tela), handler abrirConquista estável (necessário pro React.memo
 // do ConquistaCard funcionar) e removeClippedSubviews no ScrollView.
+//
+// 30/10/2026 — Seção própria "Histórico" (abre a HistoricoScreen, janela dos
+// últimos 7 dias) entre Conquistas e Configurações, com o ícone materiais.png.
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Linking, ActivityIndicator } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 import { useKouAlert } from '../context/KouAlertContext';
@@ -70,6 +73,7 @@ const ALTURA_VALOR_STAT = 45; // mesmo tamanho das imagens de conquista/liga
 export default function PerfilScreen() {
   const { usuario, signOut, authFetch, atualizarUsuario } = useAuth();
   const { alertar } = useKouAlert();
+  const navigation = useNavigation();
   const [modalSenha, setModalSenha] = useState(false);
   const [modalPerfil, setModalPerfil] = useState(false);
   const [modalBug, setModalBug] = useState(false);
@@ -309,6 +313,16 @@ export default function PerfilScreen() {
         {/* ===== Seção 3 — Configurações (do jogo/conta — só o dono vê) ===== */}
         {souDono && (
           <>
+            <Text style={[styles.secaoTitulo, styles.secaoTituloEspacada]}>Histórico</Text>
+
+            <TouchableOpacity style={styles.opcaoItem} onPress={() => navigation.navigate('Historico')} activeOpacity={0.7}>
+              <View style={styles.opcaoTextRow}>
+                <Image source={require('../assets/icons/materias.png')} style={styles.opcaoIconePng} resizeMode="contain" />
+                <Text style={styles.opcaoText}> Questões respondidas</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
             <Text style={[styles.secaoTitulo, styles.secaoTituloEspacada]}>Configurações</Text>
 
             <TouchableOpacity style={styles.opcaoItem} onPress={() => setModalPerfil(true)} activeOpacity={0.7}>

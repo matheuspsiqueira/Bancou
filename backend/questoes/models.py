@@ -254,11 +254,21 @@ class RespostaUsuario(models.Model):
     correta = models.BooleanField()
     respondida_em = models.DateTimeField(auto_now_add=True)
 
+    # Histórico (30/10/2026): letra que o usuário marcou ('_' = tempo esgotado).
+    # Vazio em respostas antigas (anteriores a este campo) e quando a questão foi
+    # pulada com item — nesse caso `pulada` é True.
+    alternativa_escolhida = models.CharField(max_length=1, blank=True, default='')
+    pulada = models.BooleanField(default=False)
+
     class Meta:
         verbose_name = 'Resposta do Usuário'
         verbose_name_plural = 'Respostas dos Usuários'
         unique_together = ('partida', 'questao')  # mesma trava de duplicidade que já existe em respondidas_ids
         ordering = ['-respondida_em']
+        indexes = [
+            # consultas do histórico: "respostas deste usuário a partir de tal data"
+            models.Index(fields=['usuario', '-respondida_em'], name='resp_usuario_data_idx'),
+        ]
 
     def __str__(self):
         resultado = '✅' if self.correta else '❌'
