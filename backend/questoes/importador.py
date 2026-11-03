@@ -7,7 +7,7 @@ import re
 import pdfplumber
 import tempfile
 from django.db import transaction
-from .models import Concurso, Questao, Alternativa
+from .models import Concurso, Questao, QuestaoImagem, Alternativa
 from .texto_formatado import normalizar_texto, destaque_sem_formatacao
 from .taxonomia import resolver_materias
 
@@ -214,11 +214,12 @@ def importar_questoes_do_pdf(banca, concurso_nome, cargo, ano, pdf_prova, pdf_ga
 # Helpers de normalização (formatação, imagens, gabarito)
 # ---------------------------------------------------------------------------
 
-# Marcador que a IA coloca no texto onde há figura/tabela: [[IMG:IMG_P07_01]].
-# Hoje a questão tem UM slot de imagem (campo `imagem`), então o marcador sai
-# do texto e a imagem fica descrita em notas_extracao (página + posição) para
-# você recortar e subir. Se um dia houver várias imagens inline, é aqui que
-# o marcador deixa de ser removido.
+# Marcador que a IA coloca no texto onde há figura/tabela/gráfico: [[IMG:IMG_P07_01]].
+#  - No ENUNCIADO e no TEXTO-BASE: vira [[img:N]] (N = ordem da imagem na questão) e a
+#    imagem ganha uma linha em QuestaoImagem (sem arquivo ainda). O app desenha a imagem
+#    exatamente onde o marcador está.
+#  - Numa ALTERNATIVA: o marcador sai do texto (a alternativa pode ficar sem texto) e a
+#    nota em notas_extracao diz onde recortar; o upload é feito na própria alternativa.
 RE_MARCADOR_IMG = re.compile(r'[ \t]*\[\[IMG:\s*([^\]\s]+)\s*\]\][ \t]*')
 
 
@@ -235,6 +236,21 @@ def _limpar(texto, ids_imagem):
     return normalizar_texto(_sem_marcadores(texto, ids_imagem))
 
 
+def _com_marcadores(texto, ordem_por_id):
+    """Troca [[IMG:id]] por [[img:N]], numerando as imagens na ordem em que aparecem."""
+    def _troca(m):
+        id_img = m.group(1)
+        if id_img not in ordem_por_id:
+            ordem_por_id[id_img] = len(ordem_por_id) + 1
+        return f'\n[[img:{ordem_por_id[id_img]}]]\n'
+    return RE_MARCADOR_IMG.sub(_troca, texto or '')
+
+
+def _limpar_marcando(texto, ordem_por_id):
+    """Como _limpar, mas mantém a posição das imagens como [[img:N]]."""
+    return normalizar_texto(_com_marcadores(texto, ordem_por_id))
+
+
 def _letra_gabarito(valor):
     """'e ' -> 'E'; 'anulada' -> 'ANULADA'; vazio -> ''."""
     v = str(valor or '').strip().upper()
@@ -243,15 +259,15 @@ def _letra_gabarito(valor):
     return v
 
 
-def _texto_do_base(tb, ids_imagem):
+def _texto_do_base(tb, ordem_por_id):
     """titulo + conteudo + fonte — mesmo desenho do contexto de antes."""
     partes = []
     if tb.get('titulo'):
-        partes.append(_limpar(tb['titulo'], ids_imagem))
+        partes.append(_limpar_marcando(tb['titulo'], ordem_por_id))
     if tb.get('conteudo'):
-        partes.append(_limpar(tb['conteudo'], ids_imagem))
+        partes.append(_limpar_marcando(tb['conteudo'], ordem_por_id))
     if tb.get('fonte'):
-        partes.append(f"Fonte: {_limpar(tb['fonte'], ids_imagem)}")
+        partes.append(f"Fonte: {_limpar_marcando(tb['fonte'], ordem_por_id)}")
     return '\n'.join(p for p in partes if p)
 
 
@@ -338,8 +354,8 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
          meio, o banco volta pro estado anterior (nada fica "pela metade").
       2. Todas as Materias distintas são resolvidas de uma vez (poucas
          queries), não uma por questão.
-      3. Questao e Alternativa são gravadas via bulk_create — 2 INSERTs
-         no total (em lote), em vez de um por linha.
+      3. Questao, QuestaoImagem e Alternativa são gravadas via bulk_create —
+         poucos INSERTs no total (em lote), em vez de um por linha.
 
     Aceita DOIS formatos de JSON:
       - novo: `textos_base` (lista com id) + `texto_base_ids` em cada questão
@@ -349,6 +365,11 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
 
     Texto formatado: enunciado, contexto e alternativas passam por
     texto_formatado.normalizar_texto (só <u><b><i><sup><sub>).
+
+    Imagens: cada imagem citada no enunciado/texto-base vira uma linha em QuestaoImagem
+    (sem arquivo; você sobe no admin) e o marcador no texto passa a ser [[img:N]].
+    Imagens de alternativas ficam só anotadas em notas_extracao. Uma imagem usada por
+    várias questões (texto-base compartilhado) gera uma linha em CADA questão.
 
     Organização: o concurso é identificado por órgão + banca + ano + cargo + UF
     (sem órgão, cai no critério antigo: nome + banca + ano). Se o concurso já
@@ -417,12 +438,13 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
 
         questoes_objs = []
         alternativas_brutas = []  # lista paralela: alternativas de cada questão, na mesma ordem
+        imagens_brutas = []       # lista paralela: [(ordem, descricao)] de cada questão
 
         for q in questoes:
             materia = materias_por_nome.get((q.get('materia') or '').strip())
             num = q['numero_questao']
             notas = []
-            ids_img = list(q.get('imagem_ids') or [])
+            ordem_img = {}  # id da imagem -> ordem (imagens do texto-base/enunciado), na ordem em que aparecem
 
             # --- contexto (texto base) ---------------------------------
             contexto = ''
@@ -432,24 +454,26 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
                 for tid in ids_texto:
                     tb = textos_por_id.get(tid)
                     if tb:
-                        partes.append(_texto_do_base(tb, ids_img))
+                        partes.append(_texto_do_base(tb, ordem_img))
                     else:
                         notas.append(f'Texto-base {tid} não encontrado no JSON')
                 contexto = '\n\n'.join(p for p in partes if p)
             else:
                 for grupo, tb in textos_legado.items():
                     if num in grupo:
-                        contexto = _texto_do_base(tb, ids_img)
+                        contexto = _texto_do_base(tb, ordem_img)
                         break
 
             # --- enunciado e alternativas ------------------------------
-            enunciado = _limpar(q['enunciado'], ids_img)
+            enunciado = _limpar_marcando(q['enunciado'], ordem_img)
             alternativas = []
+            imgs_alt = []  # [(letra, id_img)]
             for a in q.get('alternativas', []):
-                alternativas.append({
-                    'letra': str(a['letra']).strip().upper(),
-                    'texto': _limpar(a['texto'], ids_img),
-                })
+                letra = str(a['letra']).strip().upper()
+                ids_a = []
+                texto_a = _limpar(a['texto'], ids_a).strip()
+                alternativas.append({'letra': letra, 'texto': texto_a})
+                imgs_alt.extend((letra, i) for i in dict.fromkeys(ids_a))
 
             letras = [a['letra'] for a in alternativas]
             if set(letras) <= {'C', 'E'}:
@@ -460,12 +484,34 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
                 tipo = 'discursiva'
 
             # --- imagens -----------------------------------------------
-            ids_unicos = list(dict.fromkeys(ids_img))
-            tem_imagem = bool(ids_unicos) or bool(q.get('tem_imagem', False))
-            if tem_imagem:
-                notas.append('Questão com imagem — faça o upload manualmente')
-            for id_img in ids_unicos:
-                notas.append(_nota_imagem(id_img, imagens_por_id.get(id_img)))
+            # Imagens listadas em imagem_ids mas sem marcador no texto entram no fim
+            # (aparecem acima/abaixo do enunciado, conforme posicao_imagem).
+            ids_de_alt = {i for _, i in imgs_alt}
+            for id_img in q.get('imagem_ids') or []:
+                if id_img not in ordem_img and id_img not in ids_de_alt:
+                    ordem_img[id_img] = len(ordem_img) + 1
+
+            tem_imagem = bool(ordem_img) or bool(imgs_alt) or bool(q.get('tem_imagem', False))
+            imagens_da_questao = []
+            if ordem_img:
+                notas.append(
+                    f'Questão com {len(ordem_img)} imagem(ns) — suba cada arquivo no bloco '
+                    f'"Imagens da questão" (já criado; o marcador [[img:N]] já está no texto)'
+                )
+            for id_img, n in ordem_img.items():
+                desc = _nota_imagem(id_img, imagens_por_id.get(id_img))
+                notas.append(f'[[img:{n}]] {desc}')
+                imagens_da_questao.append((n, desc[:500]))
+            for letra, id_img in imgs_alt:
+                notas.append(
+                    f'Alternativa {letra}: {_nota_imagem(id_img, imagens_por_id.get(id_img))} '
+                    f'— suba o arquivo na própria alternativa'
+                )
+            if tem_imagem and not ordem_img and not imgs_alt:
+                notas.append(
+                    'O JSON indicou imagem, mas nenhuma foi descrita — se a questão não tem imagem, '
+                    'desmarque "Tem imagem" (ou use a ação "Remover flag de imagem")'
+                )
 
             baixa_confianca = tem_imagem
 
@@ -515,6 +561,7 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
                 status=status,
             ))
             alternativas_brutas.append(alternativas)
+            imagens_brutas.append(imagens_da_questao)
 
         questoes_criadas = Questao.objects.bulk_create(questoes_objs)
 
@@ -525,6 +572,14 @@ def _salvar_questoes(questoes, gabarito, banca, concurso_nome, cargo, ano,
         ]
         if alternativas_objs:
             Alternativa.objects.bulk_create(alternativas_objs)
+
+        imagens_objs = [
+            QuestaoImagem(questao=questao, ordem=n, descricao_ia=desc)
+            for questao, lista in zip(questoes_criadas, imagens_brutas)
+            for n, desc in lista
+        ]
+        if imagens_objs:
+            QuestaoImagem.objects.bulk_create(imagens_objs)
 
         return {
             'total': len(questoes_criadas),
@@ -553,16 +608,17 @@ def importar_questoes_de_json(banca, concurso_nome, cargo, ano, json_file, gabar
           "numero_questao": 1,
           "materia": "Língua Portuguesa",
           "texto_base_ids": ["TB_Q01"],
-          "enunciado": "... [[IMG:IMG_P07_01]] ...",
-          "alternativas": [{"letra": "A", "texto": "<u>...</u>"}, ...],
+          "enunciado": "... [[IMG:IMG_P07_01]] ... [[IMG:IMG_P07_02]] ...",
+          "alternativas": [{"letra": "A", "texto": "<u>...</u>"}, {"letra": "B", "texto": "[[IMG:IMG_P08_01]]"}],
           "gabarito": "A" | "ANULADA",
-          "imagem_ids": ["IMG_P07_01"],
+          "imagem_ids": ["IMG_P07_01", "IMG_P07_02", "IMG_P08_01"],
           "revisar": false,
           "motivo_revisao": null
         }
       ]
     }
     Tags aceitas nos textos: <u> <b> <i> <sup> <sub>.
+    Alternativa que é uma imagem: "texto" = só o marcador [[IMG:id]].
 
     Formato ANTIGO (continua funcionando): texto_base embutido +
     questoes_que_compartilham_texto_base + tem_imagem.

@@ -128,7 +128,9 @@ class Materia(models.Model):
 class Questao(models.Model):
 
     class Status(models.TextChoices):
+        # Pendente -> Revisada -> Aprovada/Rejeitada. Só "aprovada" chega ao app.
         PENDENTE = 'pendente', 'Pendente'
+        REVISADA = 'revisada', 'Revisada'
         APROVADA = 'aprovada', 'Aprovada'
         REJEITADA = 'rejeitada', 'Rejeitada'
 
@@ -158,11 +160,15 @@ class Questao(models.Model):
     gabarito = models.CharField(max_length=1, blank=True)
 
     # Imagem
-    tem_imagem = models.BooleanField(default=False, help_text='Script detectou referência a imagem/figura')
+    tem_imagem = models.BooleanField(
+        default=False,
+        help_text='Alerta de imagem pendente (vem do JSON). Pode ser desmarcado à mão se a questão não tem imagem.',
+    )
+    # LEGADO: imagem única. As questões novas usam o modelo QuestaoImagem (várias imagens, com marcador no texto).
     imagem = models.ImageField(upload_to='questoes/imagens/', null=True, blank=True)
     posicao_imagem = models.CharField(
         max_length=10, choices=PosicaoImagem.choices, default=PosicaoImagem.ABAIXO,
-        help_text='Onde a imagem aparece no app em relação ao enunciado '
+        help_text='Onde ficam no app as imagens SEM marcador no texto, em relação ao enunciado '
                   '("...veja a imagem abaixo" → abaixo; "A imagem acima representa..." → acima).',
     )
 
@@ -186,7 +192,7 @@ class Questao(models.Model):
     def __str__(self):
         prefixo = f'{self.caderno} · ' if self.caderno else ''
         return f'{prefixo}Q{self.numero} — {self.concurso}'
-    
+
     def save(self, *args, **kwargs):
         if self.imagem and self.tem_imagem:
             self.tem_imagem = False
@@ -199,10 +205,40 @@ class Questao(models.Model):
         return self.materia is not None
 
 
+class QuestaoImagem(models.Model):
+    """
+    Imagem de uma questão. Uma questão pode ter várias; cada uma é posicionada
+    no texto (enunciado ou contexto) pelo marcador [[img:ORDEM]]. Imagens sem
+    marcador no texto aparecem acima/abaixo do enunciado (Questao.posicao_imagem).
+    """
+    questao = models.ForeignKey(Questao, on_delete=models.CASCADE, related_name='imagens')
+    ordem = models.PositiveSmallIntegerField(
+        default=1, help_text='Número da imagem na questão — é o N do marcador [[img:N]] no texto.',
+    )
+    imagem = models.ImageField(upload_to='questoes/imagens/', blank=True)
+    legenda = models.CharField(max_length=200, blank=True)
+    descricao_ia = models.CharField(
+        max_length=500, blank=True, editable=False,
+        help_text='Onde a imagem está na prova (vem do JSON) — só para você recortar.',
+    )
+
+    class Meta:
+        verbose_name = 'Imagem da questão'
+        verbose_name_plural = 'Imagens da questão'
+        ordering = ['ordem', 'id']
+
+    def __str__(self):
+        return f'Imagem {self.ordem} — {self.questao}'
+
+
 class Alternativa(models.Model):
     questao = models.ForeignKey(Questao, on_delete=models.CASCADE, related_name='alternativas')
     letra = models.CharField(max_length=1)
-    texto = models.TextField()
+    texto = models.TextField(blank=True)
+    imagem = models.ImageField(
+        upload_to='questoes/alternativas/', blank=True,
+        help_text='Para alternativas que são uma imagem (ex.: gráficos). O texto pode ficar vazio.',
+    )
 
     class Meta:
         verbose_name = 'Alternativa'
@@ -210,7 +246,7 @@ class Alternativa(models.Model):
         ordering = ['letra']
 
     def __str__(self):
-        return f'{self.letra}) {self.texto[:60]}'
+        return f'{self.letra}) {self.texto[:60] or "[imagem]"}'
 
 
 class Partida(models.Model):

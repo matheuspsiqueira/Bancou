@@ -1,6 +1,6 @@
 # questoes/serializers.py
 from rest_framework import serializers
-from .models import Banca, Concurso, Materia, Questao, Alternativa
+from .models import Banca, Concurso, Materia, Questao, QuestaoImagem, Alternativa
 
 
 class BancaSerializer(serializers.ModelSerializer):
@@ -25,9 +25,17 @@ class ConcursoSerializer(serializers.ModelSerializer):
 
 
 class AlternativaSerializer(serializers.ModelSerializer):
+    # `imagem` vem null quando a alternativa é só texto (ou a imagem ainda não foi enviada).
     class Meta:
         model = Alternativa
-        fields = ['id', 'letra', 'texto']
+        fields = ['id', 'letra', 'texto', 'imagem']
+
+
+class QuestaoImagemSerializer(serializers.ModelSerializer):
+    # `imagem` vem null enquanto o arquivo não foi enviado — o app ignora essas.
+    class Meta:
+        model = QuestaoImagem
+        fields = ['ordem', 'imagem', 'legenda']
 
 
 class QuestaoPartidaSerializer(serializers.ModelSerializer):
@@ -37,6 +45,7 @@ class QuestaoPartidaSerializer(serializers.ModelSerializer):
     correta antes de responder. A correção é validada no backend.
     """
     alternativas = AlternativaSerializer(many=True, read_only=True)
+    imagens = QuestaoImagemSerializer(many=True, read_only=True)
     materia_nome = serializers.CharField(source='materia.nome', read_only=True, default=None)
     concurso_nome = serializers.CharField(source='concurso.nome', read_only=True)
     banca_nome = serializers.CharField(source='concurso.banca.nome', read_only=True)
@@ -45,7 +54,7 @@ class QuestaoPartidaSerializer(serializers.ModelSerializer):
         model = Questao
         fields = [
             'id', 'numero', 'tipo', 'enunciado', 'contexto',
-            'tem_imagem', 'imagem', 'posicao_imagem',
+            'tem_imagem', 'imagem', 'posicao_imagem', 'imagens',
             'materia_nome', 'concurso_nome', 'banca_nome',
             'alternativas',
         ]

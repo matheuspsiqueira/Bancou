@@ -17,6 +17,8 @@ import { ADS } from '../adsConfig';
 import { assistirAnuncioPremiado } from '../services/adsService';
 import { colors, typography, fontSize, spacing } from '../theme';
 import TextoFormatado from '../components/TextoFormatado';
+import ImagemQuestao from '../components/ImagemQuestao';
+import ConteudoComImagens, { imagensDaQuestao, ordensMarcadas } from '../components/ConteudoComImagens';
 import { anexarFiltros } from '../utils/filtrosPartida';
 import ModalRelatarBug from '../components/modals/ModalRelatarBug';
 
@@ -29,44 +31,6 @@ function Vidas({ atual }) {
     <View style={styles.vidasRow}>
       <Text style={styles.vidaIcone}>❤️</Text>
       <Text style={styles.vidaNumero}>{atual}</Text>
-    </View>
-  );
-}
-
-// ─── Componente de imagem da questão ───────────────────────────────────────
-// Isolado em componente próprio + `key={questao.id}` no uso, pra que o
-// estado de erro resete sozinho a cada troca de questão.
-function ImagemQuestao({ uri }) {
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState(false);
-
-  if (!uri || erro) {
-    return (
-      <View style={styles.imagemErroBox}>
-        <Text style={styles.imagemErroTexto}>🖼️ Não foi possível carregar a imagem desta questão</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.imagemContainer}>
-      {carregando && (
-        <ActivityIndicator
-          size="small"
-          color={colors.primary}
-          style={styles.imagemLoading}
-        />
-      )}
-      <Image
-        source={{ uri }}
-        style={styles.imagemQuestao}
-        resizeMode="contain"
-        onLoadEnd={() => setCarregando(false)}
-        onError={() => {
-          setCarregando(false);
-          setErro(true);
-        }}
-      />
     </View>
   );
 }
@@ -598,6 +562,19 @@ export default function PartidaScreen({ navigation, route }) {
   const temBuffElimina = (inventario.elimina_alternativas ?? 0) > 0 && alternativasEliminadas.length === 0;
   const mostrarBuffs   = !confirmada && (temBuffPula || temBuffElimina);
 
+  // ── Imagens da questão ──────────────────────────────────────────────────
+  // As que têm marcador [[img:N]] no contexto/enunciado aparecem naquele ponto;
+  // as "soltas" (sem marcador) ficam acima ou abaixo do enunciado, como antes.
+  const imagens        = imagensDaQuestao(questaoAtual);
+  const marcadas       = ordensMarcadas(questaoAtual.contexto, questaoAtual.enunciado);
+  const imagensSoltas  = imagens.filter((img) => !marcadas.has(img.ordem));
+  const soltasAcima    = questaoAtual.posicao_imagem === 'acima';
+
+  const renderSoltas = () =>
+    imagensSoltas.map((img) => (
+      <ImagemQuestao key={`${questaoAtual.id}-solta-${img.ordem}`} uri={img.uri} />
+    ));
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* ── Header ──────────────────────────────────────────────────── */}
@@ -691,25 +668,31 @@ export default function PartidaScreen({ navigation, route }) {
           )}
         </View>
 
-        {/* Contexto (texto-base compartilhado) */}
+        {/* Contexto (texto-base compartilhado) — pode ter imagens via [[img:N]] */}
         {!!questaoAtual.contexto && (
           <View style={styles.contextoBox}>
-            <TextoFormatado style={styles.contextoTexto}>{questaoAtual.contexto}</TextoFormatado>
+            <ConteudoComImagens
+              texto={questaoAtual.contexto}
+              imagens={imagens}
+              questaoId={questaoAtual.id}
+              style={styles.contextoTexto}
+            />
           </View>
         )}
 
-        {/* Imagem acima do enunciado (quando a questão pede: "A imagem acima...") */}
-        {questaoAtual.imagem && questaoAtual.posicao_imagem === 'acima' && (
-          <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
-        )}
+        {/* Imagens soltas acima do enunciado ("A imagem acima...") */}
+        {soltasAcima && renderSoltas()}
 
-        {/* Enunciado */}
-        <TextoFormatado style={styles.enunciado}>{questaoAtual.enunciado}</TextoFormatado>
+        {/* Enunciado — imagens intercaladas nos pontos [[img:N]] */}
+        <ConteudoComImagens
+          texto={questaoAtual.enunciado}
+          imagens={imagens}
+          questaoId={questaoAtual.id}
+          style={styles.enunciado}
+        />
 
-        {/* Imagem abaixo do enunciado (padrão; "...veja a imagem abaixo") */}
-        {questaoAtual.imagem && questaoAtual.posicao_imagem !== 'acima' && (
-          <ImagemQuestao key={questaoAtual.id} uri={questaoAtual.imagem} />
-        )}
+        {/* Imagens soltas abaixo do enunciado (padrão; "...veja a imagem abaixo") */}
+        {!soltasAcima && renderSoltas()}
 
         {/* Botões de buff */}
         {mostrarBuffs && (
@@ -755,6 +738,7 @@ export default function PartidaScreen({ navigation, route }) {
         <View style={styles.alternativas}>
           {questaoAtual.alternativas.map((alt) => {
             const eliminada = alternativasEliminadas.includes(alt.letra);
+            const temTexto = !!(alt.texto && alt.texto.trim());
             return (
               <TouchableOpacity
                 key={alt.id}
@@ -779,9 +763,21 @@ export default function PartidaScreen({ navigation, route }) {
                     {alt.letra}
                   </Text>
                 </View>
-                <TextoFormatado style={[styles.altTexto, eliminada && styles.altTextoEliminado]}>
-                  {alt.texto}
-                </TextoFormatado>
+                {/* Alternativa pode ter texto, imagem (ex.: gráficos) ou os dois */}
+                <View style={styles.altConteudo}>
+                  {temTexto && (
+                    <TextoFormatado style={[styles.altTexto, eliminada && styles.altTextoEliminado]}>
+                      {alt.texto}
+                    </TextoFormatado>
+                  )}
+                  {!!alt.imagem && (
+                    <ImagemQuestao
+                      key={`${questaoAtual.id}-alt-${alt.id}`}
+                      uri={alt.imagem}
+                      altura={150}
+                    />
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -952,6 +948,7 @@ const styles = StyleSheet.create({
   contextoBox: {
     backgroundColor: colors.card, borderRadius: 8,
     padding: 14, borderLeftWidth: 3, borderLeftColor: colors.primary,
+    gap: 10,
   },
   contextoTexto: {
     fontFamily: typography.regular, fontSize: 13, color: colors.textSecondary, lineHeight: 20,
@@ -959,29 +956,6 @@ const styles = StyleSheet.create({
 
   enunciado: {
     fontFamily: typography.regular, fontSize: 16, color: colors.text, lineHeight: 26,
-  },
-
-  // Imagem da questão
-  imagemContainer: {
-    backgroundColor: colors.card, borderRadius: 14,
-    borderWidth: 1, borderColor: BORDA,
-    padding: 8, alignItems: 'center', justifyContent: 'center',
-    minHeight: 200,
-  },
-  imagemQuestao: {
-    width: '100%', height: 240, borderRadius: 8,
-  },
-  imagemLoading: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  imagemErroBox: {
-    backgroundColor: colors.card, borderRadius: 14,
-    borderWidth: 1, borderColor: BORDA, borderStyle: 'dashed',
-    padding: 20, alignItems: 'center', justifyContent: 'center',
-  },
-  imagemErroTexto: {
-    fontFamily: typography.regular, fontSize: 13, color: colors.textSecondary, textAlign: 'center',
   },
 
   // Botões de buff
@@ -1007,9 +981,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
   letra: { fontFamily: typography.bold, fontSize: 13, color: colors.text },
+  // Coluna com texto e/ou imagem da alternativa (ocupa o resto da linha)
+  altConteudo: { flex: 1, gap: 8 },
   altTexto: {
     fontFamily: typography.regular, fontSize: 15, color: colors.text,
-    flex: 1, lineHeight: 22,
+    lineHeight: 22,
   },
   altTextoEliminado: { textDecorationLine: 'line-through' },
 

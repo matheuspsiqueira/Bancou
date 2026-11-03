@@ -37,9 +37,10 @@ _SIMBOLOS = [
     (8652, 'equilibrio reversivel'), (8593, 'seta cima'), (8595, 'seta baixo'), (8592, 'seta esquerda'), (197, 'angstrom'),
 ]
 
-# Botões "Fração" e "Raiz": o django-tinymce só aceita função em `setup` como texto
+# Botões "Fração", "Raiz" e "Imagem": o django-tinymce só aceita função em `setup` como texto
 # (ele faz eval no navegador), então o código fica aqui, como string.
-# Gravam <frac><num>…</num><den>…</den></frac> e √<rad>…</rad>; o app desenha empilhado.
+# Fração/raiz gravam <frac><num>…</num><den>…</den></frac> e √<rad>…</rad>; o app desenha empilhado.
+# Imagem grava o marcador [[img:N]], que o app troca pela imagem de ordem N (bloco "Imagens da questão").
 _SETUP_FORMULAS = r"""function (editor) {
   function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').trim(); }
   // Atalhos de digitação nas janelas: x^2 e x^{n+1} viram sobrescrito, a_n e a_{10} viram subscrito, * vira ·
@@ -84,15 +85,33 @@ _SETUP_FORMULAS = r"""function (editor) {
     var idx = String(indice || '').trim();
     return (idx ? '<sup>' + fmt(idx) + '</sup>' : '') + '\u221a<rad>' + dentro + '</rad>';
   }
-  function abrir(titulo, campos, montar) {
+  // Sugere a próxima imagem ainda não usada no texto: olha as "ordem" do bloco
+  // "Imagens da questão" (se a questão já tem imagens) e os marcadores já escritos.
+  function proximaOrdem() {
+    var usadas = {}, m, re = /\[\[img:(\d+)\]\]/gi;
+    var texto = editor.getContent({ format: 'text' });
+    while ((m = re.exec(texto))) { usadas[parseInt(m[1], 10)] = true; }
+    var campos = document.querySelectorAll('input[name^="imagens-"][name$="-ordem"]');
+    var ordens = [];
+    for (var i = 0; i < campos.length; i++) {
+      var n = parseInt(campos[i].value, 10);
+      if (n > 0) ordens.push(n);
+    }
+    ordens.sort(function (a, b) { return a - b; });
+    for (var j = 0; j < ordens.length; j++) { if (!usadas[ordens[j]]) return String(ordens[j]); }
+    var k = 1;
+    while (usadas[k]) k++;
+    return String(k);
+  }
+  function abrir(titulo, campos, montar, inicial) {
     editor.windowManager.open({
       title: titulo,
       body: { type: 'panel', items: campos },
       buttons: [{ type: 'cancel', text: 'Cancelar' }, { type: 'submit', text: 'Inserir', buttonType: 'primary' }],
-      initialData: {},
+      initialData: inicial || {},
       onSubmit: function (api) {
         var html = montar(api.getData());
-        if (html) { editor.insertContent(html + '&nbsp;'); }
+        if (html) { editor.insertContent(html.indexOf('<p>') === 0 ? html : html + '&nbsp;'); }
         api.close();
       }
     });
@@ -115,6 +134,17 @@ _SETUP_FORMULAS = r"""function (editor) {
       ], function (d) { return montarRaiz(d.indice, d.radicando); });
     }
   });
+  editor.ui.registry.addButton('imagem', {
+    text: '\uD83D\uDDBC Imagem', tooltip: 'Inserir marcador de imagem neste ponto do texto',
+    onAction: function () {
+      abrir('Inserir imagem no texto', [
+        { type: 'input', name: 'ordem', label: 'Número da imagem (a "ordem" dela no bloco Imagens da questão)' }
+      ], function (d) {
+        var n = parseInt(d.ordem, 10);
+        return n > 0 ? '<p>[[img:' + n + ']]</p>' : '';
+      }, { ordem: proximaOrdem() });
+    }
+  });
 }"""
 
 # Como a fórmula aparece DENTRO do editor (empilhada, como no app)
@@ -125,6 +155,10 @@ _CSS_EDITOR = (
     'frac>den{display:block;padding:0 4px}'
     'rad{display:inline-block;vertical-align:middle;border-top:1.5px solid currentColor;padding:2px 2px 0}'
 )
+
+_TOOLBAR_COMPACTA = 'bold italic underline superscript subscript | fracao raiz charmap | removeformat | undo redo'
+# Enunciado/contexto: ganham o botão "Imagem" (o marcador só vale nesses dois campos).
+_TOOLBAR_GRANDE = 'bold italic underline superscript subscript | fracao raiz imagem charmap | removeformat | undo redo'
 
 # license_key 'gpl' é obrigatório no TinyMCE 7 self-hosted (sem ele o editor
 # fica somente leitura). Sem menus: só o que a prova realmente usa.
@@ -137,7 +171,7 @@ _BASE = {
     'promotion': False,
     'plugins': 'charmap',
     'charmap': [[codigo, nome] for codigo, nome in _SIMBOLOS],
-    'toolbar': 'bold italic underline superscript subscript | fracao raiz charmap | removeformat | undo redo',
+    'toolbar': _TOOLBAR_COMPACTA,
     'toolbar_mode': 'wrap',
     'browser_spellcheck': True,
     'content_style': _CSS_EDITOR,
@@ -149,14 +183,15 @@ _BASE = {
 
 
 def _widget(altura):
-    return TinyMCE(mce_attrs={**_BASE, 'height': altura})
+    toolbar = _TOOLBAR_GRANDE if altura == 'grande' else _TOOLBAR_COMPACTA
+    return TinyMCE(mce_attrs={**_BASE, 'toolbar': toolbar, 'height': 320 if altura == 'grande' else 130})
 
 
 class CampoTextoFormatado(forms.CharField):
-    """altura='grande' para enunciado/contexto, 'compacta' para alternativas."""
+    """altura='grande' para enunciado/contexto (com botão Imagem), 'compacta' para alternativas."""
 
     def __init__(self, *args, altura='grande', **kwargs):
-        kwargs.setdefault('widget', _widget(320 if altura == 'grande' else 130))
+        kwargs.setdefault('widget', _widget(altura))
         super().__init__(*args, **kwargs)
 
     def bound_data(self, data, initial):

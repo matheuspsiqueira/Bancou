@@ -7,10 +7,10 @@ from django import forms
 import json
 
 from django.db import models as dj_models
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.template.response import TemplateResponse
 
-from .models import Banca, Categoria, Orgao, Concurso, Materia, Questao, Alternativa
+from .models import Banca, Categoria, Orgao, Concurso, Materia, Questao, QuestaoImagem, Alternativa
 from .importador import importar_questoes_do_pdf, importar_questoes_de_json
 from .campos import CampoTextoFormatado
 from .taxonomia import mesclar_materias, mesclar_orgaos, UF_CHOICES
@@ -90,11 +90,18 @@ class ImportarJsonForm(DadosDaProvaForm):
 # Forms com editor de texto formatado (negrito, itálico, sublinhado...)
 # ---------------------------------------------------------------------------
 
+AJUDA_MARCADOR = (
+    'Para colocar uma imagem no meio do texto, escreva [[img:1]] (o número é a "ordem" da imagem '
+    'no bloco Imagens, mais abaixo) na linha onde ela deve aparecer.'
+)
+
+
 class QuestaoAdminForm(forms.ModelForm):
-    enunciado = CampoTextoFormatado(label='Enunciado', altura='grande')
+    enunciado = CampoTextoFormatado(label='Enunciado', altura='grande', help_text=AJUDA_MARCADOR)
     contexto = CampoTextoFormatado(
         label='Contexto (texto base)', altura='grande', required=False,
-        help_text='Texto de apoio compartilhado. Cole da prova: o sublinhado, negrito e itálico são mantidos.',
+        help_text='Texto de apoio compartilhado. Cole da prova: o sublinhado, negrito e itálico são mantidos. '
+                  + AJUDA_MARCADOR,
     )
 
     class Meta:
@@ -103,7 +110,8 @@ class QuestaoAdminForm(forms.ModelForm):
 
 
 class AlternativaInlineForm(forms.ModelForm):
-    texto = CampoTextoFormatado(label='Texto', altura='compacta')
+    # required=False: alternativa pode ser só uma imagem (ex.: gráficos).
+    texto = CampoTextoFormatado(label='Texto', altura='compacta', required=False)
 
     class Meta:
         model = Alternativa
@@ -111,14 +119,29 @@ class AlternativaInlineForm(forms.ModelForm):
 
 
 # ---------------------------------------------------------------------------
-# Inline de alternativas
+# Inlines
 # ---------------------------------------------------------------------------
+
+class QuestaoImagemInline(admin.TabularInline):
+    model = QuestaoImagem
+    extra = 0
+    fields = ['ordem', 'marcador', 'imagem', 'legenda', 'onde_na_prova']
+    readonly_fields = ['marcador', 'onde_na_prova']
+
+    @admin.display(description='Marcador (copie no texto)')
+    def marcador(self, obj):
+        return f'[[img:{obj.ordem}]]' if obj.pk else '—'
+
+    @admin.display(description='Onde na prova')
+    def onde_na_prova(self, obj):
+        return obj.descricao_ia or '—'
+
 
 class AlternativaInline(admin.TabularInline):
     model = Alternativa
     form = AlternativaInlineForm
     extra = 0
-    fields = ['letra', 'texto']
+    fields = ['letra', 'texto', 'imagem']
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +155,7 @@ class StatusFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         return [
             ('pendente', '🟡 Pendente'),
+            ('revisada', '🔵 Revisada'),
             ('aprovada', '🟢 Aprovada'),
             ('rejeitada', '🔴 Rejeitada'),
         ]
@@ -185,8 +209,9 @@ class QuestaoAdmin(admin.ModelAdmin):
         'concurso__banca', 'concurso__orgao', 'concurso', 'materia',
     ]
     search_fields = ['enunciado', 'numero']
-    readonly_fields = ['tem_imagem', 'baixa_confianca', 'notas_extracao', 'pagina_pdf', 'criada_em', 'atualizada_em']
-    inlines = [AlternativaInline]
+    # tem_imagem agora é editável (para tirar o alerta quando o JSON indicou imagem sem ter).
+    readonly_fields = ['baixa_confianca', 'notas_extracao', 'pagina_pdf', 'criada_em', 'atualizada_em']
+    inlines = [QuestaoImagemInline, AlternativaInline]
 
     fieldsets = (
         ('📋 Identificação', {
@@ -195,9 +220,13 @@ class QuestaoAdmin(admin.ModelAdmin):
         ('📝 Conteúdo', {
             'fields': ('contexto', 'enunciado', 'gabarito')
         }),
-        ('🖼️ Imagem', {
-            'fields': ('tem_imagem', 'imagem', 'posicao_imagem'),
-            'description': 'Se a questão referencia uma imagem, faça o upload aqui e escolha se ela fica acima ou abaixo do enunciado.'
+        ('🖼️ Imagens', {
+            'fields': ('tem_imagem', 'posicao_imagem', 'imagem'),
+            'description': 'As imagens da questão ficam no bloco "Imagens da questão", mais abaixo. '
+                           'Imagens com marcador [[img:N]] no texto aparecem naquele ponto; as sem marcador '
+                           'aparecem acima/abaixo do enunciado conforme a posição escolhida aqui. '
+                           'Se o alerta de imagem estiver errado, desmarque "Tem imagem". '
+                           'O campo "Imagem" é o antigo (imagem única) — para questões novas, use o bloco de imagens.'
         }),
         ('⚠️ Flags', {
             'fields': ('baixa_confianca', 'notas_extracao', 'pagina_pdf'),
@@ -209,7 +238,10 @@ class QuestaoAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ['aprovar_questoes', 'rejeitar_questoes', 'marcar_como_revisadas']
+    actions = [
+        'aprovar_questoes', 'rejeitar_questoes', 'marcar_status_revisada',
+        'limpar_alerta_baixa_confianca', 'remover_flag_imagem',
+    ]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -224,6 +256,28 @@ class QuestaoAdmin(admin.ModelAdmin):
         extra_context['importar_url'] = 'importar-prova/'
         extra_context['importar_json_url'] = 'importar-json/'
         return super().changelist_view(request, extra_context=extra_context)
+
+    def save_related(self, request, form, formsets, change):
+        """
+        Depois de salvar os inlines: se o alerta de imagem estava ligado e agora todas as
+        imagens já têm arquivo (nenhuma pendente), o alerta cai sozinho.
+        """
+        super().save_related(request, form, formsets, change)
+        q = form.instance
+        if not q.tem_imagem:
+            return
+        pendente = (
+            q.imagens.filter(imagem='').exists()
+            or q.alternativas.filter(texto='', imagem='').exists()
+        )
+        tem_alguma = (
+            bool(q.imagem)
+            or q.imagens.exclude(imagem='').exists()
+            or q.alternativas.exclude(imagem='').exists()
+        )
+        if tem_alguma and not pendente:
+            q.tem_imagem = False
+            q.save(update_fields=['tem_imagem'])
 
     def _avisos_de_materias(self, request, resultado):
         if resultado['materias_unificadas']:
@@ -338,11 +392,13 @@ class QuestaoAdmin(admin.ModelAdmin):
     def status_display(self, obj):
         cores = {
             'pendente': '#f59e0b',
+            'revisada': '#3b82f6',
             'aprovada': '#10b981',
             'rejeitada': '#ef4444',
         }
         labels = {
             'pendente': '🟡 Pendente',
+            'revisada': '🔵 Revisada',
             'aprovada': '🟢 Aprovada',
             'rejeitada': '🔴 Rejeitada',
         }
@@ -364,6 +420,22 @@ class QuestaoAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 f'❌ {sem_materia.count()} questão(ões) sem matéria — preencha antes de aprovar.',
+                level=messages.ERROR
+            )
+            return
+
+        # Imagem prometida e ainda não enviada: o app mostraria a questão incompleta.
+        com_imagem_pendente = queryset.filter(
+            Q(imagens__imagem='') | (Q(alternativas__texto='') & Q(alternativas__imagem=''))
+        ).distinct()
+        if com_imagem_pendente.exists():
+            lista = ', '.join(
+                f'{q.concurso} nº {q.numero}' for q in com_imagem_pendente[:8]
+            ) + ('…' if com_imagem_pendente.count() > 8 else '')
+            self.message_user(
+                request,
+                f'❌ {com_imagem_pendente.count()} questão(ões) com imagem ainda sem arquivo '
+                f'(ou alternativa vazia): {lista}. Suba a imagem ou apague o item antes de aprovar.',
                 level=messages.ERROR
             )
             return
@@ -400,10 +472,29 @@ class QuestaoAdmin(admin.ModelAdmin):
         total = queryset.update(status='rejeitada')
         self.message_user(request, f'❌ {total} questão(ões) rejeitada(s).')
 
-    @admin.action(description='🧹 Marcar como revisadas (limpar alerta ⚠️)')
-    def marcar_como_revisadas(self, request, queryset):
+    @admin.action(description='🔵 Marcar como revisadas (sem aprovar)')
+    def marcar_status_revisada(self, request, queryset):
+        # Vale para qualquer status (pendente, aprovada ou rejeitada), para dar para
+        # alternar livremente entre aprovada / revisada / rejeitada.
+        eram_aprovadas = queryset.filter(status='aprovada').count()
+        total = queryset.update(status='revisada')
+        self.message_user(request, f'🔵 {total} questão(ões) marcada(s) como revisada(s).')
+        if eram_aprovadas:
+            self.message_user(
+                request,
+                f'⚠️ {eram_aprovadas} estava(m) aprovada(s) e saiu(íram) do app até serem aprovadas de novo.',
+                level=messages.WARNING
+            )
+
+    @admin.action(description='🧹 Limpar alerta ⚠️ de baixa confiança')
+    def limpar_alerta_baixa_confianca(self, request, queryset):
         total = queryset.update(baixa_confianca=False)
         self.message_user(request, f'🧹 Alerta removido de {total} questão(ões).')
+
+    @admin.action(description='🖼️ Remover flag de imagem')
+    def remover_flag_imagem(self, request, queryset):
+        total = queryset.filter(tem_imagem=True).update(tem_imagem=False)
+        self.message_user(request, f'🖼️ Flag de imagem removida de {total} questão(ões).')
 
 
 # ---------------------------------------------------------------------------
