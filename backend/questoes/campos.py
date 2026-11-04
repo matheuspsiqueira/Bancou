@@ -227,7 +227,7 @@ _BASE = {
     'statusbar': True,
     'elementpath': False,
     'resize': True,
-    'min_height': 120,
+    'min_height': 160,
     'width': '100%',
     'branding': False,
     'promotion': False,
