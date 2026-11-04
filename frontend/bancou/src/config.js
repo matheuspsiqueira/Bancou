@@ -1,8 +1,8 @@
 // src/config.js
 
-const DEV_URL = 'https://activity-hop-books-aberdeen.trycloudflare.com';
+const DEV_URL = 'https://outstanding-rachel-earned-drop.trycloudflare.com';
 const PROD_URL = 'https://bancou.app.br'; 
 
-export const API_URL = PROD_URL;
+export const API_URL = DEV_URL;
 
 export const SITE_URL = API_URL;
