@@ -7,6 +7,11 @@ Texto simples com marcação mínima:
   - tags permitidas: <u> <b> <i> <sup> <sub>
   - fórmulas: <frac><num>…</num><den>…</den></frac> (fração empilhada) e
     √<rad>…</rad> (radicando com traço em cima) — podem ficar uma dentro da outra
+  - acentos sobre o texto: <vec>F</vec> (seta em cima), <bar>AB</bar> (traço em cima)
+    e <hat>A</hat> (chapéu em cima)
+  - matrizes: <mat> (parênteses), <matc> (colchetes) e <det> (barras), com linhas em
+    <lin> e células em <cel>:
+        <mat><lin><cel>1</cel><cel>2</cel></lin><lin><cel>3</cel><cel>4</cel></lin></mat>
   - quebra de linha = "\n" (parágrafo = "\n\n")
   - os caracteres &, < e > aparecem escapados (&amp; &lt; &gt;)
 
@@ -31,7 +36,11 @@ _TAG_PARA_FORMATO = {
     'sup': 'sup', 'sub': 'sub',
 }
 # Estrutura matemática (aninhável, sem atributos)
-_ESTRUTURA = {'frac', 'num', 'den', 'rad'}
+_ESTRUTURA = {
+    'frac', 'num', 'den', 'rad',
+    'vec', 'bar', 'hat',
+    'mat', 'matc', 'det', 'lin', 'cel',
+}
 _BLOCOS = {'p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'tr'}
 _IGNORAR_CONTEUDO = {'script', 'style', 'head', 'title'}
 
@@ -206,6 +215,11 @@ class _Conversor(HTMLParser):
         while anterior != texto:
             anterior = texto
             texto = re.sub(r'<(u|b|i|sup|sub)></\1>', '', texto)
+        # espaço/quebra solto ENTRE as peças de uma matriz não vale (só dentro das células)
+        texto = re.sub(
+            r'(<(?:mat|matc|det)>|<lin>|</lin>|</cel>)\s+(?=<(?:lin|cel)>|</(?:lin|mat|matc|det)>)',
+            r'\1', texto,
+        )
         return texto
 
 
@@ -219,11 +233,11 @@ def _limpar_bordas(texto):
 
 # Só estes "<" são tags de verdade; qualquer outro é o símbolo matemático "menor que"
 # (ex.: "a<b e c>d" não pode virar uma tag <b> e engolir o texto).
-#  - u, b, i, sup, sub, br, strong, em: sem atributos (b/i/u também são variáveis em provas de lógica/matemática)
+#  - u, b, i, sup, sub, br, strong, em + fórmulas: sem atributos (b/i/u também são variáveis em provas de lógica/matemática)
 #  - tags HTML comuns de colagem (span, p, div, font, a, listas, tabelas…): podem ter atributos
 _MENOR_QUE_NAO_TAG = re.compile(
     r'<(?!'
-    r'/?(?:u|b|i|sup|sub|br|strong|em|frac|num|den|rad)\s*/?>'
+    r'/?(?:u|b|i|sup|sub|br|strong|em|frac|num|den|rad|vec|bar|hat|mat|matc|det|lin|cel)\s*/?>'
     r'|/?(?:span|p|div|a|font|ul|ol|li|h[1-6]|table|thead|tbody|tr|td|th|ins|cite|script|style|head|title)(?:\s[^<>]*)?/?>'
     r')',
     re.I,
@@ -233,7 +247,7 @@ _MENOR_QUE_NAO_TAG = re.compile(
 def normalizar_texto(texto):
     """
     Entrada: texto puro com tags (JSON da IA, texto já armazenado, legado).
-    Saída: formato de armazenamento (só <u><b><i><sup><sub>, \\n e entidades).
+    Saída: formato de armazenamento (só <u><b><i><sup><sub>, fórmulas, \\n e entidades).
     Idempotente: normalizar(normalizar(x)) == normalizar(x).
     """
     if not texto:

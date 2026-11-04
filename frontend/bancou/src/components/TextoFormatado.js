@@ -5,7 +5,8 @@ import { parseTextoFormatado, parseMatematica, temMatematica } from '../utils/te
 /**
  * Substitui <Text> onde aparece enunciado, contexto ou alternativa de questão.
  * Interpreta <u> sublinhado, <b> negrito, <i> itálico, <sup>/<sub> e fórmulas
- * (<frac> fração empilhada, <rad> radicando com traço em cima).
+ * (<frac> fração empilhada, <rad> radicando com traço em cima, <vec> seta,
+ * <bar> traço e <hat> chapéu sobre o texto, <mat>/<matc>/<det> matrizes).
  *
  *   <TextoFormatado style={styles.enunciado}>{questao.enunciado}</TextoFormatado>
  *
@@ -29,7 +30,7 @@ function estiloFormato(s, fontFamilyNegrito) {
   return estilo;
 }
 
-// ─── Texto com fórmula: fileira de palavras + fração/raiz desenhadas ───────
+// ─── Texto com fórmula: fileira de palavras + fração/raiz/vetor/matriz desenhadas ──
 const CHAVES_DE_TEXTO = [
   'color', 'fontFamily', 'fontSize', 'fontStyle', 'fontWeight', 'letterSpacing',
   'lineHeight', 'textAlign', 'textDecorationLine',
@@ -43,6 +44,42 @@ function separarEstilos(style) {
     (CHAVES_DE_TEXTO.includes(chave) ? texto : caixa)[chave] = plano[chave];
   });
   return { texto, caixa };
+}
+
+// Seta de vetor: haste + ponta (desenhadas, porque a seta Unicode combinada falha em várias fontes)
+function Seta({ cor }) {
+  return (
+    <View style={estilos.setaLinha}>
+      <View style={[estilos.setaCorpo, { backgroundColor: cor }]} />
+      <View style={[estilos.setaPonta, { borderColor: cor }]} />
+    </View>
+  );
+}
+
+// Chapéu (^) sobre a letra
+function Chapeu({ cor }) {
+  return (
+    <View style={estilos.chapeuLinha}>
+      <View style={[estilos.chapeu, { borderColor: cor }]} />
+    </View>
+  );
+}
+
+// Delimitadores da matriz: parênteses, colchetes ou barras (determinante)
+function estiloDelimitador(estilo, lado) {
+  const esq = lado === 'esq';
+  const larg = 1.5;
+  if (estilo === 'colchetes') {
+    return esq
+      ? { borderLeftWidth: larg, borderTopWidth: larg, borderBottomWidth: larg }
+      : { borderRightWidth: larg, borderTopWidth: larg, borderBottomWidth: larg };
+  }
+  if (estilo === 'barras') {
+    return esq ? { borderLeftWidth: larg } : { borderRightWidth: larg };
+  }
+  return esq
+    ? { borderLeftWidth: larg, borderTopLeftRadius: 10, borderBottomLeftRadius: 10 }
+    : { borderRightWidth: larg, borderTopRightRadius: 10, borderBottomRightRadius: 10 };
 }
 
 function renderNos(nos, ctx, prefixo, dentroDeFormula) {
@@ -89,6 +126,48 @@ function renderNos(nos, ctx, prefixo, dentroDeFormula) {
           {renderNos(no.filhos, ctx, `${chave}r`, true)}
         </View>
       );
+      return;
+    }
+
+    if (no.tipo === 'vec' || no.tipo === 'hat') {
+      saida.push(
+        <View key={chave} style={estilos.sobre}>
+          {no.tipo === 'vec' ? <Seta cor={ctx.cor} /> : <Chapeu cor={ctx.cor} />}
+          <View style={estilos.grupo}>{renderNos(no.filhos, ctx, `${chave}v`, true)}</View>
+        </View>
+      );
+      return;
+    }
+
+    if (no.tipo === 'bar') {
+      saida.push(
+        <View key={chave} style={[estilos.traco, { borderTopColor: ctx.cor }]}>
+          {renderNos(no.filhos, ctx, `${chave}b`, true)}
+        </View>
+      );
+      return;
+    }
+
+    if (no.tipo === 'mat') {
+      const colunas = Math.max(0, ...no.linhas.map((l) => l.length));
+      if (colunas === 0) return;
+      saida.push(
+        <View key={chave} style={estilos.matriz}>
+          <View style={[estilos.delimitador, estiloDelimitador(no.estilo, 'esq'), { borderColor: ctx.cor }]} />
+          <View style={estilos.grade}>
+            {Array.from({ length: colunas }).map((_, c) => (
+              <View key={c} style={estilos.coluna}>
+                {no.linhas.map((linha, r) => (
+                  <View key={r} style={[estilos.celula, { minHeight: ctx.altura }]}>
+                    {renderNos(linha[c] || [], ctx, `${chave}.${r}.${c}`, true)}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+          <View style={[estilos.delimitador, estiloDelimitador(no.estilo, 'dir'), { borderColor: ctx.cor }]} />
+        </View>
+      );
     }
   });
   return saida;
@@ -102,6 +181,7 @@ function Formula({ texto, style, fontFamilyNegrito }) {
     texto: estiloTexto,
     // dentro de fração/raiz a altura de linha encolhe, senão a fração fica altíssima
     compacto: { lineHeight: Math.round(tamanho * 1.3) },
+    altura: Math.round(tamanho * 1.5),   // altura mínima de cada linha da matriz
     cor: estiloTexto.color ?? '#FFFFFF',
     fontFamilyNegrito,
   };
@@ -134,8 +214,32 @@ export default function TextoFormatado({ children, style, fontFamilyNegrito, ...
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   quebra: { width: '100%', height: 0 },
+  grupo: { flexDirection: 'row', alignItems: 'center' },
   fracao: { alignItems: 'center', marginHorizontal: 3 },
   parte: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   barra: { height: 1.2, alignSelf: 'stretch', marginVertical: 1 },
   radicando: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1.2, paddingTop: 1, paddingHorizontal: 2 },
+
+  // vetor / chapéu: acento em cima, texto embaixo
+  sobre: { alignItems: 'stretch', marginHorizontal: 1 },
+  setaLinha: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', height: 6, marginBottom: 1 },
+  setaCorpo: { flex: 1, height: 1.2 },
+  setaPonta: {
+    width: 5, height: 5, borderTopWidth: 1.2, borderRightWidth: 1.2,
+    transform: [{ rotate: '45deg' }], marginLeft: -5, marginRight: 1,
+  },
+  chapeuLinha: { alignSelf: 'center', height: 6, marginBottom: 1, justifyContent: 'flex-end' },
+  chapeu: {
+    width: 5, height: 5, borderTopWidth: 1.2, borderLeftWidth: 1.2,
+    transform: [{ rotate: '45deg' }], marginBottom: -1,
+  },
+  // barra (segmento AB etc.)
+  traco: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1.2, paddingTop: 1, paddingHorizontal: 1 },
+
+  // matriz
+  matriz: { flexDirection: 'row', alignItems: 'stretch', marginHorizontal: 3, paddingVertical: 2 },
+  delimitador: { width: 6, alignSelf: 'stretch' },
+  grade: { flexDirection: 'row' },
+  coluna: { alignItems: 'center' },
+  celula: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
 });

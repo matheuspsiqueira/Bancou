@@ -11,7 +11,7 @@ from django.db.models import Count, Q
 from django.template.response import TemplateResponse
 
 from .models import Banca, Categoria, Orgao, Concurso, Materia, Questao, QuestaoImagem, Alternativa
-from .importador import importar_questoes_do_pdf, importar_questoes_de_json
+from .importador import importar_questoes_de_json
 from .campos import CampoTextoFormatado
 from .taxonomia import mesclar_materias, mesclar_orgaos, UF_CHOICES
 
@@ -66,11 +66,6 @@ class DadosDaProvaForm(forms.Form):
         return dados
 
 
-class ImportarProvaForm(DadosDaProvaForm):
-    pdf_prova = forms.FileField(label='PDF da Prova')
-    pdf_gabarito = forms.FileField(label='PDF do Gabarito', required=False)
-
-
 class ImportarJsonForm(DadosDaProvaForm):
     arquivo_json = forms.FileField(
         label='Arquivo JSON',
@@ -91,8 +86,8 @@ class ImportarJsonForm(DadosDaProvaForm):
 # ---------------------------------------------------------------------------
 
 AJUDA_MARCADOR = (
-    'Para colocar uma imagem no meio do texto, escreva [[img:1]] (o número é a "ordem" da imagem '
-    'no bloco Imagens, mais abaixo) na linha onde ela deve aparecer.'
+    'Para colocar uma imagem no meio do texto, use o botão "🖼 Imagem" da barra do editor '
+    '(o número é a "ordem" da imagem no bloco Imagens, mais abaixo).'
 )
 
 
@@ -246,14 +241,12 @@ class QuestaoAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         extras = [
-            path('importar-prova/', self.admin_site.admin_view(self.view_importar_prova), name='importar_prova'),
             path('importar-json/', self.admin_site.admin_view(self.view_importar_json), name='importar_json'),
         ]
         return extras + urls
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        extra_context['importar_url'] = 'importar-prova/'
         extra_context['importar_json_url'] = 'importar-json/'
         return super().changelist_view(request, extra_context=extra_context)
 
@@ -290,43 +283,6 @@ class QuestaoAdmin(admin.ModelAdmin):
                 f'🆕 Matérias novas criadas: {nomes}. Se alguma for a mesma de outra que já existe, '
                 f'use "Mesclar matérias" na lista de matérias.'
             )
-
-    # ------------------------------------------------------------------
-    # View de importação via PDF (com IA)
-    # ------------------------------------------------------------------
-
-    def view_importar_prova(self, request):
-        if request.method == 'POST':
-            form = ImportarProvaForm(request.POST, request.FILES)
-            if form.is_valid():
-                try:
-                    resultado = importar_questoes_do_pdf(
-                        banca=form.cleaned_data['banca'],
-                        concurso_nome=form.cleaned_data['concurso_nome'],
-                        cargo=form.cleaned_data['cargo'],
-                        ano=form.cleaned_data['ano'],
-                        pdf_prova=request.FILES['pdf_prova'],
-                        pdf_gabarito=request.FILES.get('pdf_gabarito'),
-                        orgao=form.cleaned_data['orgao'],
-                        nivel=form.cleaned_data['nivel'],
-                        uf=form.cleaned_data['uf'],
-                        caderno=form.cleaned_data['caderno'],
-                    )
-                    messages.success(request, f"✅ {resultado['total']} questões importadas para a fila de revisão!")
-                    self._avisos_de_materias(request, resultado)
-                    return redirect('../')
-                except Exception as e:
-                    messages.error(request, f'❌ Erro ao processar: {e}')
-        else:
-            form = ImportarProvaForm()
-
-        context = {
-            **self.admin_site.each_context(request),
-            'form': form,
-            'title': 'Importar Prova (PDF + IA)',
-            'opts': self.model._meta,
-        }
-        return render(request, 'admin/questoes/importar_prova.html', context)
 
     # ------------------------------------------------------------------
     # View de importação via JSON pronto (sem IA)

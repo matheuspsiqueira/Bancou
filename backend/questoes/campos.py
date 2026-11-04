@@ -34,7 +34,7 @@ _SIMBOLOS = [
     (915, 'Gama maiusculo'), (916, 'Delta maiusculo'), (920, 'Teta maiusculo'), (923, 'Lambda maiusculo'),
     (928, 'Pi maiusculo'), (931, 'Sigma maiusculo'), (934, 'Fi maiusculo'), (936, 'Psi maiusculo'), (937, 'Omega maiusculo'),
     # química e física
-    (8652, 'equilibrio reversivel'), (8593, 'seta cima'), (8595, 'seta baixo'), (8592, 'seta esquerda'), (197, 'angstrom'),
+    (8467, 'ele cursivo l litro comprimento lado'), (8652, 'equilibrio reversivel'), (8593, 'seta cima'), (8595, 'seta baixo'), (8592, 'seta esquerda'), (197, 'angstrom'),
 ]
 
 # Botões "Fração", "Raiz" e "Imagem": o django-tinymce só aceita função em `setup` como texto
@@ -134,6 +134,47 @@ _SETUP_FORMULAS = r"""function (editor) {
       ], function (d) { return montarRaiz(d.indice, d.radicando); });
     }
   });
+  // Vetor / Barra / Chapéu: acento em cima de uma ou mais letras
+  function montarSobre(tag, texto) {
+    texto = String(texto || '').trim();
+    return texto ? '<' + tag + '>' + fmt(texto) + '</' + tag + '>' : '';
+  }
+  [
+    ['vetor', 'vec', 'Vetor', 'Vetor (seta sobre a letra)', 'Letra(s) (ex.: F ou AB)'],
+    ['barra', 'bar', 'Barra', 'Barra sobre o texto (segmento AB, média…)', 'Letra(s) ou texto (ex.: AB)'],
+    ['chapeu', 'hat', 'Chapéu', 'Chapéu sobre a letra (vetor unitário, ângulo Â)', 'Letra (ex.: A)']
+  ].forEach(function (b) {
+    editor.ui.registry.addButton(b[0], {
+      text: b[2], tooltip: b[3],
+      onAction: function () {
+        abrir('Inserir ' + b[2].toLowerCase(), [
+          { type: 'input', name: 'texto', label: b[4] }
+        ], function (d) { return montarSobre(b[1], d.texto); });
+      }
+    });
+  });
+  // Matriz: uma linha da matriz por linha de texto, células separadas por ";" (a vírgula é decimal)
+  function montarMatriz(tipo, celulas) {
+    var linhas = String(celulas || '').split(/\r?\n/).filter(function (l) { return l.trim() !== ''; });
+    if (!linhas.length) return '';
+    var corpo = linhas.map(function (l) {
+      return '<lin>' + l.split(';').map(function (c) { return '<cel>' + fmt(c) + '</cel>'; }).join('') + '</lin>';
+    }).join('');
+    return '<' + tipo + '>' + corpo + '</' + tipo + '>';
+  }
+  editor.ui.registry.addButton('matriz', {
+    text: 'Matriz', tooltip: 'Matriz ou determinante',
+    onAction: function () {
+      abrir('Inserir matriz', [
+        { type: 'selectbox', name: 'tipo', label: 'Delimitador', items: [
+          { value: 'mat', text: 'Parênteses ( )' },
+          { value: 'matc', text: 'Colchetes [ ]' },
+          { value: 'det', text: 'Barras | | (determinante)' }
+        ] },
+        { type: 'textarea', name: 'celulas', label: 'Uma linha da matriz por linha; separe as células com ;  (ex.: 1; 2; 3)' }
+      ], function (d) { return montarMatriz(d.tipo, d.celulas); }, { tipo: 'mat', celulas: '' });
+    }
+  });
   editor.ui.registry.addButton('imagem', {
     text: '\uD83D\uDDBC Imagem', tooltip: 'Inserir marcador de imagem neste ponto do texto',
     onAction: function () {
@@ -154,11 +195,27 @@ _CSS_EDITOR = (
     'frac>num{display:block;border-bottom:1.5px solid currentColor;padding:0 4px}'
     'frac>den{display:block;padding:0 4px}'
     'rad{display:inline-block;vertical-align:middle;border-top:1.5px solid currentColor;padding:2px 2px 0}'
+    'vec,bar,hat{display:inline-block;vertical-align:middle;text-align:center}'
+    'vec::before{content:"\\2192";display:block;font-size:.65em;line-height:.9}'
+    'hat::before{content:"^";display:block;font-size:.8em;line-height:.9}'
+    'bar{border-top:1.5px solid currentColor}'
+    'mat,matc,det{display:inline-table;vertical-align:middle;margin:0 4px;padding:0 8px;'
+    'border-left:2px solid currentColor;border-right:2px solid currentColor}'
+    'mat{border-radius:10px}'
+    'det{border-left-width:1.5px;border-right-width:1.5px}'
+    'lin{display:table-row}'
+    'cel{display:table-cell;padding:1px 7px;text-align:center}'
 )
 
-_TOOLBAR_COMPACTA = 'bold italic underline superscript subscript | fracao raiz charmap | removeformat | undo redo'
+_TOOLBAR_COMPACTA = (
+    'bold italic underline superscript subscript | fracao raiz vetor barra chapeu matriz charmap '
+    '| removeformat | undo redo'
+)
 # Enunciado/contexto: ganham o botão "Imagem" (o marcador só vale nesses dois campos).
-_TOOLBAR_GRANDE = 'bold italic underline superscript subscript | fracao raiz imagem charmap | removeformat | undo redo'
+_TOOLBAR_GRANDE = (
+    'bold italic underline superscript subscript | fracao raiz vetor barra chapeu matriz imagem charmap '
+    '| removeformat | undo redo'
+)
 
 # license_key 'gpl' é obrigatório no TinyMCE 7 self-hosted (sem ele o editor
 # fica somente leitura). Sem menus: só o que a prova realmente usa.
@@ -176,8 +233,8 @@ _BASE = {
     'browser_spellcheck': True,
     'content_style': _CSS_EDITOR,
     'entity_encoding': 'raw',
-    'custom_elements': '~frac,~num,~den,~rad',
-    'extended_valid_elements': 'u,sup,sub,frac,num,den,rad',
+    'custom_elements': '~frac,~num,~den,~rad,~vec,~bar,~hat,~mat,~matc,~det,~lin,~cel',
+    'extended_valid_elements': 'u,sup,sub,frac,num,den,rad,vec,bar,hat,mat,matc,det,lin,cel',
     'setup': _SETUP_FORMULAS,
 }
 
