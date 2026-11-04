@@ -10,6 +10,7 @@ filtros diferentes se combinam com E):
   esfera  -> federal | estadual | municipal
   uf      -> RJ, SP… (estado do concurso; o órgão é genérico: TJ, PM, MP…)
   nivel   -> fundamental | medio | superior
+  cargo   -> texto do cargo, separado por "|" (cargos podem ter vírgula no nome)
 
 Compatibilidade: o app antigo manda ?tipo=banca|materia|concurso&id=N — continua valendo.
 """
@@ -36,7 +37,11 @@ CAMPOS_TEXTO = {
     'uf': 'concurso__uf',
     'nivel': 'concurso__nivel',
 }
-CAMPOS = {**CAMPOS_ID, **CAMPOS_TEXTO}
+# Cargo é texto livre (sem lista fixa de valores) e usa "|" como separador.
+CAMPO_CARGO = {'cargo': 'concurso__cargo'}
+SEPARADOR_CARGO = '|'
+
+CAMPOS = {**CAMPOS_ID, **CAMPOS_TEXTO, **CAMPO_CARGO}
 TIPOS_LEGADO = ('banca', 'materia', 'concurso')
 
 VALORES_VALIDOS = {
@@ -48,6 +53,10 @@ VALORES_VALIDOS = {
 
 def _lista(valor):
     return [v.strip() for v in str(valor or '').split(',') if v.strip()]
+
+
+def _lista_cargo(valor):
+    return [v.strip() for v in str(valor or '').split(SEPARADOR_CARGO) if v.strip()]
 
 
 def ler_filtros(params):
@@ -70,6 +79,10 @@ def ler_filtros(params):
             if invalidos:
                 raise ValueError(f'Filtro "{nome}" inválido: {", ".join(invalidos)}.')
             filtros[nome] = valores
+
+    cargos = _lista_cargo(params.get('cargo'))
+    if cargos:
+        filtros['cargo'] = cargos
 
     # app antigo: um filtro só, no formato ?tipo=banca&id=3
     tipo, id_ = params.get('tipo'), params.get('id')
@@ -157,6 +170,12 @@ class FiltrosDisponiveisView(APIView):
         bancas = _alfabetico(_agrupar(sem('banca'), 'concurso__banca_id', 'concurso__banca__nome'))
         orgaos = _alfabetico(_agrupar(sem('orgao'), 'concurso__orgao_id', 'concurso__orgao__nome'))
         materias = _alfabetico(_agrupar(sem('materia'), 'materia_id', 'materia__nome'))
+
+        # Cargos únicos: "Cadete do Exército" aparece uma vez só, somando todos os
+        # anos/órgãos/bancas. O id é o próprio texto do cargo.
+        cargos = _alfabetico(_agrupar(sem('cargo'), 'concurso__cargo', 'concurso__cargo'))
+
+        # Mantida para o app 1.0.2 já publicado (a tela nova usa `cargos`).
         concursos = _alfabetico(_agrupar(
             sem('concurso'), 'concurso_id', 'concurso__nome',
             ano='concurso__ano', cargo='concurso__cargo', uf='concurso__uf',
@@ -201,6 +220,7 @@ class FiltrosDisponiveisView(APIView):
             'ufs': ufs,
             'bancas': bancas,
             'orgaos': orgaos,
+            'cargos': cargos,
             'concursos': concursos,
             'materias': materias,
             'niveis': niveis,

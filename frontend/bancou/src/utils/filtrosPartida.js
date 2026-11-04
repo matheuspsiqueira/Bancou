@@ -5,26 +5,30 @@
 // Ordem em que os filtros aparecem na tela. `lista` = chave na resposta de
 // /api/questoes/filtros/.
 export const FILTROS = [
-  { chave: 'categoria', titulo: 'Categoria', lista: 'categorias', busca: false },
-  { chave: 'esfera',    titulo: 'Esfera',    lista: 'esferas',    busca: false },
-  { chave: 'uf',        titulo: 'Estado',    lista: 'ufs',        busca: true  },
-  { chave: 'orgao',     titulo: 'Órgão',     lista: 'orgaos',     busca: true  },
-  { chave: 'banca',     titulo: 'Banca',     lista: 'bancas',     busca: true  },
-  { chave: 'ano',       titulo: 'Ano',       lista: 'anos',       busca: false },
-  { chave: 'concurso',  titulo: 'Cargo',     lista: 'concursos',  busca: true  },
-  { chave: 'materia',   titulo: 'Matéria',   lista: 'materias',   busca: true  },
-  { chave: 'nivel',     titulo: 'Nível',     lista: 'niveis',     busca: false },
+  { chave: 'categoria', titulo: 'Categoria',         lista: 'categorias', busca: false },
+  { chave: 'esfera',    titulo: 'Esfera',            lista: 'esferas',    busca: false },
+  { chave: 'uf',        titulo: 'Estado',            lista: 'ufs',        busca: true  },
+  { chave: 'orgao',     titulo: 'Órgão',             lista: 'orgaos',     busca: true  },
+  { chave: 'banca',     titulo: 'Banca / Aplicador', lista: 'bancas',     busca: true  },
+  { chave: 'ano',       titulo: 'Ano',               lista: 'anos',       busca: false },
+  { chave: 'cargo',     titulo: 'Cargo',             lista: 'cargos',     busca: true  },
+  { chave: 'materia',   titulo: 'Matéria',           lista: 'materias',   busca: true  },
+  { chave: 'nivel',     titulo: 'Nível',             lista: 'niveis',     busca: false },
 ];
+
+// Cargo é texto livre e pode ter vírgula no nome ("Analista, Área Administrativa"),
+// então usa "|" como separador. Os demais filtros usam vírgula.
+const SEPARADOR = { cargo: '|' };
 
 export function temFiltroAtivo(selecao) {
   return FILTROS.some(({ chave }) => (selecao?.[chave] ?? []).length > 0);
 }
 
-/** Acrescenta os filtros escolhidos em um URLSearchParams (valores separados por vírgula). */
+/** Acrescenta os filtros escolhidos em um URLSearchParams (vírgula; "|" no cargo). */
 export function anexarFiltros(params, selecao) {
   FILTROS.forEach(({ chave }) => {
     const valores = selecao?.[chave] ?? [];
-    if (valores.length) params.append(chave, valores.join(','));
+    if (valores.length) params.append(chave, valores.join(SEPARADOR[chave] ?? ','));
   });
   return params;
 }
@@ -44,19 +48,9 @@ export function alternarValor(selecao, chave, id) {
   return { ...selecao, [chave]: proximo };
 }
 
-/**
- * Texto de uma opção do seletor. Concurso: o cargo é o título e embaixo vai
- * "órgão · banca · ano" (concursos antigos sem cargo usam o nome como título).
- */
+/** Texto de uma opção do seletor: título = nome da opção (o cargo, no filtro de Cargo). */
 export function rotuloOpcao(chave, item) {
-  if (chave === 'concurso') {
-    const cargo = String(item.cargo ?? '').trim();
-    return {
-      titulo: cargo || item.nome,
-      detalhe: [item.orgao_nome, item.banca_nome, item.ano].filter(Boolean).join(' · '),
-    };
-  }
-  return { titulo: item.nome, detalhe: '' };
+  return { titulo: String(item.nome ?? '').trim(), detalhe: '' };
 }
 
 /** "Todos", "TJRJ", "TJRJ, PRF" ou "3 selecionados". */
@@ -78,18 +72,10 @@ export function normalizarBusca(texto) {
  * Itens do seletor: opções vindas da API (já com `titulo` e `detalhe` prontos
  * para exibir) + as já escolhidas que sumiram do recorte atual (aparecem com 0
  * para o aluno conseguir desmarcar), filtradas pela busca. A ordem alfabética
- * vem do servidor; só a lista de cargos é reordenada aqui, porque o que
- * aparece como título (o cargo) não é o campo pelo qual o servidor ordena.
+ * vem do servidor.
  */
 export function itensDoSeletor(opcoes, selecionados, nomes, busca, chave) {
   const lista = (opcoes ?? []).map((o) => ({ ...o, ...rotuloOpcao(chave, o) }));
-  if (chave === 'concurso') {
-    lista.sort((a, b) =>
-      chaveTexto(a.titulo).localeCompare(chaveTexto(b.titulo), 'en') ||
-      chaveTexto(a.orgao_nome).localeCompare(chaveTexto(b.orgao_nome), 'en') ||
-      (b.ano ?? 0) - (a.ano ?? 0)
-    );
-  }
   const presentes = new Set(lista.map((o) => String(o.id)));
   const faltando = (selecionados ?? [])
     .filter((id) => !presentes.has(String(id)))
@@ -97,13 +83,7 @@ export function itensDoSeletor(opcoes, selecionados, nomes, busca, chave) {
   const termo = normalizarBusca(busca);
   const todos = [...faltando, ...lista];
   if (!termo) return todos;
-  return todos.filter((o) =>
-    normalizarBusca(`${o.titulo} ${o.nome} ${o.cargo ?? ''} ${o.orgao_nome ?? ''} ${o.banca_nome ?? ''} ${o.ano ?? ''}`).includes(termo)
-  );
-}
-
-function chaveTexto(t) {
-  return normalizarBusca(t);
+  return todos.filter((o) => normalizarBusca(`${o.titulo} ${o.nome}`).includes(termo));
 }
 
 /** Guarda id -> nome de cada opção que a API já mostrou (para o resumo das linhas). */
@@ -112,8 +92,7 @@ export function atualizarNomes(nomes, resposta) {
   FILTROS.forEach(({ chave, lista }) => {
     proximo[chave] = { ...(proximo[chave] ?? {}) };
     (resposta?.[lista] ?? []).forEach((o) => {
-      const { titulo } = rotuloOpcao(chave, o);
-      proximo[chave][o.id] = chave === 'concurso' && o.orgao_nome ? `${titulo} · ${o.orgao_nome}` : titulo;
+      proximo[chave][o.id] = rotuloOpcao(chave, o).titulo;
     });
   });
   return proximo;
