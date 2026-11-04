@@ -223,7 +223,12 @@ _BASE = {
     'license_key': 'gpl',
     'language': 'pt_BR',
     'menubar': False,
-    'statusbar': False,
+    # Barra de baixo só com a "alça" de arrastar para redimensionar (sem caminho de elementos)
+    'statusbar': True,
+    'elementpath': False,
+    'resize': True,
+    'min_height': 120,
+    'width': '100%',
     'branding': False,
     'promotion': False,
     'plugins': 'charmap',
